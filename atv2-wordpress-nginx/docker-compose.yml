@@ -1,0 +1,87 @@
+version: "3.8"
+
+services:
+  # ─── Banco de dados MySQL ───────────────────────────────────────────────────
+  mysql:
+    image: mysql:5.7
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+    # Não expõe porta para a máquina hospedeira (acesso apenas pelos Wordpress)
+    networks:
+      - backend
+
+  # ─── Instância WordPress 1 ─────────────────────────────────────────────────
+  wordpress1:
+    image: wordpress:5.4.2-php7.2-apache
+    restart: always
+    depends_on:
+      - mysql
+    environment:
+      WORDPRESS_DB_HOST: mysql:3306
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+    volumes:
+      - ./html:/var/www/html
+    # Sem mapeamento de porta para o host (acesso apenas pelo Nginx)
+    networks:
+      - backend
+
+  # ─── Instância WordPress 2 ─────────────────────────────────────────────────
+  wordpress2:
+    image: wordpress:5.4.2-php7.2-apache
+    restart: always
+    depends_on:
+      - mysql
+    environment:
+      WORDPRESS_DB_HOST: mysql:3306
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+    volumes:
+      - ./html:/var/www/html
+    networks:
+      - backend
+
+  # ─── Instância WordPress 3 ─────────────────────────────────────────────────
+  wordpress3:
+    image: wordpress:5.4.2-php7.2-apache
+    restart: always
+    depends_on:
+      - mysql
+    environment:
+      WORDPRESS_DB_HOST: mysql:3306
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+    volumes:
+      - ./html:/var/www/html
+    networks:
+      - backend
+
+  # ─── Nginx (balanceador de carga) ──────────────────────────────────────────
+  nginx:
+    image: nginx:1.19.0
+    restart: always
+    depends_on:
+      - wordpress1
+      - wordpress2
+      - wordpress3
+    ports:
+      - "80:80" # Único serviço exposto ao host
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro # configuração do nginx
+      - ./html:/usr/share/nginx/html:ro # conteúdo compartilhado
+    networks:
+      - frontend
+      - backend
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
