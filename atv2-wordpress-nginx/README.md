@@ -62,7 +62,7 @@ O Docker vai baixar as imagens automaticamente na primeira execução. Aguarde a
 docker-compose ps
 ```
 
-Você deve ver **5 contêineres** com status `Up`:
+Deve ser possível ver **5 contêineres** com status `Up`:
 
 | Nome       | Imagem                        | Porta      |
 | ---------- | ----------------------------- | ---------- |
