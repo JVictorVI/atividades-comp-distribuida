@@ -1,0 +1,100 @@
+version: "3.8"
+
+services:
+  mysql:
+    image: mysql:5.7
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - backend
+
+  wordpress1:
+    image: wordpress:5.4.2-php7.2-apache
+    restart: always
+    depends_on:
+      - mysql
+    environment:
+      WORDPRESS_DB_HOST: mysql:3306
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+    volumes:
+      - ./html:/var/www/html
+    networks:
+      - backend
+
+  wordpress2:
+    image: wordpress:5.4.2-php7.2-apache
+    restart: always
+    depends_on:
+      - mysql
+    environment:
+      WORDPRESS_DB_HOST: mysql:3306
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+    volumes:
+      - ./html:/var/www/html
+    networks:
+      - backend
+
+  wordpress3:
+    image: wordpress:5.4.2-php7.2-apache
+    restart: always
+    depends_on:
+      - mysql
+    environment:
+      WORDPRESS_DB_HOST: mysql:3306
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+    volumes:
+      - ./html:/var/www/html
+    networks:
+      - backend
+
+  nginx:
+    image: nginx:1.19.0
+    restart: always
+    depends_on:
+      - wordpress1
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./html:/usr/share/nginx/html:ro
+    networks:
+      - backend
+
+  locust:
+    image: locustio/locust:2.31.8
+    depends_on:
+      - nginx
+    ports:
+      - "8089:8089"
+    volumes:
+      - ./locustfile.py:/mnt/locust/locustfile.py:ro
+      - ./results:/mnt/results
+    working_dir: /mnt/locust
+    environment:
+      TARGET_HOST: http://nginx
+      POST_1MB_PATH: "/?p=1"
+      POST_TEXT_400KB_PATH: "/?p=2"
+      POST_300KB_PATH: "/?p=3"
+      SCENARIO: "all"
+    command: -f /mnt/locust/locustfile.py --host http://nginx
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  mysql_data:
