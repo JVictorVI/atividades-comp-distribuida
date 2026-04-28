@@ -1,71 +1,138 @@
-# Trabalho 3 – Testes de Carga com WordPress e Locust
+# Testes de Carga com WordPress + Locust
 
-## Descrição
+## Visão Geral
 
-Este projeto tem como objetivo realizar **testes de carga em um ambiente com múltiplas instâncias do WordPress**, utilizando o **Locust** como ferramenta de geração de carga.
+Este projeto realiza testes de carga automatizados em um ambiente com múltiplas instâncias do WordPress, utilizando:
 
-A arquitetura foi herdada do Trabalho 2, composta por:
+- Locust para geração de carga;
+- Docker Compose para orquestração dos serviços;
+- Nginx como balanceador de carga;
+- MySQL como banco de dados compartilhado;
+- Python para consolidação dos resultados e geração de gráficos.
 
-- 1 Nginx (balanceador de carga)
-- 1 MySQL (banco compartilhado)
-- 1 a 3 instâncias do WordPress
-- 1 container Locust (geração de carga)
+O objetivo é avaliar o desempenho, a escalabilidade e o comportamento do WordPress sob diferentes níveis de carga e diferentes quantidades de instâncias.
 
 ---
 
 ## Arquitetura
 
-- O Nginx distribui requisições entre múltiplas instâncias do WordPress.
-- Todas as instâncias compartilham:
-  - Banco MySQL
-  - Volume de arquivos (`html`)
+O ambiente é composto por:
 
-- O MySQL utiliza **volume persistente**, garantindo que os dados não sejam perdidos entre execuções.
+- 1 Nginx;
+- 1 MySQL;
+- 1 a 3 instâncias WordPress;
+- 1 container Locust.
+
+Fluxo geral:
+
+```text
+Usuários simulados pelo Locust
+        ↓
+      Nginx
+        ↓
+WordPress 1, 2 ou 3 instâncias
+        ↓
+      MySQL
+```
+
+O Nginx distribui as requisições entre as instâncias ativas do WordPress. Todas as instâncias compartilham o mesmo banco MySQL e o mesmo volume de arquivos.
 
 ---
 
-## Arquivos principais
+## Tipos de Teste
 
-| Arquivo              | Função                                          |
-| -------------------- | ----------------------------------------------- |
-| `docker-compose.yml` | Define MySQL, WordPress, Nginx e Locust         |
-| `nginx-1.conf`       | Nginx com 1 instância WordPress                 |
-| `nginx-2.conf`       | Nginx com 2 instâncias WordPress                |
-| `nginx-3.conf`       | Nginx com 3 instâncias WordPress                |
-| `nginx.conf`         | Configuração ativa usada pelo Nginx             |
-| `locustfile.py`      | Script com os cenários de carga                 |
-| `run_benchmarks.sh`  | Executa todos os testes no Linux/macOS/Git Bash |
-| `run_benchmarks.ps1` | Executa todos os testes no PowerShell           |
-| `generate_graphs.py` | Gera gráficos a partir dos CSVs do Locust       |
+O projeto utiliza quatro arquivos Locust, cada um representando um tipo de carga diferente.
+
+| Tipo de teste | Arquivo                   | Descrição                                               |
+| ------------- | ------------------------- | ------------------------------------------------------- |
+| Light         | `locust/locust_light.py`  | Acessa o post com imagem de aproximadamente 300KB       |
+| Medium        | `locust/locust_medium.py` | Acessa o post com texto de aproximadamente 400KB        |
+| Heavy         | `locust/locust_heavy.py`  | Acessa o post com imagem de aproximadamente 1MB         |
+| Hybrid        | `locust/locust_hybrid.py` | Executa requisições em sequência: leve → médio → pesado |
 
 ---
 
-## Persistência de Dados
+## Funcionamento dos Testes
 
-O banco de dados é persistido via volume Docker:
+Cada teste é executado variando:
 
-```yaml
-mysql:
-  volumes:
-    - mysql_data:/var/lib/mysql
+- quantidade de instâncias WordPress: 1, 2 e 3;
+- quantidade de usuários simultâneos: 10, 100 e 1000;
+- tipo de carga: light, medium, heavy e hybrid.
 
-volumes:
-  mysql_data:
+Com isso, o projeto executa:
+
+```text
+4 tipos de teste × 3 quantidades de instâncias × 3 níveis de usuários = 36 execuções
 ```
 
-Importante:
+Cada execução gera arquivos CSV brutos do Locust dentro da pasta `results/`.
 
-```bash
-docker compose down
+---
+
+## Comportamento do Teste Híbrido
+
+O teste híbrido executa os três cenários em sequência:
+
+```text
+leve → médio → pesado → repete
 ```
 
-Não use:
+Ou seja, cada usuário simulado acessa primeiro o cenário leve, depois o médio, depois o pesado, repetindo essa ordem durante a execução.
 
-```bash
-docker compose down -v
+---
+
+## Estrutura do Projeto
+
+```text
+.
+├── locust/
+│   ├── locust_light.py
+│   ├── locust_medium.py
+│   ├── locust_heavy.py
+│   └── locust_hybrid.py
+│
+├── results/
+│   └── CSVs brutos gerados pelo Locust
+│
+├── consolidated/
+│   └── resultados_consolidados.csv
+│
+├── graphs/
+│   ├── por_usuarios/
+│   └── por_instancias/
+|
+|── nginx/
+│   ├── nginx-1.conf
+│   |── nginx-2.conf
+|   └── nginx-3.conf
+│
+├── docker-compose.yml
+├── run_benchmarks_4tests.ps1
+├── run_benchmarks_4tests.sh
+├── consolidate_results.py
+└── generate_graphs.py
 ```
 
-Pois isso apagará o banco de dados.
+---
+
+## Posts Necessários no WordPress
+
+Antes de executar os testes, crie os seguintes posts no WordPress:
+
+| Tipo   | Conteúdo                        | Slug              |
+| ------ | ------------------------------- | ----------------- |
+| Light  | Imagem de aproximadamente 300KB | `imagem-de-300kb` |
+| Medium | Texto de aproximadamente 400KB  | `texto-de-400kb`  |
+| Heavy  | Imagem de aproximadamente 1MB   | `imagem-com-1mb`  |
+
+As URLs esperadas são:
+
+```text
+http://localhost/?name=imagem-de-300kb
+http://localhost/?name=texto-de-400kb
+http://localhost/?name=imagem-com-1mb
+```
 
 ---
 
@@ -77,194 +144,212 @@ Pois isso apagará o banco de dados.
 docker compose up -d
 ```
 
-Aguarde cerca de **60 segundos** para inicialização completa.
+Aguarde alguns segundos para o MySQL, WordPress e Nginx inicializarem corretamente.
 
 ---
 
-### 2. Criar os posts de teste
+### 2. Executar os testes
 
-Crie **3 posts no WordPress**, com os seguintes slugs:
+No Windows PowerShell:
 
-| Cenário | Conteúdo      | Slug              |
-| ------- | ------------- | ----------------- |
-| 1       | Imagem ~1MB   | `imagem-com-1mb`  |
-| 2       | Texto ~400KB  | `texto-de-400kb`  |
-| 3       | Imagem ~300KB | `imagem-de-300kb` |
-
----
-
-### 3. Validar acesso
-
-Teste no navegador:
-
-```text
-http://localhost/?name=imagem-com-1mb
-http://localhost/?name=texto-de-400kb
-http://localhost/?name=imagem-de-300kb
+```powershell
+powershell -ExecutionPolicy Bypass -File .\run_benchmarks_4tests.ps1
 ```
 
-Se abrir corretamente, os testes funcionarão.
-
----
-
-## Execução dos Testes
-
-Windows PowerShell
+No Linux, macOS ou Git Bash:
 
 ```bash
-powershell -ExecutionPolicy Bypass -File .\run_benchmarks.ps1
+bash run_benchmarks_4tests.sh
 ```
 
-ou (Linux/macOS):
+O script irá:
 
-```bash
-bash run_benchmarks.sh
-```
+- configurar o Nginx para 1, 2 ou 3 instâncias;
+- subir as instâncias necessárias do WordPress;
+- executar os quatro tipos de teste;
+- variar os usuários entre 10, 100 e 1000;
+- salvar os CSVs brutos em `results/`.
 
 ---
 
-## O que o script faz
+## Resultados Brutos
 
-Para cada combinação:
-
-- Instâncias: 1, 2, 3
-- Usuários: 10, 100, 1000
-
-Ele:
-
-1. Ajusta o Nginx automaticamente
-2. Sobe o ambiente correto
-3. Executa o Locust
-4. Salva resultados em CSV
-
----
-
-## Resultados
-
-Os resultados são gerados em:
+Os arquivos brutos do Locust são salvos em:
 
 ```text
-/results
+results/
 ```
 
-Exemplo:
+Exemplos:
 
 ```text
-result_1inst_10users_stats.csv
-result_3inst_1000users_stats.csv
+light_1wp_10users_stats.csv
+medium_2wp_100users_stats.csv
+heavy_3wp_1000users_stats.csv
+hybrid_1wp_100users_stats.csv
 ```
 
 ---
 
-## Geração de Gráficos
+## Consolidar Resultados
 
-Execute:
-
-```bash
-python generate_graphs.py
-```
-
-Os gráficos serão salvos em:
-
-```text
-/graphs
-```
-
----
-
-## Consolidação dos Resultados
-
-Execute:
+Para gerar o CSV consolidado:
 
 ```bash
 python consolidate_results.py
 ```
 
-Saída:
+Saída gerada:
 
 ```text
-/consolidated/resultados_consolidados.csv
-/consolidated/resultados_consolidados.xlsx
+consolidated/resultados_consolidados.csv
+```
+
+Esse arquivo reúne os principais dados de todas as execuções, incluindo:
+
+- cenário;
+- número de instâncias;
+- número de usuários;
+- total de requisições;
+- total de falhas;
+- tempo médio de resposta;
+- mediana;
+- menor tempo;
+- maior tempo;
+- percentil 95;
+- percentil 99;
+- requisições por segundo;
+- falhas por segundo.
+
+---
+
+## Gerar Gráficos
+
+Para gerar os gráficos:
+
+```bash
+python generate_graphs.py
+```
+
+Os gráficos são salvos na pasta:
+
+```text
+graphs/
+```
+
+A estrutura fica assim:
+
+```text
+graphs/
+├── por_usuarios/
+│   ├── avg_response_ms/
+│   ├── median_response_ms/
+│   ├── p95_response_ms/
+│   ├── p99_response_ms/
+│   ├── rps/
+│   └── failures/
+│
+└── por_instancias/
+    ├── avg_response_ms/
+    ├── median_response_ms/
+    ├── p95_response_ms/
+    ├── p99_response_ms/
+    ├── rps/
+    └── failures/
 ```
 
 ---
 
-## Validação dos Testes
+## Métricas Analisadas
 
-Os testes são considerados válidos quando:
+| Métrica              | Significado                                                |
+| -------------------- | ---------------------------------------------------------- |
+| `avg_response_ms`    | Tempo médio de resposta em milissegundos                   |
+| `median_response_ms` | Mediana do tempo de resposta                               |
+| `p95_response_ms`    | Tempo abaixo do qual 95% das requisições foram respondidas |
+| `p99_response_ms`    | Tempo abaixo do qual 99% das requisições foram respondidas |
+| `rps`                | Requisições por segundo                                    |
+| `failures`           | Quantidade total de falhas                                 |
+| `failures_s`         | Falhas por segundo                                         |
 
-- Todos os cenários aparecem no CSV
-- `Request Count > 0`
-- `Failure Count = 0`
-- Status HTTP = 200
+---
+
+## Interpretação dos Resultados
+
+Algumas leituras importantes:
+
+- quanto menor a latência média, melhor o tempo de resposta;
+- quanto menor o p95 e o p99, melhor o comportamento nas requisições mais lentas;
+- quanto maior o RPS, maior a vazão do sistema;
+- falhas indicam saturação, erro de aplicação ou indisponibilidade;
+- comparar 1, 2 e 3 instâncias permite avaliar se o sistema escala horizontalmente;
+- comparar light, medium, heavy e hybrid permite entender o impacto do tipo de conteúdo.
 
 ---
 
 ## Problemas Comuns
 
-### 404 Not Found
+### Erro 404
 
-Causa:
-
-- Post não existe
-- URL incorreta
-- Permalinks não configurados
-
-Solução:
-
-- Usar:
+Verifique se os posts foram criados com os slugs corretos:
 
 ```text
-/?name=slug-do-post
+imagem-de-300kb
+texto-de-400kb
+imagem-com-1mb
 ```
 
 ---
 
-### Nginx não encontra instâncias
+### Locust não encontra o arquivo
 
-Causa:
+Confirme se os arquivos estão dentro da pasta `locust/` e se o volume no `docker-compose.yml` está correto:
 
-- Configuração de upstream incorreta
-
-Solução:
-
-- Usar arquivos `nginx-1.conf`, `nginx-2.conf`, `nginx-3.conf`
+```yaml
+volumes:
+  - ./locust:/mnt/locust
+```
 
 ---
 
-### Locust não gera CSV
+### Erro de permissão ao salvar CSV
 
-Causa:
+Use o caminho interno correto no script:
 
-- Pasta `results` inexistente
+```text
+/mnt/locust/results
+```
 
-Solução:
+E garanta que a pasta `results/` existe no projeto.
+
+---
+
+## Fluxo Recomendado
 
 ```bash
-mkdir results
+docker compose up -d
+bash run_benchmarks_4tests.sh
+python consolidate_results.py
+python generate_graphs.py
+```
+
+No Windows:
+
+```powershell
+docker compose up -d
+powershell -ExecutionPolicy Bypass -File .\run_benchmarks_4tests.ps1
+python consolidate_results.py
+python generate_graphs.py
 ```
 
 ---
 
-## Métricas coletadas
+## Saídas Finais
 
-O Locust gera arquivos CSV com métricas como:
+Ao final do processo, os principais artefatos são:
 
-- número de requisições;
-- número de falhas;
-- tempo médio de resposta;
-- mediana;
-- percentis de latência;
-- requisições por segundo;
-- falhas por segundo.
-
-As principais métricas para análise são:
-
-| Métrica                 | Interpretação                                              |
-| ----------------------- | ---------------------------------------------------------- |
-| Tempo médio de resposta | Quanto tempo, em média, o WordPress levou para responder   |
-| Percentil 95            | Tempo abaixo do qual 95% das requisições foram respondidas |
-| Requisições por segundo | Vazão do sistema durante o teste                           |
-| Falhas                  | Quantidade de erros durante a execução                     |
-
----
+```text
+results/                               # CSVs brutos do Locust
+consolidated/resultados_consolidados.csv
+graphs/                               # gráficos organizados por eixo e métrica
+```

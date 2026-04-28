@@ -6,13 +6,13 @@ import matplotlib.pyplot as plt
 RESULTS_DIR = Path("results")
 GRAPHS_DIR = Path("graphs")
 
-RESULTS_DIR.mkdir(exist_ok=True)
-GRAPHS_DIR.mkdir(exist_ok=True)
+GRAPHS_USERS_DIR = GRAPHS_DIR / "por_usuarios"
+GRAPHS_INSTANCES_DIR = GRAPHS_DIR / "por_instancias"
 
-# Aceita nomes como:
-# result_1inst_10users_stats.csv
-# cenario_1_1wp_10users_stats.csv
-# imagem_1mb_3wp_100users_stats.csv
+RESULTS_DIR.mkdir(exist_ok=True)
+GRAPHS_USERS_DIR.mkdir(parents=True, exist_ok=True)
+GRAPHS_INSTANCES_DIR.mkdir(parents=True, exist_ok=True)
+
 patterns = [
     re.compile(r"(?P<scenario>.+)_(?P<instances>\d+)wp_(?P<users>\d+)users_stats\.csv"),
     re.compile(r"(?P<scenario>.+)_(?P<instances>\d+)inst_(?P<users>\d+)users_stats\.csv"),
@@ -20,6 +20,7 @@ patterns = [
 ]
 
 rows = []
+
 
 def parse_filename(filename: str):
     for pattern in patterns:
@@ -34,11 +35,24 @@ def parse_filename(filename: str):
     return None
 
 
+def safe_name(value):
+    return (
+        str(value)
+        .replace(" ", "_")
+        .replace("/", "_")
+        .replace("\\", "_")
+        .replace(":", "_")
+    )
+
+
+# =========================
+# Leitura dos CSVs
+# =========================
 for file in RESULTS_DIR.glob("*_stats.csv"):
     parsed = parse_filename(file.name)
 
     if not parsed:
-        print(f"Ignorando arquivo com nome fora do padrão: {file.name}")
+        print(f"Ignorando arquivo fora do padrao: {file.name}")
         continue
 
     df = pd.read_csv(file)
@@ -47,10 +61,8 @@ for file in RESULTS_DIR.glob("*_stats.csv"):
         print(f"Ignorando CSV vazio: {file.name}")
         continue
 
-    # Locust geralmente cria uma linha Aggregated
     total = df[df["Name"] == "Aggregated"]
 
-    # Se não tiver Aggregated, pega a última linha
     if total.empty:
         total = df.tail(1)
 
@@ -75,8 +87,7 @@ for file in RESULTS_DIR.glob("*_stats.csv"):
 
 if not rows:
     raise SystemExit(
-        "Nenhum CSV válido do Locust encontrado em results/. "
-        "Verifique se existem arquivos terminando com _stats.csv."
+        "Nenhum CSV valido encontrado em results/. Verifique os arquivos *_stats.csv."
     )
 
 summary = pd.DataFrame(rows)
@@ -88,28 +99,30 @@ summary.to_csv(summary_path, index=False)
 print("\nResumo dos resultados:")
 print(summary)
 
+# =========================
+# Métricas
+# =========================
 metrics = {
-    "avg_response_ms": "Tempo médio de resposta (ms)",
+    "avg_response_ms": "Tempo medio de resposta (ms)",
     "median_response_ms": "Mediana do tempo de resposta (ms)",
-    "p95_response_ms": "Percentil 95 de resposta (ms)",
-    "p99_response_ms": "Percentil 99 de resposta (ms)",
-    "rps": "Requisições por segundo",
+    "p95_response_ms": "Percentil 95 (ms)",
+    "p99_response_ms": "Percentil 99 (ms)",
+    "rps": "Requisicoes por segundo",
     "failures": "Falhas",
 }
 
+# =========================
+# Geração dos gráficos
+# =========================
 for scenario in summary["scenario"].unique():
     data_scenario = summary[summary["scenario"] == scenario]
+    safe_scenario = safe_name(scenario)
 
-    safe_scenario = (
-        str(scenario)
-        .replace(" ", "_")
-        .replace("/", "_")
-        .replace("\\", "_")
-        .replace(":", "_")
-    )
-
-    # Gráficos por usuários
+    # ----------- POR USUÁRIOS -----------
     for metric, ylabel in metrics.items():
+        metric_dir = GRAPHS_USERS_DIR / metric
+        metric_dir.mkdir(parents=True, exist_ok=True)
+
         plt.figure(figsize=(9, 5))
 
         for instances in sorted(data_scenario["instances"].unique()):
@@ -120,22 +133,25 @@ for scenario in summary["scenario"].unique():
                 data_line["users"],
                 data_line[metric],
                 marker="o",
-                label=f"{instances} instância(s)"
+                label=f"{instances} instancia(s)"
             )
 
-        plt.title(f"{scenario} - {ylabel} por usuários")
-        plt.xlabel("Usuários simultâneos")
+        plt.title(f"{scenario} - {ylabel} por usuarios")
+        plt.xlabel("Usuarios simultaneos")
         plt.ylabel(ylabel)
         plt.legend()
         plt.grid(True, alpha=0.3)
         plt.tight_layout()
 
-        output = GRAPHS_DIR / f"{safe_scenario}_{metric}_por_usuarios.png"
+        output = metric_dir / f"{safe_scenario}_{metric}_usuarios.png"
         plt.savefig(output, dpi=150)
         plt.close()
 
-    # Gráficos por instâncias
+    # ----------- POR INSTÂNCIAS -----------
     for metric, ylabel in metrics.items():
+        metric_dir = GRAPHS_INSTANCES_DIR / metric
+        metric_dir.mkdir(parents=True, exist_ok=True)
+
         plt.figure(figsize=(9, 5))
 
         for users in sorted(data_scenario["users"].unique()):
@@ -146,20 +162,21 @@ for scenario in summary["scenario"].unique():
                 data_line["instances"],
                 data_line[metric],
                 marker="o",
-                label=f"{users} usuários"
+                label=f"{users} usuarios"
             )
 
-        plt.title(f"{scenario} - {ylabel} por instâncias")
-        plt.xlabel("Quantidade de instâncias WordPress")
+        plt.title(f"{scenario} - {ylabel} por instancias")
+        plt.xlabel("Quantidade de instancias WordPress")
         plt.ylabel(ylabel)
         plt.xticks(sorted(data_scenario["instances"].unique()))
         plt.legend()
         plt.grid(True, alpha=0.3)
         plt.tight_layout()
 
-        output = GRAPHS_DIR / f"{safe_scenario}_{metric}_por_instancias.png"
+        output = metric_dir / f"{safe_scenario}_{metric}_instancias.png"
         plt.savefig(output, dpi=150)
         plt.close()
 
 print(f"\nResumo salvo em: {summary_path}")
-print(f"Gráficos salvos em: {GRAPHS_DIR}/")
+print(f"Graficos por usuarios: {GRAPHS_USERS_DIR}/")
+print(f"Graficos por instancias: {GRAPHS_INSTANCES_DIR}/")

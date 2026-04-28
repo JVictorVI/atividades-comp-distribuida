@@ -1,0 +1,16 @@
+# Pastas geradas automaticamente
+html/
+results/
+graphs/
+consolidated/
+
+# Python
+__pycache__/
+*.pyc
+
+# Locust outputs extras
+*.log
+
+# Sistema
+.DS_Store
+Thumbs.db

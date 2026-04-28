@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   mysql:
     image: mysql:5.7
@@ -79,16 +77,12 @@ services:
     ports:
       - "8089:8089"
     volumes:
-      - ./locustfile.py:/mnt/locust/locustfile.py:ro
-      - ./results:/mnt/results
+      - ./locust:/mnt/locust
+      - ./results:/mnt/locust/results
     working_dir: /mnt/locust
     environment:
       TARGET_HOST: http://nginx
-      POST_1MB_PATH: "/?p=1"
-      POST_TEXT_400KB_PATH: "/?p=2"
-      POST_300KB_PATH: "/?p=3"
-      SCENARIO: "all"
-    command: -f /mnt/locust/locustfile.py --host http://nginx
+    command: -f /mnt/locust/locust_light.py --host http://nginx
     networks:
       - backend
 
