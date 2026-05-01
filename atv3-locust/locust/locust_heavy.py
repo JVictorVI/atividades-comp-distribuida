@@ -1,7 +1,6 @@
-from locust import HttpUser, task, between
+from locust import HttpUser, task
 
 class HeavyUser(HttpUser):
-    wait_time = between(2, 4)
 
     @task
     def heavy(self):

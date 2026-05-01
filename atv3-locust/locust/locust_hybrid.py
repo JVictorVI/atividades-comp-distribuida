@@ -1,7 +1,6 @@
-from locust import HttpUser, task, between
+from locust import HttpUser, task
 
 class HybridUser(HttpUser):
-    wait_time = between(1, 2)
 
     @task
     def hybrid(self):

@@ -1,4 +1,4 @@
-$usersList = @(10, 100, 1000)
+$usersList = @(10, 50, 125)
 $instancesList = @(1, 2, 3)
 
 $tests = @(
@@ -8,8 +8,8 @@ $tests = @(
     @{ name = "hybrid"; file = "locust_hybrid.py" }
 )
 
-$runTime = "1m"
-$spawnRate = 10
+$runTime = "2m"
+$spawnRate = 5
 $resultsDir = "results"
 
 New-Item -ItemType Directory -Force -Path $resultsDir | Out-Null

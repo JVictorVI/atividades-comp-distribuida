@@ -72,6 +72,7 @@ services:
 
   locust:
     image: locustio/locust:2.31.8
+    user: "0:0"
     depends_on:
       - nginx
     ports:
