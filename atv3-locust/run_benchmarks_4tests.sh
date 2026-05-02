@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-USERS_LIST=(10 100 1000)
+# USERS_LIST=(25 75 155) 1%-5% de erros
+USERS_LIST=(25 75 159) # 5%-10% de erros
 INSTANCES_LIST=(1 2 3)
 
-RUN_TIME="1m"
-SPAWN_RATE="10"
+RUN_TIME="2m"
+SPAWN_RATE="3"
 RESULTS_DIR="results"
 GRAPHS_DIR="graphs"
 
