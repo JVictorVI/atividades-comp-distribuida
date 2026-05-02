@@ -4,4 +4,4 @@ class LightUser(HttpUser):
 
     @task
     def light(self):
-        self.client.get("/?name=imagem-com-300kb", name="leve")
+        self.client.get("/?name=imagem-300kb", name="leve")

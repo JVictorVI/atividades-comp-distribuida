@@ -4,4 +4,4 @@ class MediumUser(HttpUser):
 
     @task
     def medium(self):
-        self.client.get("/?name=texto-de-400kb", name="medio")
+        self.client.get("/?name=texto-400kb", name="medio")

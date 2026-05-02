@@ -1,4 +1,4 @@
-$usersList = @(10, 50, 125)
+$usersList = @(25, 75, 155)
 $instancesList = @(1, 2, 3)
 
 $tests = @(
@@ -9,7 +9,7 @@ $tests = @(
 )
 
 $runTime = "2m"
-$spawnRate = 5
+$spawnRate = 3
 $resultsDir = "results"
 
 New-Item -ItemType Directory -Force -Path $resultsDir | Out-Null

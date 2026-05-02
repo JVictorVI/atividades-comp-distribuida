@@ -4,4 +4,4 @@ class HeavyUser(HttpUser):
 
     @task
     def heavy(self):
-        self.client.get("/?name=imagem-com-1mb", name="pesado")
+        self.client.get("/?name=imagem-1mb", name="pesado")
