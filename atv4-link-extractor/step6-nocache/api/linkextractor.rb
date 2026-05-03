@@ -4,6 +4,7 @@ require 'nokogiri'
 require 'json'
 require 'uri'
 
+set :protection, :except => :path_traversal
 set :bind, '0.0.0.0'
 set :port, 4567
 
@@ -25,16 +26,12 @@ def extract_links(url)
   links.compact
 end
 
-get '/api/:url' do
+get '/api/*' do
   content_type :json
-  url = params[:url]
+  url = [params['splat'].first, request.query_string].reject(&:empty?).join('?')
 
   begin
-    {
-      url: url,
-      links: extract_links(url),
-      cached: false
-    }.to_json
+    extract_links(url).to_json
   rescue StandardError => e
     status 500
     { error: e.message }.to_json

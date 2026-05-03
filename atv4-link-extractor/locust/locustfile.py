@@ -1,5 +1,4 @@
-from locust import HttpUser, task, between
-import random
+from locust import HttpUser, task
 
 URLS = [
     "https://www.tudogostoso.com.br", #197.995 
@@ -16,6 +15,6 @@ URLS = [
 
 class LinkExtractorUser(HttpUser):
     @task
-    def extract_links(self):
-        url = random.choice(URLS)
-        self.client.get(f"/?url={url}")
+    def extract_links_sequence(self):
+        for url in URLS:
+            self.client.get("/", params={"url": url}, name="/?url=<target>")
