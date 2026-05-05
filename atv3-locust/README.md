@@ -43,9 +43,9 @@ MySQL (compartilhado)
 
 | Cenário | Descrição                             |
 | ------- | ------------------------------------- |
-| Light   | Requisição de imagem (~300KB)         |
+| Light   | Requisição de texto (~300KB)          |
 | Medium  | Requisição de texto (~400KB)          |
-| Heavy   | Requisição de imagem (~1MB)           |
+| Heavy   | Requisição de texto (~1MB)            |
 | Hybrid  | Execução sequencial dos três cenários |
 
 ---

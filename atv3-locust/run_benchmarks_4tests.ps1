@@ -1,5 +1,5 @@
-# $usersList = @(25, 75, 155) 1%-5% de erros
-$usersList = @(25, 75, 159) # 5%-10% de erros
+#$usersList = @(25, 75, 159) # 5%-10% de erros
+$usersList = @(159) # 5%-10% de erros
 $instancesList = @(1, 2, 3)
 
 $tests = @(

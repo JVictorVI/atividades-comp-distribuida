@@ -11,4 +11,4 @@ RUN        bundle install
 COPY       linkextractor.rb /app/
 RUN        chmod a+x linkextractor.rb
 
-CMD        ["./linkextractor.rb", "-o", "0.0.0.0"]
+CMD        ["ruby", "linkextractor.rb", "-o", "0.0.0.0"]

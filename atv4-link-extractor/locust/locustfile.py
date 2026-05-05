@@ -17,4 +17,4 @@ class LinkExtractorUser(HttpUser):
     @task
     def extract_links_sequence(self):
         for url in URLS:
-            self.client.get("/", params={"url": url}, name="/?url=<target>")
+            self.client.get(f"/api/{url}", name="/api/<target>")
