@@ -44,6 +44,17 @@ scenario_labels = {
     "hybrid": "Híbrido",
 }
 
+scenario_order = {
+    "leve": 0,
+    "light": 0,
+    "medio": 1,
+    "medium": 1,
+    "pesado": 2,
+    "heavy": 2,
+    "hibrido": 3,
+    "hybrid": 3,
+}
+
 
 def safe_name(value):
     return (
@@ -57,6 +68,25 @@ def safe_name(value):
 
 def get_scenario_label(scenario):
     return scenario_labels.get(str(scenario), str(scenario))
+
+
+def get_scenario_order(scenario):
+    return scenario_order.get(str(scenario).lower(), len(scenario_order))
+
+
+def annotate_bars(bars):
+    for bar in bars:
+        height = bar.get_height()
+
+        plt.annotate(
+            f"{height:.0f}",
+            xy=(bar.get_x() + bar.get_width() / 2, height),
+            xytext=(0, 3),
+            textcoords="offset points",
+            ha="center",
+            va="bottom",
+            fontsize=8,
+        )
 
 
 def validate_columns(df):
@@ -100,7 +130,7 @@ def generate_by_users(df, metric, ylabel):
     metric_dir = OUTPUT_USERS_DIR / metric
     metric_dir.mkdir(parents=True, exist_ok=True)
 
-    for scenario in sorted(df["scenario"].unique()):
+    for scenario in sorted(df["scenario"].unique(), key=get_scenario_order):
         data_scenario = df[df["scenario"] == scenario]
 
         users = sorted(data_scenario["users"].unique())
@@ -127,12 +157,13 @@ def generate_by_users(df, metric, ylabel):
 
             offset = (i - (len(instances) - 1) / 2) * width
 
-            plt.bar(
+            bars = plt.bar(
                 x + offset,
                 values,
                 width=width,
                 label=f"{instance} instância(s)",
             )
+            annotate_bars(bars)
 
         plt.title(f"{get_scenario_label(scenario)} - {ylabel} por usuários")
         plt.xlabel("Número de usuários")
@@ -164,7 +195,10 @@ def generate_by_instances(df, metric, ylabel):
         data_users = df[df["users"] == user_count]
 
         instances = sorted(data_users["instances"].unique())
-        scenarios = list(data_users["scenario"].drop_duplicates())
+        scenarios = sorted(
+            data_users["scenario"].drop_duplicates(),
+            key=get_scenario_order,
+        )
 
         x = np.arange(len(instances))
         width = 0.8 / len(scenarios)
@@ -187,12 +221,13 @@ def generate_by_instances(df, metric, ylabel):
 
             offset = (i - (len(scenarios) - 1) / 2) * width
 
-            plt.bar(
+            bars = plt.bar(
                 x + offset,
                 values,
                 width=width,
                 label=get_scenario_label(scenario),
             )
+            annotate_bars(bars)
 
         plt.title(f"{ylabel} por instância - {user_count} usuários")
         plt.xlabel("Quantidade de instâncias WordPress")
