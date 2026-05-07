@@ -5,16 +5,16 @@ from threading import Lock
 from locust import HttpUser, events, task
 
 URLS = [
-    "https://www.tudogostoso.com.br", #197.995 
-    "https://www.dictionary.com", #186.679
-    "https://canaltech.com.br", #145.405
-    "https://br.ign.com", #111.828
-    "https://kotaku.com", #107.614
-    "https://receitas.globo.com", #101.434 
-    "https://g1.globo.com", #79.895
-    "https://cnn.com", #58.036
-    "https://huggingface.co", #32.932
-    "https://www.todamateria.com.br", #14.543 
+    "https://g1.globo.com", #682 links
+    "https://cnn.com", #486 links
+    "https://br.ign.com", #383 links 
+    "https://gshow.globo.com", #284 links
+    "https://www12.senado.leg.br", #250 links
+    "https://receitas.globo.com", #235 links 
+    "https://www.tudogostoso.com.br", #208 links 
+    "https://www.todamateria.com.br", #179 links 
+    "https://canaltech.com.br", #155 links
+    "https://kotaku.com" #136 links
 ]
 
 link_counts = {}

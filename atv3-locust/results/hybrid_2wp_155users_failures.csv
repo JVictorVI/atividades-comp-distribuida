@@ -1,0 +1,4 @@
+Method,Name,Error,Occurrences
+GET,pesado,HTTPError('500 Server Error: Internal Server Error for url: pesado'),66
+GET,leve,HTTPError('500 Server Error: Internal Server Error for url: leve'),53
+GET,medio,HTTPError('500 Server Error: Internal Server Error for url: medio'),72

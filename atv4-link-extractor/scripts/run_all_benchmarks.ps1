@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$UsersList = @(15, 50, 100)
+$UsersList = @(5, 25, 50)
 $SpawnRate = 3
 $RunTime = "2m"
 
@@ -11,16 +11,16 @@ $LocustFile = Join-Path $RootDir "locust\locustfile.py"
 New-Item -ItemType Directory -Force -Path $ResultsDir | Out-Null
 
 $Urls = @(
-    "https://www.tudogostoso.com.br", #197.995 
-    "https://www.dictionary.com", #186.679
-    "https://canaltech.com.br", #145.405
-    "https://br.ign.com", #111.828
-    "https://kotaku.com", #107.614
-    "https://receitas.globo.com", #101.434 
-    "https://g1.globo.com", #79.895
-    "https://cnn.com", #58.036
-    "https://huggingface.co", #32.932
-    "https://www.todamateria.com.br" #14.543 
+    "https://g1.globo.com", #682 links
+    "https://cnn.com", #486 links
+    "https://br.ign.com", #383 links 
+    "https://gshow.globo.com", #284 links
+    "https://www12.senado.leg.br", #250 links
+    "https://receitas.globo.com", #235 links 
+    "https://www.tudogostoso.com.br", #208 links 
+    "https://www.todamateria.com.br", #179 links 
+    "https://canaltech.com.br", #155 links
+    "https://kotaku.com" #136 links
 )
 
 $Scenarios = [ordered]@{
@@ -43,7 +43,7 @@ function Invoke-PythonScript {
     return
   }
 
-  throw "Python nao encontrado no PATH. Instale Python ou ajuste o PATH antes de consolidar os resultados."
+  throw "Python não encontrado no PATH. Instale Python ou ajuste o PATH antes de consolidar os resultados."
 }
 
 function Stop-AllScenarioComposes {
@@ -75,7 +75,7 @@ function Wait-Service {
     }
   } while ((Get-Date) -lt $Deadline)
 
-  throw "Servico nao respondeu em $Uri apos $TimeoutSeconds segundos."
+  throw "Serviço não respondeu em $Uri após $TimeoutSeconds segundos."
 }
 
 function Invoke-WithRetry {
@@ -115,14 +115,14 @@ foreach ($ScenarioName in $Scenarios.Keys) {
   try {
     docker compose up -d --build @Services
     if ($LASTEXITCODE -ne 0) {
-      throw "docker compose up falhou no cenario $ScenarioName."
+      throw "docker compose up falhou no cenário $ScenarioName."
     }
 
-    Write-Host "Aguardando servico responder..."
+    Write-Host "Aguardando serviço responder..."
     Wait-Service -Uri $HostUrl
 
     if ($Scenario.UsesCache) {
-      Write-Host "Aquecendo cache antes das medicoes..."
+      Write-Host "Aquecendo cache antes das medições..."
       foreach ($Url in $Urls) {
         Invoke-WithRetry -Uri "$HostUrl/api/$Url"
       }
@@ -130,7 +130,7 @@ foreach ($ScenarioName in $Scenarios.Keys) {
 
     foreach ($Users in $UsersList) {
       Write-Host ""
-      Write-Host "Executando: $ScenarioName com $Users usuarios"
+      Write-Host "Executando: $ScenarioName com $Users usuários"
 
       $OutputPrefix = Join-Path $ResultsDir "${ScenarioName}_${Users}"
       $env:LINK_COUNTS_CSV = "${OutputPrefix}_link_counts.csv"

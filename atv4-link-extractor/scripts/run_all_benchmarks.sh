@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-USERS_LIST=(25 75 150)
+USERS_LIST=(25 75 100)
 SPAWN_RATE=3
 RUN_TIME="2m"
 
@@ -17,7 +17,7 @@ run_python() {
   elif command -v python3 >/dev/null 2>&1; then
     python3 "$@"
   else
-    echo "Python nao encontrado no PATH. Instale Python antes de consolidar os resultados." >&2
+    echo "Python não encontrado no PATH. Instale Python antes de consolidar os resultados." >&2
     exit 1
   fi
 }
@@ -34,7 +34,7 @@ wait_service() {
 
   until curl --silent --show-error "$host" > /dev/null; do
     if ((SECONDS >= deadline)); then
-      echo "Servico nao respondeu em $host apos 90 segundos." >&2
+      echo "Serviço não respondeu em $host após 90 segundos." >&2
       return 1
     fi
 
@@ -59,16 +59,16 @@ curl_with_retry() {
 }
 
 URLS=(
-  "https://www.tudogostoso.com.br"
-  "https://www.dictionary.com"
-  "https://canaltech.com.br"
-  "https://br.ign.com"
-  "https://kotaku.com"
-  "https://receitas.globo.com"
-  "https://g1.globo.com"
-  "https://cnn.com"
-  "https://huggingface.co"
-  "https://www.todamateria.com.br"
+    "https://g1.globo.com" #682 links
+    "https://cnn.com" #486 links
+    "https://br.ign.com" #383 links 
+    "https://gshow.globo.com" #284 links
+    "https://www12.senado.leg.br" #250 links
+    "https://receitas.globo.com" #235 links 
+    "https://www.tudogostoso.com.br" #208 links 
+    "https://www.todamateria.com.br" #179 links 
+    "https://canaltech.com.br" #155 links
+    "https://kotaku.com" #136 links
 )
 
 declare -A SCENARIO_DIRS
@@ -111,7 +111,7 @@ for scenario in python_nocache python_cache ruby_cache ruby_nocache; do
 
   docker compose up -d --build $services
 
-  echo "Aguardando servico responder..."
+  echo "Aguardando serviço responder..."
   if ! wait_service "$host"; then
     docker compose ps
     docker compose logs --tail 80 api
@@ -119,7 +119,7 @@ for scenario in python_nocache python_cache ruby_cache ruby_nocache; do
   fi
 
   if [[ "${SCENARIO_USES_CACHE[$scenario]}" == "true" ]]; then
-    echo "Aquecendo cache antes das medicoes..."
+    echo "Aquecendo cache antes das medições..."
     for url in "${URLS[@]}"; do
       if ! curl_with_retry "$host/api/$url"; then
         docker compose ps
@@ -131,7 +131,7 @@ for scenario in python_nocache python_cache ruby_cache ruby_nocache; do
 
   for users in "${USERS_LIST[@]}"; do
     echo ""
-    echo "Executando: $scenario com $users usuarios"
+    echo "Executando: $scenario com $users usuários"
 
     output_prefix="$RESULTS_DIR/${scenario}_${users}"
     export LINK_COUNTS_CSV="${output_prefix}_link_counts.csv"
