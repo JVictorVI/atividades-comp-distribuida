@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$UsersList = @(25, 75, 125)
+$UsersList = @(15, 50, 100)
 $SpawnRate = 3
 $RunTime = "2m"
 
@@ -133,6 +133,7 @@ foreach ($ScenarioName in $Scenarios.Keys) {
       Write-Host "Executando: $ScenarioName com $Users usuarios"
 
       $OutputPrefix = Join-Path $ResultsDir "${ScenarioName}_${Users}"
+      $env:LINK_COUNTS_CSV = "${OutputPrefix}_link_counts.csv"
 
       locust `
         -f $LocustFile `
@@ -144,6 +145,7 @@ foreach ($ScenarioName in $Scenarios.Keys) {
         --csv $OutputPrefix `
         --html "${OutputPrefix}.html"
 
+      Remove-Item Env:\LINK_COUNTS_CSV -ErrorAction SilentlyContinue
       Start-Sleep -Seconds 5
     }
   } catch {

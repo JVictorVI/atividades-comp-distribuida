@@ -134,6 +134,7 @@ for scenario in python_nocache python_cache ruby_cache ruby_nocache; do
     echo "Executando: $scenario com $users usuarios"
 
     output_prefix="$RESULTS_DIR/${scenario}_${users}"
+    export LINK_COUNTS_CSV="${output_prefix}_link_counts.csv"
 
     locust \
       -f "$LOCUST_FILE" \
@@ -145,6 +146,7 @@ for scenario in python_nocache python_cache ruby_cache ruby_nocache; do
       --csv "$output_prefix" \
       --html "${output_prefix}.html"
 
+    unset LINK_COUNTS_CSV
     sleep 5
   done
 
