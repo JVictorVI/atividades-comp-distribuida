@@ -30,20 +30,20 @@ As versões sem cache executam a extração a cada requisição. Nas versões co
 
 ## Estrutura do projeto
 
-| Pasta ou arquivo | Finalidade |
-| --- | --- |
-| `step4/` | Serviço Python sem cache, com API e interface web em containers |
-| `step5/` | Serviço Python com cache Redis |
-| `step6/` | Serviço Ruby com cache Redis |
-| `step6-nocache/` | Serviço Ruby sem cache |
-| `locust/locustfile.py` | Modelo de usuário virtual usado nos testes de carga |
-| `scripts/run_all_benchmarks.ps1` | Execução automatizada dos testes no Windows/PowerShell |
-| `scripts/run_all_benchmarks.sh` | Execução automatizada dos testes no Linux, WSL ou Git Bash |
-| `scripts/consolidate_results.py` | Consolidação dos CSVs gerados pelo Locust |
-| `scripts/generate_graphs.py` | Geração dos gráficos finais |
-| `results/` | Resultados brutos de cada rodada de teste |
-| `consolidated/` | CSV e XLSX consolidados |
-| `graphs/` | Gráficos finais em PNG |
+| Pasta ou arquivo                 | Finalidade                                                      |
+| -------------------------------- | --------------------------------------------------------------- |
+| `step4/`                         | Serviço Python sem cache, com API e interface web em containers |
+| `step5/`                         | Serviço Python com cache Redis                                  |
+| `step6/`                         | Serviço Ruby com cache Redis                                    |
+| `step6-nocache/`                 | Serviço Ruby sem cache                                          |
+| `locust/locustfile.py`           | Modelo de usuário virtual usado nos testes de carga             |
+| `scripts/run_all_benchmarks.ps1` | Execução automatizada dos testes no Windows/PowerShell          |
+| `scripts/run_all_benchmarks.sh`  | Execução automatizada dos testes no Linux, WSL ou Git Bash      |
+| `scripts/consolidate_results.py` | Consolidação dos CSVs gerados pelo Locust                       |
+| `scripts/generate_graphs.py`     | Geração dos gráficos finais                                     |
+| `results/`                       | Resultados brutos de cada rodada de teste                       |
+| `consolidated/`                  | CSV e XLSX consolidados                                         |
+| `graphs/`                        | Gráficos finais em PNG                                          |
 
 ## Ferramentas utilizadas
 
@@ -78,12 +78,12 @@ Durante a execução, o Locust também interpreta a resposta JSON de cada URL e 
 
 Foram avaliadas quatro configurações principais:
 
-| Cenário | Pasta | Host testado | Linguagem | Cache |
-| --- | --- | --- | --- | --- |
-| `python_nocache` | `step4` | `http://localhost:5000` | Python | sem cache |
-| `python_cache` | `step5` | `http://localhost:5000` | Python | com Redis |
-| `ruby_nocache` | `step6-nocache` | `http://localhost:4567` | Ruby | sem cache |
-| `ruby_cache` | `step6` | `http://localhost:4567` | Ruby | com Redis |
+| Cenário          | Pasta           | Host testado            | Linguagem | Cache     |
+| ---------------- | --------------- | ----------------------- | --------- | --------- |
+| `python_nocache` | `step4`         | `http://localhost:5000` | Python    | sem cache |
+| `python_cache`   | `step5`         | `http://localhost:5000` | Python    | com Redis |
+| `ruby_nocache`   | `step6-nocache` | `http://localhost:4567` | Ruby      | sem cache |
+| `ruby_cache`     | `step6`         | `http://localhost:4567` | Ruby      | com Redis |
 
 Para cada cenário, o teste é repetido com diferentes quantidades de usuários virtuais. No script PowerShell, usado para os resultados consolidados deste repositório, são utilizados 25, 75 e 125 usuários.
 
@@ -93,12 +93,12 @@ Nos cenários com cache, o script aquece previamente o Redis antes do início da
 
 Os testes foram executados em uma máquina com as seguintes especificações:
 
-| Componente | Especificação |
-| --- | --- |
-| Sistema operacional | Windows 11 |
-| Processador | Intel Core 5 210H |
-| Memória RAM | 24 GB DDR5 5600 MHz |
-| Armazenamento | SSD de 1 TB |
+| Componente          | Especificação       |
+| ------------------- | ------------------- |
+| Sistema operacional | Windows 11          |
+| Processador         | Intel Core 5 210H   |
+| Memória RAM         | 24 GB DDR5 5600 MHz |
+| Armazenamento       | SSD de 1 TB         |
 
 ## Procedimento experimental
 
@@ -172,23 +172,23 @@ O aviso sobre o atributo `version` no `docker-compose.yml` é emitido por versõ
 
 O arquivo `consolidated/resultados_consolidados.csv` contém as principais métricas de desempenho:
 
-| Coluna | Significado |
-| --- | --- |
-| `scenario` | Nome do cenário testado |
-| `language` | Linguagem da implementação avaliada |
-| `cache` | Indica se o cenário usa cache |
-| `users` | Quantidade de usuários virtuais |
-| `requests` | Total de requisições executadas |
-| `failures` | Total de requisições com falha |
+| Coluna                 | Significado                                             |
+| ---------------------- | ------------------------------------------------------- |
+| `scenario`             | Nome do cenário testado                                 |
+| `language`             | Linguagem da implementação avaliada                     |
+| `cache`                | Indica se o cenário usa cache                           |
+| `users`                | Quantidade de usuários virtuais                         |
+| `requests`             | Total de requisições executadas                         |
+| `failures`             | Total de requisições com falha                          |
 | `failure_rate_percent` | Percentual de falhas em relação ao total de requisições |
-| `median_response_ms` | Mediana do tempo de resposta |
-| `average_response_ms` | Média do tempo de resposta |
-| `min_response_ms` | Menor tempo de resposta observado |
-| `max_response_ms` | Maior tempo de resposta observado |
-| `p95_response_ms` | Percentil 95 do tempo de resposta |
-| `p99_response_ms` | Percentil 99 do tempo de resposta |
-| `rps` | Requisições por segundo |
-| `failures_s` | Falhas por segundo |
+| `median_response_ms`   | Mediana do tempo de resposta                            |
+| `average_response_ms`  | Média do tempo de resposta                              |
+| `min_response_ms`      | Menor tempo de resposta observado                       |
+| `max_response_ms`      | Maior tempo de resposta observado                       |
+| `p95_response_ms`      | Percentil 95 do tempo de resposta                       |
+| `p99_response_ms`      | Percentil 99 do tempo de resposta                       |
+| `rps`                  | Requisições por segundo                                 |
+| `failures_s`           | Falhas por segundo                                      |
 
 A taxa de falhas é calculada pela fórmula:
 
@@ -198,13 +198,13 @@ failure_rate_percent = (failures / requests) * 100
 
 O arquivo `consolidated/links_extraidos_por_url.csv` contém a caracterização da carga por URL:
 
-| Coluna | Significado |
-| --- | --- |
-| `scenario` | Nome do cenário testado |
-| `language` | Linguagem da implementação |
-| `cache` | Modo de cache |
-| `users` | Quantidade de usuários virtuais da rodada |
-| `url` | URL utilizada na extração |
+| Coluna            | Significado                                             |
+| ----------------- | ------------------------------------------------------- |
+| `scenario`        | Nome do cenário testado                                 |
+| `language`        | Linguagem da implementação                              |
+| `cache`           | Modo de cache                                           |
+| `users`           | Quantidade de usuários virtuais da rodada               |
+| `url`             | URL utilizada na extração                               |
 | `extracted_links` | Quantidade de links retornados pela API para aquela URL |
 
 ## Gráficos gerados
@@ -246,10 +246,22 @@ O ponto de atenção aparece no `ruby_nocache`. Com 100 usuários, ele teve `0` 
 
 A carga de trabalho também não foi uniforme entre as URLs testadas. A página com maior quantidade de links foi `www.foxnews.com`, com até `911` links extraídos. Em seguida aparecem `cnn.com`, com `492`, `br.ign.com`, com `383`, e `www.estadao.com.br`, com `359`. No outro extremo, `kotaku.com` teve `136` links e `canaltech.com.br` teve `155`. Essa diferença ajuda a explicar parte da variação de tempo nos cenários sem cache: páginas maiores tendem a gerar respostas maiores e exigem mais processamento de HTML a cada requisição.
 
+### Discussão dos resultados
+
+Uma pergunta importante é o que diferencia a implementação em Python da implementação em Ruby. As duas versões executam a mesma tarefa geral: recebem uma URL, fazem uma requisição HTTP para a página externa, interpretam o HTML e retornam os links encontrados. A diferença está na pilha usada para fazer isso. A versão Python usa o ambiente e as bibliotecas do ecossistema Python, enquanto a versão Ruby usa Sinatra, `open-uri` e Nokogiri. Essas escolhas afetam o custo de inicialização da requisição, o processamento do HTML, o uso de memória e a forma como cada servidor lida com várias conexões simultâneas.
+
+Os valores diferentes não podem ser explicados apenas pela linguagem. Nos resultados, o Ruby com cache foi o melhor cenário de latência, com P95 entre `250 ms` e `340 ms`, enquanto o Python com cache variou de `910 ms` a `5.500 ms`. Porém, sem cache, o Ruby também apresentou falhas sob maior carga: `0,29%` com 250 usuários e `8,61%` com 500 usuários. Isso mostra que a arquitetura e a dependência de rede pesaram mais que a linguagem isoladamente. Quando a API depende de buscar páginas externas a cada requisição, ela fica sujeita à latência da internet, ao tempo de resposta dos sites, ao tamanho do HTML e ao limite de concorrência do próprio serviço.
+
+O cache é mais rápido porque remove a etapa mais cara do fluxo. Sem cache, cada chamada precisa acessar a página remota, aguardar o download do HTML, processar o documento e montar a resposta. Com cache, esse trabalho é feito uma vez; nas chamadas seguintes, a API consulta o Redis e retorna um resultado já processado. Por isso, no Python, o P95 caiu de `73.000 ms` para `5.500 ms` com 500 usuários, redução de `92,47%`. No Ruby, a queda foi de `30.000 ms` para `340 ms`, redução de `98,87%`.
+
+Outra questão pertinente é por que alguns cenários sem cache não falharam, mesmo sendo muito lentos. O `python_nocache`, por exemplo, teve `0,00%` de falhas nas três cargas, mas processou apenas `634` requisições com 500 usuários e teve P95 de `73.000 ms`. Isso indica que o serviço respondeu sem erro, mas com baixa vazão. Ou seja, ausência de falhas não significa necessariamente bom desempenho: uma API pode continuar respondendo, mas de forma lenta demais para uma experiência aceitável.
+
+Também é importante observar por que o número de links extraídos influencia os resultados. Páginas como `www.foxnews.com`, com até `911` links, e `cnn.com`, com `492`, geram respostas maiores e exigem mais processamento do parser HTML. Em cenários sem cache, esse custo se repete a cada requisição. Em cenários com cache, o custo de processar uma página grande fica concentrado na primeira chamada; depois disso, o Redis reduz a diferença entre páginas maiores e menores.
+
+Por fim, os resultados mostram que cache melhora desempenho, mas também muda o tipo de gargalo do sistema. Sem cache, o gargalo principal está na rede externa e no processamento repetido de HTML. Com cache, o gargalo passa a ser a capacidade da API e do Redis de atender muitas consultas rápidas. Isso explica por que os cenários com cache tiveram throughput muito maior e `0,00%` de falhas, mas ainda assim apresentaram diferenças entre Python e Ruby.
+
 De forma geral, os gráficos mostram que o cache foi o principal fator de melhoria do experimento. Ele reduziu drasticamente a latência P95, aumentou o volume de requisições por segundo e eliminou as falhas nos cenários avaliados. A comparação também mostra que o desempenho não depende apenas da linguagem usada, mas principalmente da arquitetura da solução: quando a API precisa buscar e processar páginas externas a cada chamada, o sistema degrada rapidamente; quando reutiliza respostas em cache, ele suporta cargas maiores com mais estabilidade.
 
 ## Considerações finais
 
 O experimento permitiu observar, de maneira prática, como escolhas arquiteturais afetam o desempenho de um serviço distribuído. A comparação entre implementações e modos de cache evidencia que o desempenho não depende apenas da linguagem utilizada, mas também da dependência de rede, do reuso de resultados e da forma como o sistema responde ao aumento da concorrência.
-
-Como continuidade, seria possível ampliar a avaliação com mais níveis de carga, maior tempo de execução, repetições estatísticas por cenário e coleta de métricas de CPU, memória e uso de rede dos containers.
