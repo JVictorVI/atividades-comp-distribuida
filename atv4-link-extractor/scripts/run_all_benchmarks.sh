@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Parametros principais do teste de carga: usuarios virtuais, velocidade de
+# criacao dos usuarios e duracao de cada rodada.
 USERS_LIST=(25 75 100)
 SPAWN_RATE=3
 RUN_TIME="2m"
 
+# Caminhos usados para localizar o projeto, o locustfile e a pasta de resultados.
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RESULTS_DIR="$ROOT_DIR/results"
 LOCUST_FILE="$ROOT_DIR/locust/locustfile.py"
 
 mkdir -p "$RESULTS_DIR"
 
+# Executa os scripts Python finais usando python ou python3, conforme disponivel.
 run_python() {
   if command -v python >/dev/null 2>&1; then
     python "$@"
@@ -22,12 +26,15 @@ run_python() {
   fi
 }
 
+# Encerra containers de todos os cenarios antes de iniciar uma nova medicao.
+# Isso evita conflito de portas e residuos de execucoes anteriores.
 stop_all_scenarios() {
   for scenario_name in python_nocache python_cache ruby_cache ruby_nocache; do
     (cd "$ROOT_DIR/${SCENARIO_DIRS[$scenario_name]}" && docker compose down --remove-orphans || true)
   done
 }
 
+# Aguarda a API do cenario atual ficar acessivel antes de iniciar o Locust.
 wait_service() {
   local host="$1"
   local deadline=$((SECONDS + 90))
@@ -42,6 +49,8 @@ wait_service() {
   done
 }
 
+# Repete chamadas HTTP usadas no aquecimento do cache, reduzindo o impacto de
+# falhas transitorias de rede antes da medicao principal.
 curl_with_retry() {
   local url="$1"
 
@@ -58,6 +67,8 @@ curl_with_retry() {
   done
 }
 
+# URLs exercitadas pelo usuario virtual e usadas tambem no aquecimento do cache.
+# Os comentarios indicam a quantidade aproximada de links observada em cada pagina.
 URLS=(
     "https://g1.globo.com" #682 links
     "https://cnn.com" #486 links
@@ -71,30 +82,36 @@ URLS=(
     "https://kotaku.com" #136 links
 )
 
+# Definicao dos cenarios avaliados: pasta Docker Compose de cada versao.
 declare -A SCENARIO_DIRS
 SCENARIO_DIRS["python_nocache"]="step4"
 SCENARIO_DIRS["python_cache"]="step5"
 SCENARIO_DIRS["ruby_cache"]="step6"
 SCENARIO_DIRS["ruby_nocache"]="step6-nocache"
 
+# Host local exposto pela API de cada linguagem.
 declare -A SCENARIO_HOSTS
 SCENARIO_HOSTS["python_nocache"]="http://localhost:5000"
 SCENARIO_HOSTS["python_cache"]="http://localhost:5000"
 SCENARIO_HOSTS["ruby_cache"]="http://localhost:4567"
 SCENARIO_HOSTS["ruby_nocache"]="http://localhost:4567"
 
+# Marca quais cenarios usam Redis e, portanto, precisam de aquecimento de cache.
 declare -A SCENARIO_USES_CACHE
 SCENARIO_USES_CACHE["python_nocache"]="false"
 SCENARIO_USES_CACHE["python_cache"]="true"
 SCENARIO_USES_CACHE["ruby_cache"]="true"
 SCENARIO_USES_CACHE["ruby_nocache"]="false"
 
+# Lista os servicos Docker Compose necessarios em cada cenario.
 declare -A SCENARIO_SERVICES
 SCENARIO_SERVICES["python_nocache"]="api"
 SCENARIO_SERVICES["python_cache"]="api redis"
 SCENARIO_SERVICES["ruby_cache"]="api redis"
 SCENARIO_SERVICES["ruby_nocache"]="api"
 
+# Executa todos os cenarios, sempre reiniciando os containers para manter as
+# rodadas comparaveis.
 for scenario in python_nocache python_cache ruby_cache ruby_nocache; do
   step_dir="${SCENARIO_DIRS[$scenario]}"
   host="${SCENARIO_HOSTS[$scenario]}"
@@ -109,6 +126,7 @@ for scenario in python_nocache python_cache ruby_cache ruby_nocache; do
 
   cd "$ROOT_DIR/$step_dir"
 
+  # Sobe somente os servicos necessarios ao cenario atual.
   docker compose up -d --build $services
 
   echo "Aguardando serviço responder..."
@@ -120,6 +138,8 @@ for scenario in python_nocache python_cache ruby_cache ruby_nocache; do
 
   if [[ "${SCENARIO_USES_CACHE[$scenario]}" == "true" ]]; then
     echo "Aquecendo cache antes das medições..."
+    # Preenche o Redis com as 10 URLs antes da medicao para que os cenarios com
+    # cache representem majoritariamente leituras ja armazenadas.
     for url in "${URLS[@]}"; do
       if ! curl_with_retry "$host/api/$url"; then
         docker compose ps
@@ -134,8 +154,12 @@ for scenario in python_nocache python_cache ruby_cache ruby_nocache; do
     echo "Executando: $scenario com $users usuários"
 
     output_prefix="$RESULTS_DIR/${scenario}_${users}"
+    # O locustfile usa esta variavel para salvar a contagem de links extraidos
+    # por URL em um CSV separado das metricas padrao do Locust.
     export LINK_COUNTS_CSV="${output_prefix}_link_counts.csv"
 
+    # Execucao headless do Locust. O prefixo CSV gera as metricas brutas e o
+    # HTML ajuda a inspecionar uma rodada individual.
     locust \
       -f "$LOCUST_FILE" \
       --headless \
@@ -155,6 +179,7 @@ done
 
 cd "$ROOT_DIR"
 
+# Consolida os CSVs gerados pelo Locust e cria os graficos finais.
 run_python scripts/consolidate_results.py
 run_python scripts/generate_graphs.py
 

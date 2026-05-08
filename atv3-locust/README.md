@@ -26,12 +26,12 @@ Os objetivos específicos são:
 
 Os testes foram planejados para execução em um notebook com as seguintes características:
 
-| Recurso | Especificação |
-| --- | --- |
-| Processador | Intel Core i5-1135G7 |
-| Memória RAM | 16 GB DDR4 3200 MHz |
-| Armazenamento | SSD 256 GB |
-| Sistema operacional | Windows 11 |
+| Recurso             | Especificação        |
+| ------------------- | -------------------- |
+| Processador         | Intel Core i5-1135G7 |
+| Memória RAM         | 16 GB DDR4 3200 MHz  |
+| Armazenamento       | SSD 256 GB           |
+| Sistema operacional | Windows 11           |
 
 O ambiente foi conteinerizado com Docker, permitindo que os serviços fossem iniciados, interrompidos e reconfigurados de forma reproduzível durante os experimentos.
 
@@ -64,10 +64,10 @@ O arquivo `docker-compose.yml` define os serviços `mysql`, `wordpress1`, `wordp
 
 Os testes consideram três configurações de escalabilidade horizontal:
 
-| Configuração | Instâncias WordPress ativas |
-| --- | --- |
-| 1 instância | `wordpress1` |
-| 2 instâncias | `wordpress1`, `wordpress2` |
+| Configuração | Instâncias WordPress ativas              |
+| ------------ | ---------------------------------------- |
+| 1 instância  | `wordpress1`                             |
+| 2 instâncias | `wordpress1`, `wordpress2`               |
 | 3 instâncias | `wordpress1`, `wordpress2`, `wordpress3` |
 
 Para cada configuração, o script de execução copia o arquivo de configuração correspondente do Nginx:
@@ -84,11 +84,11 @@ Dessa forma, o balanceador passa a encaminhar requisições apenas para as inst�
 
 Foram definidos quatro cenários de carga, representando diferentes tipos de conteúdo acessados no WordPress.
 
-| Cenário | Arquivo Locust | Requisição executada | Descrição |
-| --- | --- | --- | --- |
-| Leve | `locust_light.py` | `/?name=post-300kb` | Acesso a uma postagem de aproximadamente 300 KB |
-| Médio | `locust_medium.py` | `/?name=post-400kb` | Acesso a uma postagem de aproximadamente 400 KB |
-| Pesado | `locust_heavy.py` | `/?name=post-1mb` | Acesso a uma postagem de aproximadamente 1 MB |
+| Cenário | Arquivo Locust     | Requisição executada         | Descrição                                            |
+| ------- | ------------------ | ---------------------------- | ---------------------------------------------------- |
+| Leve    | `locust_light.py`  | `/?name=post-300kb`          | Acesso a uma postagem de aproximadamente 300 KB      |
+| Médio   | `locust_medium.py` | `/?name=post-400kb`          | Acesso a uma postagem de aproximadamente 400 KB      |
+| Pesado  | `locust_heavy.py`  | `/?name=post-1mb`            | Acesso a uma postagem de aproximadamente 1 MB        |
 | Híbrido | `locust_hybrid.py` | três requisições sequenciais | Execução combinada dos cenários leve, médio e pesado |
 
 O cenário híbrido representa uma carga mais variada, pois um mesmo usuário virtual acessa, em sequência, os três tipos de postagem.
@@ -102,6 +102,8 @@ Quantidade de usuários:
 ```text
 25, 75 e 155 usuários
 ```
+
+Esses valores de carga foram escolhidos por ficarem dentro de uma taxa de erros de até 10% no ambiente de teste descrito neste trabalho.
 
 Quantidade de instâncias:
 
@@ -170,18 +172,18 @@ consolidated/resultados_consolidados.csv
 
 O arquivo consolidado contém, entre outras, as seguintes colunas:
 
-| Coluna | Significado |
-| --- | --- |
-| `scenario` | cenário executado |
-| `instances` | quantidade de instâncias WordPress |
-| `users` | quantidade de usuários simulados |
-| `requests` | total de requisições |
-| `failures` | total de falhas |
-| `avg_response_ms` | tempo médio de resposta |
-| `median_response_ms` | mediana do tempo de resposta |
-| `p95_response_ms` | percentil 95 do tempo de resposta |
-| `p99_response_ms` | percentil 99 do tempo de resposta |
-| `rps` | requisições por segundo |
+| Coluna               | Significado                        |
+| -------------------- | ---------------------------------- |
+| `scenario`           | cenário executado                  |
+| `instances`          | quantidade de instâncias WordPress |
+| `users`              | quantidade de usuários simulados   |
+| `requests`           | total de requisições               |
+| `failures`           | total de falhas                    |
+| `avg_response_ms`    | tempo médio de resposta            |
+| `median_response_ms` | mediana do tempo de resposta       |
+| `p95_response_ms`    | percentil 95 do tempo de resposta  |
+| `p99_response_ms`    | percentil 99 do tempo de resposta  |
+| `rps`                | requisições por segundo            |
 
 ## Métricas Analisadas
 
@@ -218,9 +220,17 @@ Os gráficos são salvos em:
 ```text
 graphs/barras_p95_falhas/por_usuarios/
 graphs/barras_p95_falhas/por_instancias/
+graphs/barras_p95_falhas/consolidado/
 ```
 
 Nos gráficos por usuários, o eixo X representa a quantidade de usuários e as barras representam a quantidade de instâncias. Nos gráficos por instâncias, o eixo X representa a quantidade de instâncias e as barras representam os cenários.
+
+A pasta `consolidado/` contém versões agrupadas desses gráficos:
+
+- `p95_response_ms_por_cenario_e_usuarios.png`;
+- `failure_rate_percent_por_cenario_e_usuarios.png`;
+- `p95_response_ms_por_instancias_e_usuarios.png`;
+- `failure_rate_percent_por_instancias_e_usuarios.png`.
 
 ### Gráficos de linhas
 
