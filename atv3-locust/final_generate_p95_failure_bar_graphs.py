@@ -1,5 +1,9 @@
 from pathlib import Path
+import matplotlib
 import pandas as pd
+
+matplotlib.use("Agg")
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -28,9 +32,11 @@ INPUT_FILE = Path("consolidated/resultados_consolidados.csv")
 OUTPUT_BASE_DIR = Path("graphs/barras_p95_falhas")
 OUTPUT_USERS_DIR = OUTPUT_BASE_DIR / "por_usuarios"
 OUTPUT_INSTANCES_DIR = OUTPUT_BASE_DIR / "por_instancias"
+OUTPUT_COMBINED_DIR = OUTPUT_BASE_DIR / "consolidado"
 
 OUTPUT_USERS_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT_INSTANCES_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_COMBINED_DIR.mkdir(parents=True, exist_ok=True)
 
 
 scenario_labels = {
@@ -86,6 +92,24 @@ def annotate_bars(bars):
             ha="center",
             va="bottom",
             fontsize=8,
+        )
+
+
+def annotate_axis_bars(ax, bars, value_format="{:.0f}", fontsize=7):
+    for bar in bars:
+        height = bar.get_height()
+
+        if np.isnan(height):
+            continue
+
+        ax.annotate(
+            value_format.format(height),
+            xy=(bar.get_x() + bar.get_width() / 2, height),
+            xytext=(0, 2),
+            textcoords="offset points",
+            ha="center",
+            va="bottom",
+            fontsize=fontsize,
         )
 
 
@@ -177,7 +201,7 @@ def generate_by_users(df, metric, ylabel):
         plt.savefig(output_file, dpi=150)
         plt.close()
 
-        print(f"✔ Gerado: {output_file}")
+        print(f"Gerado: {output_file}")
 
 
 def generate_by_instances(df, metric, ylabel):
@@ -241,7 +265,95 @@ def generate_by_instances(df, metric, ylabel):
         plt.savefig(output_file, dpi=150)
         plt.close()
 
-        print(f"✔ Gerado: {output_file}")
+        print(f"Gerado: {output_file}")
+
+
+def generate_combined_by_scenario_and_users(df, metric, ylabel):
+    """
+    Gera um unico arquivo consolidando os 4 graficos por cenario.
+
+    Layout:
+    - Colunas = cenarios
+    - X = numero de usuarios
+    - Barras = quantidade de instancias
+    """
+    scenarios = sorted(df["scenario"].unique(), key=get_scenario_order)
+    users = sorted(df["users"].unique())
+    instances = sorted(df["instances"].unique())
+
+    if not scenarios or not users or not instances:
+        return None
+
+    fig, axes = plt.subplots(
+        nrows=1,
+        ncols=len(scenarios),
+        figsize=(5 * len(scenarios), 4.8),
+        squeeze=False,
+    )
+
+    x = np.arange(len(users))
+    width = 0.75 / len(instances)
+    metric_max = df[metric].max()
+    value_format = "{:.2f}" if metric == "failure_rate_percent" else "{:.0f}"
+
+    for col_index, scenario in enumerate(scenarios):
+        ax = axes[0][col_index]
+        data_scenario = df[df["scenario"] == scenario]
+
+        for instance_index, instance in enumerate(instances):
+            values = []
+
+            for user_count in users:
+                row = data_scenario[
+                    (data_scenario["users"] == user_count)
+                    & (data_scenario["instances"] == instance)
+                ]
+
+                if row.empty:
+                    values.append(0)
+                else:
+                    values.append(row.iloc[0][metric])
+
+            offset = (instance_index - (len(instances) - 1) / 2) * width
+            bars = ax.bar(
+                x + offset,
+                values,
+                width=width,
+                label=f"{instance} instancia(s)",
+            )
+            annotate_axis_bars(ax, bars, value_format=value_format)
+
+        ax.set_title(get_scenario_label(scenario))
+
+        if col_index == 0:
+            ax.set_ylabel(ylabel)
+
+        ax.set_xlabel("Usuarios")
+        ax.set_xticks(x)
+        ax.set_xticklabels(users)
+        ax.grid(axis="y", alpha=0.3)
+
+        if metric_max > 0:
+            ax.set_ylim(0, metric_max * 1.18)
+
+    handles, labels = axes[0][0].get_legend_handles_labels()
+    fig.legend(
+        handles,
+        labels,
+        title="Instancias",
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.94),
+        ncol=len(instances),
+    )
+    fig.suptitle(f"{ylabel} por cenario e usuarios", fontsize=16, y=0.99)
+    fig.tight_layout(rect=(0, 0, 1, 0.88))
+
+    output_file = OUTPUT_COMBINED_DIR / f"{metric}_por_cenario_e_usuarios.png"
+    fig.savefig(output_file, dpi=150)
+    plt.close(fig)
+
+    print(f"Gerado consolidado: {output_file}")
+    return output_file
 
 
 def main():
@@ -263,6 +375,9 @@ def main():
     for metric, ylabel in metrics.items():
         generate_by_users(df, metric, ylabel)
         generate_by_instances(df, metric, ylabel)
+
+    for metric, ylabel in metrics.items():
+        generate_combined_by_scenario_and_users(df, metric, ylabel)
 
     print("\nTodos os gráficos foram gerados em:")
     print(OUTPUT_BASE_DIR)
