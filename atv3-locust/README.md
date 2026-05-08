@@ -302,13 +302,6 @@ graphs/cenarios_instancias_p95_taxa_erros/taxa_erros/
 └── run_benchmarks_4tests.sh
 ```
 
-## Considerações Finais
-
-O projeto permite avaliar o impacto da escalabilidade horizontal no desempenho de uma aplicação WordPress. A execução com uma, duas e três instâncias possibilita comparar como o sistema se comporta conforme novas réplicas da aplicação são adicionadas atrás do balanceador Nginx.
-├── run_benchmarks_4tests.ps1
-└── run_benchmarks_4tests.sh
-```
-
 ## Resultados Obtidos
 
 A análise dos resultados foi feita a partir do arquivo consolidado `consolidated/resultados_consolidados.csv` e dos gráficos gerados automaticamente. Os gráficos da pasta `graphs/cenarios_instancias_p95_taxa_erros/` mostram a comparação por quantidade de usuários, separando o P95 do tempo de resposta e a taxa de erros. Já os gráficos da pasta `graphs/barras_p95_falhas/consolidado/` agrupam esses mesmos resultados de forma geral, facilitando a comparação entre cenários, usuários e quantidade de instâncias.
@@ -359,6 +352,12 @@ De forma geral, os resultados mostram que o aumento da carga, do número de requ
 
 ## Considerações Finais
 
-O projeto permite avaliar o impacto da escalabilidade horizontal no desempenho de uma aplicação WordPress. A execução com uma, duas e três instâncias possibilita comparar como o sistema se comporta conforme novas réplicas da aplicação são adicionadas atrás do balanceador Nginx.
+O projeto permitiu avaliar o impacto da carga de usuários, do tamanho das páginas acessadas e da quantidade de instâncias WordPress no desempenho da aplicação. A execução com uma, duas e três instâncias possibilitou comparar o comportamento do sistema conforme novas réplicas eram adicionadas atrás do balanceador Nginx.
 
-A utilização do Locust facilita a reprodução dos testes de carga, enquanto a consolidação automática dos resultados reduz o esforço manual de análise. Os gráficos gerados fornecem uma visualização direta das métricas mais relevantes, permitindo comparar cenários de carga, quantidades de usuários e quantidades de instâncias de forma organizada.
+Com base nos resultados, foi possível observar que o aumento da quantidade de usuários simultâneos teve impacto direto no P95 do tempo de resposta. As cargas com 25 usuários apresentaram tempos mais baixos e nenhuma falha, enquanto as cargas com 75 usuários já mostraram aumento significativo na latência. Na carga de 155 usuários, os tempos de resposta ficaram bem mais altos e começaram a aparecer falhas em alguns cenários, indicando sinais de saturação do ambiente.
+
+O tamanho da página também influenciou o desempenho. O cenário leve apresentou os menores tempos de resposta, enquanto o cenário pesado, com conteúdo maior, exigiu mais processamento e transferência de dados, resultando em P95 mais elevado. O cenário híbrido ficou em uma posição intermediária, mas também sofreu impacto com o aumento da concorrência por combinar diferentes tipos de requisição.
+
+Outro ponto importante é que a adição de instâncias WordPress não gerou melhoria linear em todos os casos. Embora a escalabilidade horizontal ajude a distribuir as requisições, todas as instâncias continuaram utilizando o mesmo banco MySQL e os mesmos recursos físicos do notebook. Por isso, em cargas mais altas, o gargalo pode ter se deslocado para recursos compartilhados, como CPU, memória, rede ou banco de dados.
+
+De maneira geral, a atividade demonstrou na prática como testes de carga ajudam a identificar limites de desempenho em uma aplicação conteinerizada. O uso do Locust, do Nginx, do Docker Compose e da consolidação automática dos resultados tornou possível comparar os cenários de forma organizada e compreender melhor os efeitos da concorrência, do balanceamento de carga e dos gargalos em sistemas distribuídos.
