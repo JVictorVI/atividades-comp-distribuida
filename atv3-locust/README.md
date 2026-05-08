@@ -292,6 +292,54 @@ graphs/cenarios_instancias_p95_taxa_erros/taxa_erros/
 └── run_benchmarks_4tests.sh
 ```
 
+## Resultados Obtidos
+
+A análise dos resultados foi feita a partir do arquivo consolidado `consolidated/resultados_consolidados.csv` e dos gráficos gerados automaticamente. Os gráficos da pasta `graphs/cenarios_instancias_p95_taxa_erros/` mostram a comparação por quantidade de usuários, separando o P95 do tempo de resposta e a taxa de erros. Já os gráficos da pasta `graphs/barras_p95_falhas/consolidado/` agrupam esses mesmos resultados de forma geral, facilitando a comparação entre cenários, usuários e quantidade de instâncias.
+
+### Visão consolidada
+
+![P95 por cenário e usuários](graphs/barras_p95_falhas/consolidado/p95_response_ms_por_cenario_e_usuarios.png)
+
+![Taxa de falhas por cenário e usuários](graphs/barras_p95_falhas/consolidado/failure_rate_percent_por_cenario_e_usuarios.png)
+
+![P95 e taxa de falhas por cenário e usuários](graphs/barras_p95_falhas/consolidado/p95_taxa_falhas_por_cenario_e_usuarios.png)
+
+Nos gráficos consolidados, observa-se que o aumento da carga fez diferença direta no tempo das requisições. Em praticamente todos os cenários, o P95 cresce quando a quantidade de usuários passa de 25 para 75 e depois para 155 usuários. Isso ocorre porque mais usuários simultâneos geram mais requisições concorrentes, aumentando a disputa por CPU, memória, conexões de rede, processos PHP do WordPress e acesso ao banco MySQL. Mesmo quando o número de requisições por segundo aumenta, o sistema passa a acumular mais trabalho em paralelo, e parte das requisições precisa esperar mais tempo na fila antes de ser processada.
+
+Também é possível perceber que o tamanho da página influenciou o tempo de resposta. O cenário leve, com postagem de aproximadamente 300 KB, apresentou os menores tempos em geral. O cenário médio ficou em uma faixa próxima, mas com alguns aumentos de P95 sob maior carga. O cenário pesado, com postagem de aproximadamente 1 MB, apresentou os maiores tempos de resposta, especialmente com 75 e 155 usuários. Isso acontece porque páginas maiores exigem mais transferência de dados, mais processamento para montar a resposta e maior uso dos recursos disponíveis no ambiente conteinerizado.
+
+O cenário híbrido teve comportamento intermediário, mas também aumentou bastante com a carga. Como ele combina acessos leve, médio e pesado em sequência, seu resultado representa uma navegação mais variada e mostra que a mistura de páginas diferentes também pressiona o sistema quando muitos usuários executam o fluxo ao mesmo tempo.
+
+### P95 por quantidade de usuários
+
+![P95 com 25 usuários](graphs/cenarios_instancias_p95_taxa_erros/p95/tempo_resposta_p95_25users.png)
+
+![P95 com 75 usuários](graphs/cenarios_instancias_p95_taxa_erros/p95/tempo_resposta_p95_75users.png)
+
+![P95 com 155 usuários](graphs/cenarios_instancias_p95_taxa_erros/p95/tempo_resposta_p95_155users.png)
+
+Com 25 usuários, os tempos de resposta ficaram mais controlados, com P95 geralmente entre 550 ms e 710 ms. Nessa carga, o ambiente ainda consegue atender as requisições sem saturação aparente, e as diferenças entre os cenários existem, mas não são tão grandes.
+
+Com 75 usuários, o P95 já cresce de forma significativa. Os cenários leve e médio ficam por volta de 1400 ms a 1600 ms, enquanto o cenário pesado chega a aproximadamente 1900 ms em algumas configurações. Isso indica que o sistema começa a operar mais próximo do limite de conforto, principalmente quando o conteúdo acessado é maior.
+
+Com 155 usuários, o impacto fica mais evidente. O cenário leve chega a aproximadamente 2400 ms a 2800 ms de P95, o médio varia entre 2400 ms e 2900 ms, o híbrido fica entre 2800 ms e 3100 ms, e o pesado alcança cerca de 3000 ms a 3400 ms. Portanto, o aumento no número de usuários não apenas elevou o total de requisições, mas também aumentou o tempo necessário para responder a maior parte delas.
+
+### Taxa de erros por quantidade de usuários
+
+![Taxa de erros com 25 usuários](graphs/cenarios_instancias_p95_taxa_erros/taxa_erros/taxa_erros_25users.png)
+
+![Taxa de erros com 75 usuários](graphs/cenarios_instancias_p95_taxa_erros/taxa_erros/taxa_erros_75users.png)
+
+![Taxa de erros com 155 usuários](graphs/cenarios_instancias_p95_taxa_erros/taxa_erros/taxa_erros_155users.png)
+
+Nas cargas de 25 e 75 usuários, a taxa de erros permaneceu em 0% nos cenários testados. Isso mostra que, nessas condições, mesmo com o aumento do tempo de resposta, o sistema ainda conseguiu concluir as requisições sem falhas registradas pelo Locust.
+
+Com 155 usuários, começaram a aparecer falhas em algumas combinações, principalmente com 2 e 3 instâncias. A maior taxa observada foi no cenário médio com 2 instâncias, chegando a aproximadamente 5,41%. Também houve falhas no cenário leve com 2 instâncias, cerca de 3,81%, no híbrido com 3 instâncias, cerca de 2,80%, e no pesado com 3 instâncias, cerca de 0,98%. Esse comportamento indica que, no limite de carga usado no experimento, adicionar instâncias WordPress não eliminou todos os gargalos, pois o banco MySQL continuou compartilhado e o ambiente físico do notebook também continuou sendo o mesmo.
+
+Um ponto importante é que a escalabilidade horizontal não melhorou os resultados de forma linear. Em alguns casos, usar 2 ou 3 instâncias apresentou P95 maior do que usar apenas 1 instância. Isso pode acontecer porque todas as instâncias competem pelos mesmos recursos da máquina hospedeira e pelo mesmo banco de dados. Além disso, o balanceador Nginx distribui as requisições, mas ele não reduz o custo interno de cada página nem remove o gargalo do MySQL. Assim, quando a carga aumenta, o ganho de dividir as requisições entre mais contêineres pode ser compensado pelo aumento de disputa por recursos compartilhados.
+
+De forma geral, os resultados mostram que o aumento da carga, do número de requisições simultâneas e do tamanho da página fez diferença no tempo das requisições. Quanto maior a concorrência e quanto mais pesado o conteúdo, maior foi o P95. As falhas só apareceram na carga mais alta, o que reforça que o sistema suportou bem os níveis menores, mas começou a apresentar sinais de saturação quando muitos usuários acessaram páginas maiores ou fluxos mais variados ao mesmo tempo.
+
 ## Considerações Finais
 
 O projeto permite avaliar o impacto da escalabilidade horizontal no desempenho de uma aplicação WordPress. A execução com uma, duas e três instâncias possibilita comparar como o sistema se comporta conforme novas réplicas da aplicação são adicionadas atrás do balanceador Nginx.
