@@ -85,7 +85,9 @@ Foram avaliadas quatro configurações principais:
 | `ruby_nocache`   | `step6-nocache` | `http://localhost:4567` | Ruby      | sem cache |
 | `ruby_cache`     | `step6`         | `http://localhost:4567` | Ruby      | com Redis |
 
-Para cada cenário, o teste é repetido com diferentes quantidades de usuários virtuais. No script PowerShell, usado para os resultados consolidados deste repositório, são utilizados 25, 75 e 125 usuários.
+Para cada cenário, o teste é repetido com diferentes quantidades de usuários virtuais. No script PowerShell, usado para os resultados consolidados deste repositório, são utilizados 100, 250 e 500 usuários virtuais.
+
+Esses valores de carga foram definidos para a máquina utilizada nos testes e representam os níveis que permaneceram dentro de uma taxa de erros de até 10% nesse ambiente específico.
 
 Nos cenários com cache, o script aquece previamente o Redis antes do início das medições. Esse aquecimento consiste em executar uma chamada para cada uma das 10 URLs. Assim, os resultados com cache representam majoritariamente o comportamento de consultas já armazenadas, evitando misturar misses iniciais com hits durante a medição principal.
 
@@ -240,7 +242,7 @@ Além da latência, o throughput confirma a diferença de comportamento. O `pyth
 
 Na taxa de falhas, os cenários com cache foram os mais estáveis: `python_cache` e `ruby_cache` tiveram `0` falhas em todas as cargas, ou seja, `0,00%`. O `python_nocache` também registrou `0,00%` de falhas, mas executou um volume muito menor de requisições: `1.299`, `974` e `634` nas três rodadas, mostrando que a ausência de falhas não significou bom desempenho.
 
-O ponto de atenção aparece no `ruby_nocache`. Com 100 usuários, ele teve `0` falhas em `2.517` requisições, ficando em `0,00%`. Com 250 usuários, registrou `7` falhas em `2.376` requisições, taxa de `0,29%`. Com 500 usuários, chegou a `189` falhas em `2.195` requisições, taxa de `8,61%`. Esse aumento mostra que, sem cache, a API passa a sofrer mais com concorrência, dependência de rede e tempo de processamento das páginas externas.
+O ponto de atenção aparece no `ruby_nocache`. Com 100 usuários, ele teve `0` falhas em `2.517` requisições, ficando em `0,00%`. Com 250 usuários, registrou `7` falhas em `2.376` requisições, taxa de `0,29%`. Com 500 usuários, chegou a `189` falhas em `2.195` requisições, taxa de `8,61%`. Esse aumento mostra que, sem cache, a API passa a sofrer mais com concorrência, dependência de rede e tempo de processamento das páginas externas. Ainda assim, a carga máxima avaliada permanece abaixo do limite de 10% de erros adotado para esta máquina, o que justifica a escolha de 100, 250 e 500 usuários como níveis de comparação neste experimento.
 
 ![Ranking das URLs pela quantidade de links extraídos](graphs/links_extraidos_por_url.png)
 
