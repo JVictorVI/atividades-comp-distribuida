@@ -312,8 +312,6 @@ A análise dos resultados foi feita a partir do arquivo consolidado `consolidate
 
 ![Taxa de falhas por cenário e usuários](graphs/barras_p95_falhas/consolidado/failure_rate_percent_por_cenario_e_usuarios.png)
 
-![P95 e taxa de falhas por cenário e usuários](graphs/barras_p95_falhas/consolidado/p95_taxa_falhas_por_cenario_e_usuarios.png)
-
 Nos gráficos consolidados, observa-se que o aumento da carga fez diferença direta no tempo das requisições. Em praticamente todos os cenários, o P95 cresce quando a quantidade de usuários passa de 25 para 75 e depois para 155 usuários. Isso ocorre porque mais usuários simultâneos geram mais requisições concorrentes, aumentando a disputa por CPU, memória, conexões de rede, processos PHP do WordPress e acesso ao banco MySQL. Mesmo quando o número de requisições por segundo aumenta, o sistema passa a acumular mais trabalho em paralelo, e parte das requisições precisa esperar mais tempo na fila antes de ser processada.
 
 Também é possível perceber que o tamanho da página influenciou o tempo de resposta. O cenário leve, com postagem de aproximadamente 300 KB, apresentou os menores tempos em geral. O cenário médio ficou em uma faixa próxima, mas com alguns aumentos de P95 sob maior carga. O cenário pesado, com postagem de aproximadamente 1 MB, apresentou os maiores tempos de resposta, especialmente com 75 e 155 usuários. Isso acontece porque páginas maiores exigem mais transferência de dados, mais processamento para montar a resposta e maior uso dos recursos disponíveis no ambiente conteinerizado.
