@@ -1,0 +1,7 @@
+Method,Name,Error,Occurrences
+GET,/api/https://www.estadao.com.br,CatchResponseError('Resposta inesperada para https://www.estadao.com.br: esperado lista de links'),1
+GET,/api/https://www.todamateria.com.br,CatchResponseError('Resposta JSON invalida para https://www.todamateria.com.br: Expecting value: line 1 column 1 (char 0)'),1
+GET,/api/https://www12.senado.leg.br,CatchResponseError('Resposta JSON invalida para https://www12.senado.leg.br: Expecting value: line 1 column 1 (char 0)'),1
+GET,/api/https://br.ign.com,CatchResponseError('Resposta inesperada para https://br.ign.com: esperado lista de links'),1
+GET,/api/https://cnn.com,CatchResponseError('Resposta JSON invalida para https://cnn.com: Expecting value: line 1 column 1 (char 0)'),1
+GET,/api/https://www.tudogostoso.com.br,CatchResponseError('Resposta JSON invalida para https://www.tudogostoso.com.br: Expecting value: line 1 column 1 (char 0)'),2

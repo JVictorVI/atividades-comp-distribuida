@@ -89,6 +89,17 @@ Para cada cenário, o teste é repetido com diferentes quantidades de usuários 
 
 Nos cenários com cache, o script aquece previamente o Redis antes do início das medições. Esse aquecimento consiste em executar uma chamada para cada uma das 10 URLs. Assim, os resultados com cache representam majoritariamente o comportamento de consultas já armazenadas, evitando misturar misses iniciais com hits durante a medição principal.
 
+## Ambiente de execução
+
+Os testes foram executados em uma máquina com as seguintes especificações:
+
+| Componente | Especificação |
+| --- | --- |
+| Sistema operacional | Windows 11 |
+| Processador | Intel Core 5 210H |
+| Memória RAM | 24 GB DDR5 5600 MHz |
+| Armazenamento | SSD de 1 TB |
+
 ## Procedimento experimental
 
 O procedimento automatizado segue as seguintes etapas:
@@ -127,6 +138,35 @@ bash scripts/run_all_benchmarks.sh
 ```
 
 Ao final da execução, os principais artefatos estarão nas pastas `results/`, `consolidated/` e `graphs/`.
+
+### Possível erro do Docker BuildKit
+
+Durante a execução do cenário `ruby_nocache`, pode ocorrer uma falha semelhante a:
+
+```text
+failed to prepare extraction snapshot "...": parent snapshot ... does not exist: not found
+```
+
+Esse erro normalmente não indica problema no código Ruby nem no `Dockerfile`. Ele costuma estar relacionado a um estado inconsistente ou transitório do cache/snapshot interno do Docker BuildKit durante a etapa de exportação da imagem.
+
+Para validar o cenário isoladamente, execute:
+
+```powershell
+cd step6-nocache
+docker compose build api
+docker compose up -d --build api
+Invoke-WebRequest -Uri http://localhost:4567/api/https://example.com -UseBasicParsing -TimeoutSec 20
+docker compose down --remove-orphans
+```
+
+Se o mesmo erro voltar, limpe apenas o cache de build do Docker e reconstrua o serviço:
+
+```powershell
+docker builder prune -f
+docker compose up -d --build api
+```
+
+O aviso sobre o atributo `version` no `docker-compose.yml` é emitido por versões recentes do Docker Compose e não é a causa dessa falha.
 
 ## Métricas coletadas
 
@@ -173,6 +213,8 @@ A versão atual do relatório gráfico exibe apenas as métricas mais relevantes
 
 - `graphs/line_p95.png`: evolução do P95 conforme aumenta a quantidade de usuários;
 - `graphs/bar_p95.png`: comparação do P95 entre cenários e cargas;
+- `graphs/latencia_por_api.png`: latência P95 de cada API separadamente, exibindo as três cargas testadas;
+- `graphs/links_extraidos_por_url.png`: ranking das URLs pela quantidade de links extraídos;
 - `graphs/line_taxa_falhas.png`: evolução da taxa de falhas em porcentagem;
 - `graphs/bar_taxa_falhas.png`: comparação da taxa de falhas entre cenários e cargas.
 
@@ -180,15 +222,31 @@ O P95 foi escolhido porque representa um comportamento de cauda mais adequado qu
 
 ## Análise dos resultados consolidados
 
-Os resultados presentes em `consolidated/resultados_consolidados.csv` mostram diferenças claras entre os cenários com e sem cache.
+Os resultados presentes em `consolidated/resultados_consolidados.csv` mostram diferenças claras entre os cenários com e sem cache. A comparação principal foi feita a partir do P95, pois ele representa melhor a experiência dos usuários que ficaram na parte mais lenta da distribuição de respostas.
 
-Nos cenários com cache, tanto Python quanto Ruby apresentaram taxa de falhas igual a 0% nas rodadas consolidadas. Além disso, o throughput foi significativamente maior que nos cenários sem cache, pois a API deixou de depender da busca e do processamento completo das páginas remotas a cada chamada.
+![Comparação da latência P95 entre APIs](graphs/bar_p95.png)
 
-O cenário `ruby_cache` apresentou os maiores valores de requisições por segundo nos dados consolidados, mantendo P95 menor que os cenários sem cache. O cenário `python_cache` também se manteve estável, embora com P95 crescente conforme o número de usuários aumentou.
+No gráfico de P95, a diferença entre usar ou não cache aparece de forma direta. No cenário `python_nocache`, o P95 foi de `23.000 ms` com 100 usuários, subiu para `51.000 ms` com 250 usuários e chegou a `73.000 ms` com 500 usuários. Com cache, o mesmo serviço Python ficou em `910 ms`, `2.900 ms` e `5.500 ms`, respectivamente. Isso representa reduções de aproximadamente `96,04%`, `94,31%` e `92,47%` no P95 em relação ao Python sem cache.
 
-Nos cenários sem cache, o tempo de resposta foi mais elevado, especialmente quando a carga aumentou. Isso ocorre porque cada requisição precisa acessar a página externa, aguardar a resposta da rede, processar o HTML e montar o JSON de retorno. O cenário `ruby_nocache` também apresentou taxa de falhas relevante nas rodadas consolidadas, indicando maior sensibilidade sob carga quando o cache não está presente.
+No caso do Ruby, o efeito do cache foi ainda mais forte. O cenário `ruby_nocache` apresentou P95 de `6.700 ms`, `16.000 ms` e `30.000 ms` para 100, 250 e 500 usuários. Já o `ruby_cache` ficou em `250 ms`, `330 ms` e `340 ms`. As reduções aproximadas foram de `96,27%`, `97,94%` e `98,87%`. Isso indica que, quando a resposta já está armazenada, a API deixa de depender da latência da página externa e passa a responder quase sempre a partir do Redis.
 
-De forma geral, os resultados reforçam a importância do cache em uma aplicação distribuída que depende de recursos externos. Ao armazenar respostas já processadas, o sistema reduz latência, aumenta throughput e diminui a probabilidade de falhas causadas por tempo de resposta elevado ou indisponibilidade momentânea das páginas acessadas.
+![Latência P95 por API e carga](graphs/latencia_por_api.png)
+
+O gráfico separado por API reforça o comportamento de escalabilidade de cada cenário. O `ruby_cache` manteve a latência mais estável, variando apenas de `250 ms` para `340 ms` no P95 entre 100 e 500 usuários. O `python_cache` também se beneficiou do cache, mas sua latência cresceu mais com a carga: de `910 ms` para `5.500 ms`. Nos cenários sem cache, a degradação foi bem mais acentuada: o Python sem cache aumentou de `23.000 ms` para `73.000 ms`, enquanto o Ruby sem cache passou de `6.700 ms` para `30.000 ms`.
+
+Além da latência, o throughput confirma a diferença de comportamento. O `python_cache` processou `380,79`, `369,63` e `369,42` requisições por segundo nas três cargas, enquanto o `python_nocache` ficou em `10,94`, `8,13` e `5,35` requisições por segundo. Em termos relativos, o cache tornou o throughput do Python cerca de `34,80x`, `45,47x` e `69,04x` maior. No Ruby, o `ruby_cache` atingiu `679,30`, `785,80` e `778,03` requisições por segundo, contra `21,19`, `19,99` e `18,33` no `ruby_nocache`, uma diferença de aproximadamente `32,06x`, `39,32x` e `42,46x`.
+
+![Comparação da taxa de falhas entre APIs](graphs/bar_taxa_falhas.png)
+
+Na taxa de falhas, os cenários com cache foram os mais estáveis: `python_cache` e `ruby_cache` tiveram `0` falhas em todas as cargas, ou seja, `0,00%`. O `python_nocache` também registrou `0,00%` de falhas, mas executou um volume muito menor de requisições: `1.299`, `974` e `634` nas três rodadas, mostrando que a ausência de falhas não significou bom desempenho.
+
+O ponto de atenção aparece no `ruby_nocache`. Com 100 usuários, ele teve `0` falhas em `2.517` requisições, ficando em `0,00%`. Com 250 usuários, registrou `7` falhas em `2.376` requisições, taxa de `0,29%`. Com 500 usuários, chegou a `189` falhas em `2.195` requisições, taxa de `8,61%`. Esse aumento mostra que, sem cache, a API passa a sofrer mais com concorrência, dependência de rede e tempo de processamento das páginas externas.
+
+![Ranking das URLs pela quantidade de links extraídos](graphs/links_extraidos_por_url.png)
+
+A carga de trabalho também não foi uniforme entre as URLs testadas. A página com maior quantidade de links foi `www.foxnews.com`, com até `911` links extraídos. Em seguida aparecem `cnn.com`, com `492`, `br.ign.com`, com `383`, e `www.estadao.com.br`, com `359`. No outro extremo, `kotaku.com` teve `136` links e `canaltech.com.br` teve `155`. Essa diferença ajuda a explicar parte da variação de tempo nos cenários sem cache: páginas maiores tendem a gerar respostas maiores e exigem mais processamento de HTML a cada requisição.
+
+De forma geral, os gráficos mostram que o cache foi o principal fator de melhoria do experimento. Ele reduziu drasticamente a latência P95, aumentou o volume de requisições por segundo e eliminou as falhas nos cenários avaliados. A comparação também mostra que o desempenho não depende apenas da linguagem usada, mas principalmente da arquitetura da solução: quando a API precisa buscar e processar páginas externas a cada chamada, o sistema degrada rapidamente; quando reutiliza respostas em cache, ele suporta cargas maiores com mais estabilidade.
 
 ## Considerações finais
 

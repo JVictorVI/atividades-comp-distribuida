@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
-$UsersList = @(5, 25, 50)
-$SpawnRate = 3
+$UsersList = @(100, 250, 500)
+$SpawnRate = 10
 $RunTime = "2m"
 
 $RootDir = Resolve-Path (Join-Path $PSScriptRoot "..")
@@ -11,10 +11,10 @@ $LocustFile = Join-Path $RootDir "locust\locustfile.py"
 New-Item -ItemType Directory -Force -Path $ResultsDir | Out-Null
 
 $Urls = @(
-    "https://g1.globo.com", #682 links
+    "https://www.foxnews.com", #911 links
     "https://cnn.com", #486 links
     "https://br.ign.com", #383 links 
-    "https://gshow.globo.com", #284 links
+    "https://www.estadao.com.br", #308 links
     "https://www12.senado.leg.br", #250 links
     "https://receitas.globo.com", #235 links 
     "https://www.tudogostoso.com.br", #208 links 
