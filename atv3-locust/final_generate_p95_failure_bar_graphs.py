@@ -273,7 +273,7 @@ def generate_combined_by_scenario_and_users(df, metric, ylabel):
     Gera um unico arquivo consolidando os 4 graficos por cenario.
 
     Layout:
-    - Colunas = cenarios
+    - Eixos/subplots = cenarios
     - X = numero de usuarios
     - Barras = quantidade de instancias
     """
@@ -284,20 +284,24 @@ def generate_combined_by_scenario_and_users(df, metric, ylabel):
     if not scenarios or not users or not instances:
         return None
 
+    ncols = 2
+    nrows = int(np.ceil(len(scenarios) / ncols))
+
     fig, axes = plt.subplots(
-        nrows=1,
-        ncols=len(scenarios),
-        figsize=(5 * len(scenarios), 4.8),
+        nrows=nrows,
+        ncols=ncols,
+        figsize=(10, 4.8 * nrows),
         squeeze=False,
     )
+    axes_flat = axes.flatten()
 
     x = np.arange(len(users))
     width = 0.75 / len(instances)
     metric_max = df[metric].max()
     value_format = "{:.2f}" if metric == "failure_rate_percent" else "{:.0f}"
 
-    for col_index, scenario in enumerate(scenarios):
-        ax = axes[0][col_index]
+    for scenario_index, scenario in enumerate(scenarios):
+        ax = axes_flat[scenario_index]
         data_scenario = df[df["scenario"] == scenario]
 
         for instance_index, instance in enumerate(instances):
@@ -325,7 +329,7 @@ def generate_combined_by_scenario_and_users(df, metric, ylabel):
 
         ax.set_title(get_scenario_label(scenario))
 
-        if col_index == 0:
+        if scenario_index % ncols == 0:
             ax.set_ylabel(ylabel)
 
         ax.set_xlabel("Usuarios")
@@ -336,7 +340,10 @@ def generate_combined_by_scenario_and_users(df, metric, ylabel):
         if metric_max > 0:
             ax.set_ylim(0, metric_max * 1.18)
 
-    handles, labels = axes[0][0].get_legend_handles_labels()
+    for ax in axes_flat[len(scenarios):]:
+        ax.axis("off")
+
+    handles, labels = axes_flat[0].get_legend_handles_labels()
     fig.legend(
         handles,
         labels,
