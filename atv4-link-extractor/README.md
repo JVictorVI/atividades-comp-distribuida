@@ -85,6 +85,8 @@ Foram avaliadas quatro configurações principais:
 | `ruby_nocache`   | `step6-nocache` | `http://localhost:4567` | Ruby      | sem cache |
 | `ruby_cache`     | `step6`         | `http://localhost:4567` | Ruby      | com Redis |
 
+No caso específico do cenário `ruby_nocache`, o arquivo `step6-nocache/docker-compose.yml` não inclui um serviço Redis. A composição desse cenário inicia apenas os containers da API Ruby e da interface web, reforçando que a extração é executada novamente a cada requisição, sem armazenamento intermediário dos resultados.
+
 Para cada cenário, o teste é repetido com diferentes quantidades de usuários virtuais. No script PowerShell, usado para os resultados consolidados deste repositório, são utilizados 100, 250 e 500 usuários virtuais.
 
 Esses valores de carga foram definidos para a máquina utilizada nos testes e representam os níveis que permaneceram dentro de uma taxa de erros de até 10% nesse ambiente específico.
@@ -214,7 +216,8 @@ O arquivo `consolidated/links_extraidos_por_url.csv` contém a caracterização 
 A versão atual do relatório gráfico exibe apenas as métricas mais relevantes para a comparação final:
 
 - `graphs/line_p95.png`: evolução do P95 conforme aumenta a quantidade de usuários;
-- `graphs/bar_p95.png`: comparação do P95 entre cenários e cargas;
+- `graphs/bar_p95_sem_cache.png`: comparação do P95 entre APIs sem cache;
+- `graphs/bar_p95_com_cache.png`: comparação do P95 entre APIs com cache;
 - `graphs/latencia_por_api.png`: latência P95 de cada API separadamente, exibindo as três cargas testadas;
 - `graphs/links_extraidos_por_url.png`: ranking das URLs pela quantidade de links extraídos;
 - `graphs/line_taxa_falhas.png`: evolução da taxa de falhas em porcentagem;
@@ -226,23 +229,35 @@ O P95 foi escolhido porque representa um comportamento de cauda mais adequado qu
 
 Os resultados presentes em `consolidated/resultados_consolidados.csv` mostram diferenças claras entre os cenários com e sem cache. A comparação principal foi feita a partir do P95, pois ele representa melhor a experiência dos usuários que ficaram na parte mais lenta da distribuição de respostas.
 
-![Comparação da latência P95 entre APIs](graphs/bar_p95.png)
+### Latência P95
 
-No gráfico de P95, a diferença entre usar ou não cache aparece de forma direta. No cenário `python_nocache`, o P95 foi de `23.000 ms` com 100 usuários, subiu para `51.000 ms` com 250 usuários e chegou a `73.000 ms` com 500 usuários. Com cache, o mesmo serviço Python ficou em `910 ms`, `2.900 ms` e `5.500 ms`, respectivamente. Isso representa reduções de aproximadamente `96,04%`, `94,31%` e `92,47%` no P95 em relação ao Python sem cache.
+A comparação de latência foi separada em dois gráficos porque os cenários com cache e sem cache possuem escalas muito diferentes. Quando todos os valores aparecem no mesmo gráfico, os cenários com cache ficam visualmente comprimidos, dificultando a leitura das diferenças entre Python e Ruby dentro desse grupo.
 
-No caso do Ruby, o efeito do cache foi ainda mais forte. O cenário `ruby_nocache` apresentou P95 de `6.700 ms`, `16.000 ms` e `30.000 ms` para 100, 250 e 500 usuários. Já o `ruby_cache` ficou em `250 ms`, `330 ms` e `340 ms`. As reduções aproximadas foram de `96,27%`, `97,94%` e `98,87%`. Isso indica que, quando a resposta já está armazenada, a API deixa de depender da latência da página externa e passa a responder quase sempre a partir do Redis.
+![Comparação da latência P95 entre APIs sem cache](graphs/bar_p95_sem_cache.png)
+
+No gráfico sem cache, a degradação com o aumento da carga aparece de forma mais clara. O cenário `python_nocache` teve P95 de `23.000 ms` com 100 usuários, subiu para `51.000 ms` com 250 usuários e chegou a `73.000 ms` com 500 usuários. O `ruby_nocache` também piorou conforme a concorrência aumentou, passando de `6.700 ms` para `16.000 ms` e depois para `30.000 ms`. Esses valores mostram que, quando a extração precisa acessar as páginas externas em todas as chamadas, o serviço fica muito mais sensível à latência de rede, ao tamanho do HTML e ao custo de processamento.
+
+![Comparação da latência P95 entre APIs com cache](graphs/bar_p95_com_cache.png)
+
+No gráfico com cache, a escala menor permite observar melhor o comportamento das duas implementações quando a resposta já está armazenada. O `python_cache` apresentou P95 de `910 ms`, `2.900 ms` e `5.500 ms` para 100, 250 e 500 usuários. O `ruby_cache` ficou em `250 ms`, `330 ms` e `340 ms`, mantendo uma latência mais estável mesmo na maior carga. Em relação aos cenários sem cache, as reduções foram expressivas: no Python, aproximadamente `96,04%`, `94,31%` e `92,47%`; no Ruby, aproximadamente `96,27%`, `97,94%` e `98,87%`.
 
 ![Latência P95 por API e carga](graphs/latencia_por_api.png)
 
 O gráfico separado por API reforça o comportamento de escalabilidade de cada cenário. O `ruby_cache` manteve a latência mais estável, variando apenas de `250 ms` para `340 ms` no P95 entre 100 e 500 usuários. O `python_cache` também se beneficiou do cache, mas sua latência cresceu mais com a carga: de `910 ms` para `5.500 ms`. Nos cenários sem cache, a degradação foi bem mais acentuada: o Python sem cache aumentou de `23.000 ms` para `73.000 ms`, enquanto o Ruby sem cache passou de `6.700 ms` para `30.000 ms`.
 
+### Throughput
+
 Além da latência, o throughput confirma a diferença de comportamento. O `python_cache` processou `380,79`, `369,63` e `369,42` requisições por segundo nas três cargas, enquanto o `python_nocache` ficou em `10,94`, `8,13` e `5,35` requisições por segundo. Em termos relativos, o cache tornou o throughput do Python cerca de `34,80x`, `45,47x` e `69,04x` maior. No Ruby, o `ruby_cache` atingiu `679,30`, `785,80` e `778,03` requisições por segundo, contra `21,19`, `19,99` e `18,33` no `ruby_nocache`, uma diferença de aproximadamente `32,06x`, `39,32x` e `42,46x`.
+
+### Taxa de falhas
 
 ![Comparação da taxa de falhas entre APIs](graphs/bar_taxa_falhas.png)
 
 Na taxa de falhas, os cenários com cache foram os mais estáveis: `python_cache` e `ruby_cache` tiveram `0` falhas em todas as cargas, ou seja, `0,00%`. O `python_nocache` também registrou `0,00%` de falhas, mas executou um volume muito menor de requisições: `1.299`, `974` e `634` nas três rodadas, mostrando que a ausência de falhas não significou bom desempenho.
 
 O ponto de atenção aparece no `ruby_nocache`. Com 100 usuários, ele teve `0` falhas em `2.517` requisições, ficando em `0,00%`. Com 250 usuários, registrou `7` falhas em `2.376` requisições, taxa de `0,29%`. Com 500 usuários, chegou a `189` falhas em `2.195` requisições, taxa de `8,61%`. Esse aumento mostra que, sem cache, a API passa a sofrer mais com concorrência, dependência de rede e tempo de processamento das páginas externas. Ainda assim, a carga máxima avaliada permanece abaixo do limite de 10% de erros adotado para esta máquina, o que justifica a escolha de 100, 250 e 500 usuários como níveis de comparação neste experimento.
+
+### Quantidade de links por URL
 
 ![Ranking das URLs pela quantidade de links extraídos](graphs/links_extraidos_por_url.png)
 

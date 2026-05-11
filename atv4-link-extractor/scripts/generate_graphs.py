@@ -134,9 +134,10 @@ def format_bar_value(metric, value):
     return f"{value:.1f}"
 
 
-def bar_chart(metric, title, ylabel, filename):
-    users = sorted(df["users"].unique())
-    labels = ordered_labels()
+def bar_chart(metric, title, ylabel, filename, source_df=None, labels=None):
+    source_df = df if source_df is None else source_df
+    users = sorted(source_df["users"].unique())
+    labels = ordered_labels() if labels is None else labels
 
     x = np.arange(len(users))
     width = 0.18
@@ -148,7 +149,7 @@ def bar_chart(metric, title, ylabel, filename):
     for i, label in enumerate(labels):
         values = []
         for user_count in users:
-            val = df[(df["label"] == label) & (df["users"] == user_count)][metric]
+            val = source_df[(source_df["label"] == label) & (source_df["users"] == user_count)][metric]
             values.append(val.values[0] if not val.empty else 0)
 
         positions = x + i * width - offset
@@ -182,6 +183,12 @@ def bar_chart(metric, title, ylabel, filename):
     fig.tight_layout()
     fig.savefig(GRAPHS_DIR / filename, dpi=150)
     plt.close()
+
+
+def latency_comparison_by_cache_chart(cache_value, title, filename):
+    source_df = df[df["cache"] == cache_value]
+    labels = [label for label in LABEL_ORDER if label in set(source_df["label"])]
+    bar_chart("p95_response_ms", title, "Latência P95 (ms)", filename, source_df, labels)
 
 
 def latency_by_api_chart():
@@ -233,7 +240,16 @@ def latency_by_api_chart():
 line_chart("p95_response_ms", "Evolução da latência P95 por carga", "Latência P95 (ms)", "line_p95.png")
 line_chart("failure_rate_percent", "Evolução da taxa de falhas por carga", "Taxa de falhas (%)", "line_taxa_falhas.png")
 
-bar_chart("p95_response_ms", "Comparação da latência P95 entre APIs", "Latência P95 (ms)", "bar_p95.png")
+latency_comparison_by_cache_chart(
+    "sem_cache",
+    "Comparação da latência P95 entre APIs sem cache",
+    "bar_p95_sem_cache.png",
+)
+latency_comparison_by_cache_chart(
+    "com_cache",
+    "Comparação da latência P95 entre APIs com cache",
+    "bar_p95_com_cache.png",
+)
 bar_chart("failure_rate_percent", "Comparação da taxa de falhas entre APIs", "Taxa de falhas (%)", "bar_taxa_falhas.png")
 latency_by_api_chart()
 
