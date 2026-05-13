@@ -1,6 +1,9 @@
 # Atividade 4 - Link Extractor
 
-## Relatório do projeto
+- João Victor da Silva Ferreira - 2314387
+- Paulo Marconi Araújo Tomaz da Silva - 2310435
+
+## Resumo
 
 Este projeto apresenta a implementação e a avaliação experimental de desempenho da aplicação Link Extractor, utilizada como estudo prático de sistemas distribuídos. A aplicação recebe uma URL por meio de uma API HTTP, acessa a página correspondente, extrai os links presentes no documento HTML e retorna esses links em formato JSON.
 

@@ -1,5 +1,10 @@
 # Trabalho 3: Testes de Carga com WordPress, Locust e Múltiplas Instâncias
 
+## Equipe
+
+- João Victor da Silva Ferreira - 2314387
+- Paulo Marconi Araújo Tomaz da Silva - 2310435
+
 ## Resumo
 
 Este projeto realiza testes de carga em uma aplicação WordPress executada em contêineres Docker, com o objetivo de avaliar o comportamento do sistema quando submetido a diferentes quantidades de usuários simultâneos e a diferentes números de instâncias da aplicação.
