@@ -1,5 +1,7 @@
 # Atividade 4 - Link Extractor
 
+## Equipe
+
 - João Victor da Silva Ferreira - 2314387
 - Paulo Marconi Araújo Tomaz da Silva - 2310435
 
