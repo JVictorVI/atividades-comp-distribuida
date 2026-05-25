@@ -1,0 +1,5 @@
+fastapi==0.115.6
+graphql-core==3.2.5
+grpcio==1.68.1
+locust==2.32.10
+uvicorn[standard]==0.32.1

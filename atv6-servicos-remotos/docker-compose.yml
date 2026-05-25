@@ -1,0 +1,100 @@
+services:
+  rest:
+    image: music-streaming-python:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python -m music_service.servers.rest
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/health', timeout=2).read()"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  graphql:
+    image: music-streaming-python:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python -m music_service.servers.graphql
+    ports:
+      - "3001:3001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3001/health', timeout=2).read()"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  soap:
+    image: music-streaming-python:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python -m music_service.servers.soap
+    ports:
+      - "3002:3002"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3002/health', timeout=2).read()"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  grpc:
+    image: music-streaming-python:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python -m music_service.servers.grpc_server
+    ports:
+      - "50051:50051"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import grpc; channel=grpc.insecure_channel('127.0.0.1:50051'); grpc.channel_ready_future(channel).result(timeout=2); channel.close()"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  locust-scenarios:
+    image: music-streaming-python:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    profiles:
+      - scenarios
+    depends_on:
+      rest:
+        condition: service_healthy
+      graphql:
+        condition: service_healthy
+      soap:
+        condition: service_healthy
+      grpc:
+        condition: service_healthy
+    command: python scripts/run_locust_scenarios.py
+    environment:
+      REST_HOST: http://rest:3000
+      GRAPHQL_HOST: http://graphql:3001
+      SOAP_HOST: http://soap:3002
+      GRPC_TARGET: grpc:50051
+      LOCUST_RESULTS_DIR: /app/results
+      LOCUST_DURATION: ${LOCUST_DURATION:-1m}
+      LOCUST_SPAWN_RATE: ${LOCUST_SPAWN_RATE:-100}
+      LOCUST_USER_COUNTS: ${LOCUST_USER_COUNTS:-50,250,500}
+    volumes:
+      - ./results:/app/results
+
+  charts:
+    image: music-streaming-python:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    profiles:
+      - charts
+    command: python scripts/generate_charts.py
+    environment:
+      LOCUST_RESULTS_DIR: /app/results
+      LOCUST_CHARTS_DIR: /app/results/charts
+      LOCUST_USER_COUNTS: ${LOCUST_USER_COUNTS:-50,250,500}
+    volumes:
+      - ./results:/app/results
