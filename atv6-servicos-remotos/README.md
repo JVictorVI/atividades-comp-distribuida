@@ -1,10 +1,12 @@
 # Trabalho 6 - Comparação de Tecnologias de Invocação de Serviços Remotos
 
-Projeto em Python para comparar SOAP, REST, GraphQL e gRPC usando o mesmo serviço de streaming de músicas. A comparação é feita com Locust, três cargas de usuários virtuais e gráficos gerados automaticamente a partir dos resultados.
+Projeto com implementações em Python e JavaScript/Node.js para comparar SOAP, REST, GraphQL e gRPC usando o mesmo serviço de streaming de músicas. A comparação é feita com Locust, três cargas de usuários virtuais e gráficos gerados automaticamente a partir dos resultados.
+
+Detalhes específicos da versão JavaScript ficam em `services/javascript/README.md`.
 
 ## Objetivo
 
-O objetivo é comparar tecnologias de invocação remota em um mesmo domínio. Para manter a comparação justa, as quatro APIs usam a mesma regra de negócio e a mesma base de dados em memória.
+O objetivo é comparar tecnologias de invocação remota em um mesmo domínio. Para manter a comparação justa, as quatro APIs de cada linguagem usam a mesma regra de negócio e a mesma base de dados em memória.
 
 O serviço gerencia:
 
@@ -37,20 +39,20 @@ GraphQL:
 
 SOAP:
 
-- Implementado em Python com FastAPI e XML.
+- Implementado em Python com FastAPI e XML; na versão JavaScript, com `node:http` e XML.
 - Expõe endpoint SOAP e WSDL básico.
 - Porta local: `3002`.
 
 gRPC:
 
-- Implementado com `grpcio`.
+- Implementado com `grpcio` em Python e com `node:http2` na versão JavaScript.
 - Usa o contrato `proto/music.proto`.
-- O servidor usa handlers gRPC genéricos e serialização Protocol Buffers em Python.
+- Os servidores usam handlers gRPC genéricos e serialização Protocol Buffers.
 - Porta local: `50051`.
 
 ## Origem, Características, Vantagens e Desvantagens
 
-Todas as tecnologias abaixo foram exemplificadas em Python, que é a linguagem usada neste projeto.
+O projeto tem implementações em Python e JavaScript. Os exemplos conceituais abaixo usam Python por simplicidade, e a versão JavaScript fica organizada em `services/javascript/`.
 
 ### REST
 
@@ -225,65 +227,87 @@ finally:
     channel.close()
 ```
 
-Em uma implementação gRPC tradicional, o cliente Python também poderia ser gerado automaticamente a partir do arquivo `proto/music.proto`. Neste projeto, o servidor e o cliente de carga usam handlers genéricos para manter a implementação concentrada em Python e evitar etapas adicionais de geração de código.
+Em uma implementação gRPC tradicional, clientes e servidores também poderiam ser gerados automaticamente a partir do arquivo `proto/music.proto`. Neste projeto, as implementações usam handlers genéricos para manter o código simples e evitar etapas adicionais de geração.
 
 ## Como Foi Feito
 
 O domínio compartilhado fica em:
 
 ```text
-music_service/domain/music_store.py
+services/python/music_service/domain/music_store.py
 ```
 
-Esse módulo contém:
+Na versão JavaScript, a regra equivalente fica em:
+
+```text
+services/javascript/domain/musicStore.js
+```
+
+Esses módulos contêm:
 
 - dados iniciais;
 - validações;
 - regras de criação, alteração, remoção e consulta;
 - relações entre usuários, músicas e playlists.
 
-Os quatro servidores apenas adaptam suas chamadas para esse mesmo domínio. Assim, a diferença entre REST, GraphQL, SOAP e gRPC fica concentrada no mecanismo de invocação remota, não na regra de negócio.
+Os servidores apenas adaptam suas chamadas para esse mesmo domínio em cada linguagem. Assim, a diferença entre REST, GraphQL, SOAP e gRPC fica concentrada no mecanismo de invocação remota, não na regra de negócio.
 
 ## Estrutura
 
 ```text
 .
-├── docker-compose.yml
-├── Dockerfile
-├── locustfile.py
-├── requirements.txt
-├── music_service/
-│   ├── config.py
-│   ├── domain/
-│   │   └── music_store.py
-│   └── servers/
-│       ├── rest.py
-│       ├── graphql.py
-│       ├── soap.py
-│       └── grpc_server.py
-├── proto/
-│   └── music.proto
-├── scripts/
-│   ├── generate_charts.py
-│   ├── run_locust_scenarios.py
-│   └── run_all.ps1
-└── results/
+|-- docker-compose.yml
+|-- locustfile.py
+|-- proto/
+|   `-- music.proto
+|-- services/
+|   |-- python/
+|   |   |-- Dockerfile
+|   |   |-- requirements.txt
+|   |   `-- music_service/
+|   `-- javascript/
+|       |-- Dockerfile
+|       |-- package.json
+|       |-- domain/
+|       `-- servers/
+|-- scripts/
+|   |-- run_python.ps1
+|   |-- run_javascript.ps1
+|   |-- run_all.ps1
+|   |-- run_locust_scenarios.py
+|   `-- generate_charts.py
+`-- results/
 ```
 
 Arquivos importantes:
 
-- `Dockerfile`: imagem Python usada pelos servidores, Locust e gráficos.
-- `docker-compose.yml`: sobe as APIs, Locust, bateria de testes e geração de gráficos.
+- `services/python/Dockerfile`: imagem Python usada pelos servidores Python, Locust e gráficos.
+- `services/javascript/Dockerfile`: imagem Node.js usada pelos servidores JavaScript.
+- `docker-compose.yml`: sobe as APIs das duas linguagens, Locust, bateria de testes e geração de gráficos.
 - `locustfile.py`: define os usuários virtuais e cenários de carga.
-- `scripts/run_all.ps1`: executa o fluxo completo com Docker Compose.
+- `scripts/run_python.ps1`: executa apenas a implementação Python.
+- `scripts/run_javascript.ps1`: executa apenas a implementação JavaScript.
+- `scripts/run_all.ps1`: executa Python e JavaScript no mesmo comando.
 - `scripts/run_locust_scenarios.py`: executa a bateria com 50, 250 e 500 usuários.
-- `scripts/generate_charts.py`: gera gráficos SVG e resumo agregado.
+- `scripts/generate_charts.py`: gera gráficos SVG e resumo agregado. Quando executado sem `LOCUST_RESULTS_DIR`, detecta automaticamente `results/python` e `results/javascript`, se existirem.
 
-## Execução Completa com PowerShell
+## Execução com PowerShell
 
-O script sobe as quatro APIs em containers, espera os serviços ficarem saudáveis, executa a bateria headless do Locust, gera os gráficos e encerra os containers ao final.
+Cada script sobe as APIs em containers, espera os serviços ficarem saudáveis, executa a bateria headless do Locust, gera os gráficos e encerra os containers ao final.
 
-Execute:
+Rodar apenas Python:
+
+```powershell
+.\scripts\run_python.ps1
+```
+
+Rodar apenas JavaScript:
+
+```powershell
+.\scripts\run_javascript.ps1
+```
+
+Rodar as duas implementações:
 
 ```powershell
 .\scripts\run_all.ps1
@@ -322,28 +346,29 @@ O `spawn-rate` é único para os três cenários. O padrão é `100` usuários p
 O script `run_all.ps1` já roda a bateria completa. Caso queira executar manualmente pelo Docker Compose:
 
 ```powershell
-docker compose up -d rest graphql soap grpc
-docker compose --profile scenarios up --build --abort-on-container-exit --exit-code-from locust-scenarios locust-scenarios
+docker compose up -d rest-python graphql-python soap-python grpc-python
+docker compose --profile python-scenarios run --rm locust-python
 ```
 
 Controlar o `spawn-rate`:
 
 ```powershell
 $env:LOCUST_SPAWN_RATE="50"
-docker compose --profile scenarios up --build --abort-on-container-exit --exit-code-from locust-scenarios locust-scenarios
+docker compose --profile python-scenarios run --rm locust-python
 ```
 
 Controlar a duração de cada teste:
 
 ```powershell
 $env:LOCUST_DURATION="2m"
-docker compose --profile scenarios up --build --abort-on-container-exit --exit-code-from locust-scenarios locust-scenarios
+docker compose --profile python-scenarios run --rm locust-python
 ```
 
 Os resultados são salvos em:
 
 ```text
-results/
+results/python/
+results/javascript/
 ```
 
 ## Cenários do Locust
@@ -377,10 +402,19 @@ failureCount / requestCount * 100
 Após executar a bateria, gere os gráficos:
 
 ```powershell
-docker compose --profile charts run --build --rm charts
+docker compose --profile python-charts run --rm charts-python
+docker compose --profile js-charts run --rm charts-js
 ```
 
-São gerados três gráficos para cada carga, dentro de `results/charts/`:
+Se preferir executar o gerador diretamente no host, sem `LOCUST_RESULTS_DIR`, ele procura CSVs em `results/python` e `results/javascript` e gera os dois conjuntos:
+
+```powershell
+& .\services\python\.venv\Scripts\python.exe scripts/generate_charts.py
+```
+
+Quando `LOCUST_RESULTS_DIR` estiver definido, o script gera apenas para o diretório informado. Esse é o comportamento usado pelos serviços `charts-python` e `charts-js` no Docker Compose.
+
+São gerados três gráficos para cada carga, dentro de `results/python/charts/` e `results/javascript/charts/`:
 
 - vazão;
 - latência p95;
@@ -389,39 +423,42 @@ São gerados três gráficos para cada carga, dentro de `results/charts/`:
 Arquivos esperados:
 
 ```text
-results/charts/locust-throughput-carga-baixa-u50.svg
-results/charts/locust-p95-latency-carga-baixa-u50.svg
-results/charts/locust-error-rate-carga-baixa-u50.svg
-results/charts/locust-throughput-carga-media-u250.svg
-results/charts/locust-p95-latency-carga-media-u250.svg
-results/charts/locust-error-rate-carga-media-u250.svg
-results/charts/locust-throughput-carga-alta-u500.svg
-results/charts/locust-p95-latency-carga-alta-u500.svg
-results/charts/locust-error-rate-carga-alta-u500.svg
+results/python/charts/locust-throughput-carga-baixa-u50.svg
+results/python/charts/locust-p95-latency-carga-baixa-u50.svg
+results/python/charts/locust-error-rate-carga-baixa-u50.svg
+results/javascript/charts/locust-throughput-carga-baixa-u50.svg
+results/javascript/charts/locust-p95-latency-carga-baixa-u50.svg
+results/javascript/charts/locust-error-rate-carga-baixa-u50.svg
 ```
 
 Também são gerados:
 
 ```text
-results/locust-summary.csv
-results/locust-summary.json
+results/python/locust-summary.csv
+results/python/locust-summary.json
+results/javascript/locust-summary.csv
+results/javascript/locust-summary.json
 ```
 
 ## Execução Manual sem o Script Principal
 
-O fluxo recomendado é usar `scripts/run_all.ps1`. Ainda assim, se quiser executar as etapas manualmente com Docker Compose, use:
+O fluxo recomendado é usar os scripts principais. Ainda assim, se quiser executar as etapas manualmente com Docker Compose, use:
 
 ```powershell
-docker compose build
-docker compose up -d rest graphql soap grpc
-docker compose --profile scenarios run --rm locust-scenarios
-docker compose --profile charts run --rm charts
+docker compose build rest-python rest-js
+docker compose up -d rest-python graphql-python soap-python grpc-python
+docker compose --profile python-scenarios run --rm locust-python
+docker compose --profile python-charts run --rm charts-python
+docker compose up -d rest-js graphql-js soap-js grpc-js
+docker compose --profile js-scenarios run --rm locust-js
+docker compose --profile js-charts run --rm charts-js
 docker compose down --remove-orphans
 ```
 
 Também é possível preparar um ambiente Python local para desenvolvimento:
 
 ```powershell
+Set-Location services\python
 python -m venv .venv
 & .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
@@ -438,8 +475,8 @@ A execução local completa exige subir os quatro servidores manualmente em term
 Depois, em outro terminal:
 
 ```powershell
-& .\.venv\Scripts\python.exe scripts/run_locust_scenarios.py
-& .\.venv\Scripts\python.exe scripts/generate_charts.py
+& .\services\python\.venv\Scripts\python.exe scripts/run_locust_scenarios.py
+& .\services\python\.venv\Scripts\python.exe scripts/generate_charts.py
 ```
 
 ## Exemplos Rápidos em Python

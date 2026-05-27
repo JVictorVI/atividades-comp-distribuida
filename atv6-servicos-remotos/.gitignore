@@ -1,5 +1,7 @@
-.venv/
+**/.venv/
 __pycache__/
 .pytest_cache/
 results/locust-*.csv
 results/charts
+results/python/
+results/javascript/

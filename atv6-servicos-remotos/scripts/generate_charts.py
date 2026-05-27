@@ -5,8 +5,9 @@ from html import escape
 from pathlib import Path
 
 
-RESULTS_DIR = Path(os.getenv("LOCUST_RESULTS_DIR", "results"))
-CHARTS_DIR = Path(os.getenv("LOCUST_CHARTS_DIR")) if os.getenv("LOCUST_CHARTS_DIR") else RESULTS_DIR / "charts"
+DEFAULT_RESULTS_DIR = Path("results")
+RESULTS_DIR_ENV = os.getenv("LOCUST_RESULTS_DIR")
+CHARTS_DIR_ENV = os.getenv("LOCUST_CHARTS_DIR")
 
 TECHNOLOGIES = [
     {"label": "REST", "slug": "rest"},
@@ -56,8 +57,8 @@ def number(value):
         return 0.0
 
 
-def read_locust_stats(scenario, technology):
-    path = RESULTS_DIR / f"locust-{technology['slug']}-{scenario['slug']}-u{scenario['users']}_stats.csv"
+def read_locust_stats(results_dir, scenario, technology):
+    path = results_dir / f"locust-{technology['slug']}-{scenario['slug']}-u{scenario['users']}_stats.csv"
     if not path.exists():
         raise FileNotFoundError(
             f"Arquivo Locust não encontrado: {path}. "
@@ -97,11 +98,11 @@ def read_locust_stats(scenario, technology):
     return grouped
 
 
-def collect_rows():
+def collect_rows(results_dir):
     rows = []
     for scenario in SCENARIOS:
         for technology in TECHNOLOGIES:
-            stats = read_locust_stats(scenario, technology)
+            stats = read_locust_stats(results_dir, scenario, technology)
             for workload in WORKLOADS:
                 if workload not in stats:
                     raise ValueError(f"Dados ausentes para {technology['label']}/{workload} em {scenario['slug']}")
@@ -209,7 +210,7 @@ def make_chart(scenario, rows, metric, title, unit):
 </svg>"""
 
 
-def write_summary(rows):
+def write_summary(results_dir, rows):
     headers = [
         "scenario",
         "scenarioLabel",
@@ -222,36 +223,63 @@ def write_summary(rows):
         "throughputRps",
         "p95LatencyMs",
     ]
-    with (RESULTS_DIR / "locust-summary.csv").open("w", encoding="utf-8", newline="") as handle:
+    with (results_dir / "locust-summary.csv").open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=headers)
         writer.writeheader()
         writer.writerows(rows)
-    (RESULTS_DIR / "locust-summary.json").write_text(json.dumps(rows, indent=2, ensure_ascii=False), encoding="utf-8")
+    (results_dir / "locust-summary.json").write_text(json.dumps(rows, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
-def main():
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    CHARTS_DIR.mkdir(parents=True, exist_ok=True)
-    rows = collect_rows()
-    write_summary(rows)
+def has_locust_stats(results_dir):
+    return results_dir.exists() and any(results_dir.glob("locust-*_stats.csv"))
+
+
+def chart_targets():
+    if RESULTS_DIR_ENV:
+        results_dir = Path(RESULTS_DIR_ENV)
+        charts_dir = Path(CHARTS_DIR_ENV) if CHARTS_DIR_ENV else results_dir / "charts"
+        return [(results_dir, charts_dir)]
+
+    targets = []
+    for name in ["python", "javascript"]:
+        results_dir = DEFAULT_RESULTS_DIR / name
+        if has_locust_stats(results_dir):
+            charts_dir = Path(CHARTS_DIR_ENV) / name if CHARTS_DIR_ENV else results_dir / "charts"
+            targets.append((results_dir, charts_dir))
+
+    if targets:
+        return targets
+
+    if has_locust_stats(DEFAULT_RESULTS_DIR):
+        charts_dir = Path(CHARTS_DIR_ENV) if CHARTS_DIR_ENV else DEFAULT_RESULTS_DIR / "charts"
+        return [(DEFAULT_RESULTS_DIR, charts_dir)]
+
+    return []
+
+
+def generate_for_target(results_dir, charts_dir):
+    results_dir.mkdir(parents=True, exist_ok=True)
+    charts_dir.mkdir(parents=True, exist_ok=True)
+    rows = collect_rows(results_dir)
+    write_summary(results_dir, rows)
 
     generated = []
     for scenario in SCENARIOS:
         outputs = [
             (
-                CHARTS_DIR / f"locust-throughput-{scenario['slug']}-u{scenario['users']}.svg",
+                charts_dir / f"locust-throughput-{scenario['slug']}-u{scenario['users']}.svg",
                 "throughputRps",
                 "Vazão por tecnologia e cenário",
                 "req/s",
             ),
             (
-                CHARTS_DIR / f"locust-p95-latency-{scenario['slug']}-u{scenario['users']}.svg",
+                charts_dir / f"locust-p95-latency-{scenario['slug']}-u{scenario['users']}.svg",
                 "p95LatencyMs",
                 "Latência p95 por tecnologia e cenário",
                 "ms",
             ),
             (
-                CHARTS_DIR / f"locust-error-rate-{scenario['slug']}-u{scenario['users']}.svg",
+                charts_dir / f"locust-error-rate-{scenario['slug']}-u{scenario['users']}.svg",
                 "errorRatePercent",
                 "Taxa de erros por tecnologia e cenário",
                 "%",
@@ -261,12 +289,23 @@ def main():
             path.write_text(make_chart(scenario, rows, metric, title, unit), encoding="utf-8")
             generated.append(path)
 
-    print("Gráficos Locust gerados:")
+    print(f"Graficos Locust gerados para {results_dir}:")
     for path in generated:
         print(path)
     print("Resumo agregado:")
-    print(RESULTS_DIR / "locust-summary.csv")
-    print(RESULTS_DIR / "locust-summary.json")
+    print(results_dir / "locust-summary.csv")
+    print(results_dir / "locust-summary.json")
+
+
+def main():
+    targets = chart_targets()
+    if not targets:
+        raise SystemExit(
+            "Nenhum CSV Locust encontrado. Execute a bateria de testes ou informe LOCUST_RESULTS_DIR."
+        )
+
+    for results_dir, charts_dir in targets:
+        generate_for_target(results_dir, charts_dir)
 
 
 if __name__ == "__main__":
