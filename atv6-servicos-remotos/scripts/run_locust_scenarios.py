@@ -21,6 +21,11 @@ CLASSES = {
     "SoapApiUser": "soap",
     "GrpcMusicUser": "grpc",
 }
+TECHNOLOGY_FILTER = [
+    value.strip().lower()
+    for value in os.getenv("LOCUST_TECHNOLOGIES", "").split(",")
+    if value.strip()
+]
 
 
 def scenario_name(users):
@@ -36,9 +41,19 @@ def run():
     if SPAWN_RATE <= 0:
         raise SystemExit("LOCUST_SPAWN_RATE deve ser maior que zero")
 
+    selected_classes = {
+        class_name: technology
+        for class_name, technology in CLASSES.items()
+        if not TECHNOLOGY_FILTER or technology in TECHNOLOGY_FILTER
+    }
+    if not selected_classes:
+        valid = ", ".join(CLASSES.values())
+        requested = ", ".join(TECHNOLOGY_FILTER)
+        raise SystemExit(f"LOCUST_TECHNOLOGIES invalido: {requested}. Valores aceitos: {valid}")
+
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    for class_name, technology in CLASSES.items():
+    for class_name, technology in selected_classes.items():
         for users in USER_COUNTS:
             scenario = scenario_name(users)
             prefix = RESULTS_DIR / f"locust-{technology}-{scenario}-u{users}"

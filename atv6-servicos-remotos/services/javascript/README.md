@@ -7,6 +7,8 @@ Esta pasta contém a implementação em Node.js do mesmo trabalho feito em Pytho
 - SOAP
 - gRPC
 
+Assim como a versão Python, a base inicial fica em memória e é gerada com 300 usuários, 500 músicas e 400 playlists.
+
 Os servidores REST, GraphQL e SOAP usam `node:http`. O servidor gRPC usa `node:http2` e serializa as mensagens conforme o contrato compartilhado `proto/music.proto`.
 
 ## Portas locais
@@ -51,9 +53,16 @@ Parâmetros úteis:
 
 ```powershell
 .\scripts\run_javascript.ps1 -SpawnRate 50 -Duration 2m
+.\scripts\run_javascript.ps1 -Api rest
+.\scripts\run_javascript.ps1 -Api graphql
+.\scripts\run_javascript.ps1 -Api soap
+.\scripts\run_javascript.ps1 -Api grpc
+.\scripts\run_javascript.ps1 -Api rest -StartOnly
 .\scripts\run_javascript.ps1 -NoBuild
 .\scripts\run_javascript.ps1 -KeepServices
 ```
+
+Use `-StartOnly` quando quiser apenas subir a API escolhida e acessá-la depois, sem executar a bateria do Locust.
 
 Também é possível rodar pelo Compose:
 

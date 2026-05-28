@@ -4,8 +4,11 @@ param(
     [int]$SpawnRate = $(if ($env:LOCUST_SPAWN_RATE) { [int]$env:LOCUST_SPAWN_RATE } else { 10 }),
     [string]$UserCounts = $(if ($env:LOCUST_USER_COUNTS) { $env:LOCUST_USER_COUNTS } else { "50,250,500" }),
     [int]$HealthTimeoutSeconds = 120,
+    [ValidateSet("all", "rest", "graphql", "soap", "grpc")]
+    [string]$Api = "all",
     [switch]$NoBuild,
-    [switch]$KeepServices
+    [switch]$KeepServices,
+    [switch]$StartOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -13,7 +16,25 @@ $ErrorActionPreference = "Stop"
 $ProjectRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 Set-Location $ProjectRoot
 
-$ApiServices = @("rest-python", "graphql-python", "soap-python", "grpc-python")
+$AllApis = @("rest", "graphql", "soap", "grpc")
+$ApiNames = if ($Api -eq "all") { $AllApis } else { @($Api) }
+$ServiceByApi = @{
+    rest = "rest-python"
+    graphql = "graphql-python"
+    soap = "soap-python"
+    grpc = "grpc-python"
+}
+$EndpointByApi = @{
+    rest = "http://localhost:3000"
+    graphql = "http://localhost:3001/graphql"
+    soap = "http://localhost:3002/soap"
+    grpc = "localhost:50051"
+}
+$ApiServices = @($ApiNames | ForEach-Object { $ServiceByApi[$_] })
+$ContainerResultsDir = if ($Api -eq "all") { "/app/results/python" } else { "/app/results/python/$Api" }
+$ContainerChartsDir = "$ContainerResultsDir/charts"
+$HostResultsDir = if ($Api -eq "all") { "$ProjectRoot\results\python" } else { "$ProjectRoot\results\python\$Api" }
+$HostChartsDir = "$HostResultsDir\charts"
 
 function Test-PositiveIntList {
     param([string]$Value)
@@ -109,6 +130,15 @@ function Stop-ApiServices {
     }
 }
 
+function Show-ApiEndpoints {
+    param([string[]]$Names)
+
+    Write-Host "Endpoints Python disponiveis:"
+    foreach ($name in $Names) {
+        Write-Host "  $name -> $($EndpointByApi[$name])"
+    }
+}
+
 if ($SpawnRate -le 0) {
     throw "SpawnRate deve ser maior que zero."
 }
@@ -120,6 +150,7 @@ $env:LOCUST_SPAWN_RATE = [string]$SpawnRate
 $env:LOCUST_USER_COUNTS = $UserCounts
 
 Write-Host "Configuracao dos testes Python:"
+Write-Host "  API: $Api"
 Write-Host "  Duracao: $env:LOCUST_DURATION"
 Write-Host "  Spawn rate: $env:LOCUST_SPAWN_RATE"
 Write-Host "  Cargas: $env:LOCUST_USER_COUNTS"
@@ -138,19 +169,40 @@ try {
     Write-Host "Subindo APIs Python..."
     Invoke-DockerCompose -Arguments (@("up", "-d") + $ApiServices)
     Wait-ServicesHealthy -Services $ApiServices -TimeoutSeconds $HealthTimeoutSeconds
+    Show-ApiEndpoints -Names $ApiNames
+
+    if ($StartOnly) {
+        Write-Host "APIs Python iniciadas. Testes nao executados por causa de -StartOnly."
+        return
+    }
 
     Write-Host "Executando cenarios Locust contra Python..."
-    Invoke-DockerCompose -Arguments @("--profile", "python-scenarios", "run", "--rm", "locust-python")
+    $locustArgs = @(
+        "--profile", "python-scenarios",
+        "run", "--rm", "--no-deps",
+        "-e", "LOCUST_RESULTS_DIR=$ContainerResultsDir"
+    )
+    if ($Api -ne "all") {
+        $locustArgs += @("-e", "LOCUST_TECHNOLOGIES=$Api")
+    }
+    $locustArgs += "locust-python"
+    Invoke-DockerCompose -Arguments $locustArgs
 
     Write-Host "Gerando graficos Python..."
-    Invoke-DockerCompose -Arguments @("--profile", "python-charts", "run", "--rm", "charts-python")
+    Invoke-DockerCompose -Arguments @(
+        "--profile", "python-charts",
+        "run", "--rm", "--no-deps",
+        "-e", "LOCUST_RESULTS_DIR=$ContainerResultsDir",
+        "-e", "LOCUST_CHARTS_DIR=$ContainerChartsDir",
+        "charts-python"
+    )
 
-    Write-Host "Fluxo Python concluido. Resultados em: $ProjectRoot\results\python"
-    Write-Host "Graficos em: $ProjectRoot\results\python\charts"
+    Write-Host "Fluxo Python concluido. Resultados em: $HostResultsDir"
+    Write-Host "Graficos em: $HostChartsDir"
 }
 finally {
-    if ($KeepServices) {
-        Write-Host "Containers Python mantidos ativos por causa de -KeepServices."
+    if ($KeepServices -or $StartOnly) {
+        Write-Host "Containers Python mantidos ativos."
     }
     else {
         Write-Host "Encerrando containers Python..."

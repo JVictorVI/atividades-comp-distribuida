@@ -7,7 +7,11 @@ export class DomainError extends Error {
   }
 }
 
-const INITIAL_DATA = {
+const INITIAL_USER_COUNT = 300;
+const INITIAL_SONG_COUNT = 500;
+const INITIAL_PLAYLIST_COUNT = 400;
+
+const BASE_DATA = {
   users: [
     { id: "u1", name: "Ana Costa", email: "ana@example.com" },
     { id: "u2", name: "Bruno Lima", email: "bruno@example.com" },
@@ -56,6 +60,139 @@ const INITIAL_DATA = {
     { id: "p3", userId: "u2", name: "Viagem", songIds: ["s1", "s2", "s4"] }
   ]
 };
+
+function generatedUsers() {
+  const firstNames = [
+    "Alice",
+    "Bianca",
+    "Caio",
+    "Daniel",
+    "Elisa",
+    "Felipe",
+    "Gabriela",
+    "Heitor",
+    "Isabela",
+    "Jonas",
+    "Laura",
+    "Marcos",
+    "Nina",
+    "Otavio",
+    "Paula",
+    "Rafael",
+    "Sofia",
+    "Tiago",
+    "Valeria",
+    "Yuri"
+  ];
+  const surnames = [
+    "Almeida",
+    "Barbosa",
+    "Campos",
+    "Dias",
+    "Freitas",
+    "Gomes",
+    "Lopes",
+    "Martins",
+    "Nogueira",
+    "Pereira",
+    "Rocha",
+    "Santana"
+  ];
+  const users = [];
+  for (let index = BASE_DATA.users.length + 1; index <= INITIAL_USER_COUNT; index += 1) {
+    users.push({
+      id: `u${index}`,
+      name: `${firstNames[index % firstNames.length]} ${surnames[index % surnames.length]} ${String(index).padStart(3, "0")}`,
+      email: `usuario${String(index).padStart(3, "0")}@example.com`
+    });
+  }
+  return users;
+}
+
+function generatedSongs() {
+  const titleWords = [
+    "Aurora",
+    "Cidade",
+    "Circuito",
+    "Delta",
+    "Estrada",
+    "Farol",
+    "Jardim",
+    "Litoral",
+    "Neblina",
+    "Pulso",
+    "Ritmo",
+    "Saturno",
+    "Vento"
+  ];
+  const artists = [
+    "Banda Central",
+    "Duo Atlantico",
+    "Grupo Prisma",
+    "Lia e os Sinais",
+    "Mar Aberto",
+    "Norte Livre",
+    "Projeto Beta",
+    "Quarteto Solar",
+    "Trio Estacao",
+    "Vozes do Sul"
+  ];
+  const albums = ["Volume", "Sessao", "Arquivo", "Colecao", "Mapa", "Registro", "Caderno", "Ao Vivo"];
+  const songs = [];
+  for (let index = BASE_DATA.songs.length + 1; index <= INITIAL_SONG_COUNT; index += 1) {
+    songs.push({
+      id: `s${index}`,
+      title: `${titleWords[index % titleWords.length]} ${String(index).padStart(3, "0")}`,
+      artist: artists[index % artists.length],
+      album: `${albums[index % albums.length]} ${String(1 + (index % 20)).padStart(2, "0")}`,
+      durationSeconds: 120 + (index * 7) % 260
+    });
+  }
+  return songs;
+}
+
+function generatedPlaylists() {
+  const names = [
+    "Trabalho",
+    "Intervalo",
+    "Treino",
+    "Estrada",
+    "Domingo",
+    "Codigo",
+    "Estudo",
+    "Noite",
+    "Cafe",
+    "Viagem"
+  ];
+  const playlists = [];
+  for (let index = BASE_DATA.playlists.length + 1; index <= INITIAL_PLAYLIST_COUNT; index += 1) {
+    const userId = `u${1 + ((index * 5) % INITIAL_USER_COUNT)}`;
+    const songIds = Array.from(
+      { length: 5 },
+      (_item, offset) => `s${1 + (((index * 7) + offset * 17) % INITIAL_SONG_COUNT)}`
+    );
+    playlists.push({
+      id: `p${index}`,
+      userId,
+      name: `${names[index % names.length]} ${String(index).padStart(3, "0")}`,
+      songIds
+    });
+  }
+  return playlists;
+}
+
+function buildInitialData() {
+  return {
+    users: [...BASE_DATA.users.map((user) => ({ ...user })), ...generatedUsers()],
+    songs: [...BASE_DATA.songs.map((song) => ({ ...song })), ...generatedSongs()],
+    playlists: [
+      ...BASE_DATA.playlists.map((playlist) => ({ ...playlist, songIds: [...playlist.songIds] })),
+      ...generatedPlaylists()
+    ]
+  };
+}
+
+const INITIAL_DATA = buildInitialData();
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));

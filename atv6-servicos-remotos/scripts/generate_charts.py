@@ -40,7 +40,11 @@ def configured_scenarios():
 
 SCENARIOS = configured_scenarios()
 
-WORKLOADS = ["catalogo-leitura", "relacionamentos-leitura", "usuarios-escrita"]
+WORKLOAD_ORDER = [
+    "listar-usuarios",
+    "listar-musicas",
+    "listar-playlists",
+]
 
 COLORS = {
     "REST": "#2563eb",
@@ -60,10 +64,7 @@ def number(value):
 def read_locust_stats(results_dir, scenario, technology):
     path = results_dir / f"locust-{technology['slug']}-{scenario['slug']}-u{scenario['users']}_stats.csv"
     if not path.exists():
-        raise FileNotFoundError(
-            f"Arquivo Locust não encontrado: {path}. "
-            "Execute a bateria de testes antes de gerar os gráficos."
-        )
+        return {}
 
     grouped = {}
     with path.open("r", encoding="utf-8-sig", newline="") as handle:
@@ -73,9 +74,6 @@ def read_locust_stats(results_dir, scenario, technology):
             if not name.startswith(prefix):
                 continue
             workload = name.split("/", 1)[1]
-            if workload not in WORKLOADS:
-                continue
-
             current = grouped.setdefault(
                 workload,
                 {
@@ -85,13 +83,11 @@ def read_locust_stats(results_dir, scenario, technology):
                     "technology": technology["label"],
                     "workload": workload,
                     "requestCount": 0,
-                    "failureCount": 0,
                     "throughputRps": 0.0,
                     "p95LatencyMs": 0.0,
                 },
             )
             current["requestCount"] += int(number(row.get("Request Count")))
-            current["failureCount"] += int(number(row.get("Failure Count")))
             current["throughputRps"] += number(row.get("Requests/s"))
             current["p95LatencyMs"] = max(current["p95LatencyMs"], number(row.get("95%")))
 
@@ -103,37 +99,33 @@ def collect_rows(results_dir):
     for scenario in SCENARIOS:
         for technology in TECHNOLOGIES:
             stats = read_locust_stats(results_dir, scenario, technology)
-            for workload in WORKLOADS:
-                if workload not in stats:
-                    raise ValueError(f"Dados ausentes para {technology['label']}/{workload} em {scenario['slug']}")
-                row = stats[workload]
+            for row in stats.values():
                 row["throughputRps"] = round(row["throughputRps"], 2)
                 row["p95LatencyMs"] = round(row["p95LatencyMs"], 2)
-                row["errorRatePercent"] = (
-                    0
-                    if row["requestCount"] == 0
-                    else round((row["failureCount"] / row["requestCount"]) * 100, 4)
-                )
                 rows.append(row)
     return rows
+
+
+def ordered_workloads(rows):
+    present = {row["workload"] for row in rows}
+    ordered = [workload for workload in WORKLOAD_ORDER if workload in present]
+    ordered.extend(sorted(present - set(ordered)))
+    return ordered
 
 
 def format_value(metric, value):
     if metric == "throughputRps":
         return f"{value:.1f}"
-    if metric == "errorRatePercent":
-        return f"{value:.2f}%"
     return str(round(value))
 
 
 def format_axis_tick(metric, value):
-    if metric == "errorRatePercent":
-        return f"{value:.2f}" if value < 10 else f"{value:.1f}"
     return str(round(value))
 
 
 def make_chart(scenario, rows, metric, title, unit):
     selected_rows = [row for row in rows if row["scenario"] == scenario["slug"]]
+    workloads = ordered_workloads(selected_rows)
     width = 1040
     height = 580
     margin = {"top": 72, "right": 38, "bottom": 126, "left": 92}
@@ -141,7 +133,7 @@ def make_chart(scenario, rows, metric, title, unit):
     plot_height = height - margin["top"] - margin["bottom"]
     max_raw_value = max(row[metric] for row in selected_rows)
     max_value = max(1, max_raw_value * 1.14)
-    group_width = plot_width / len(WORKLOADS)
+    group_width = plot_width / max(1, len(workloads))
     bar_gap = 9
     bar_width = (group_width - 48 - bar_gap * (len(TECHNOLOGIES) - 1)) / len(TECHNOLOGIES)
 
@@ -151,14 +143,19 @@ def make_chart(scenario, rows, metric, title, unit):
     axis_ticks = [max_value * ratio for ratio in [0, 0.25, 0.5, 0.75, 1]]
 
     bars = []
-    for workload_index, workload in enumerate(WORKLOADS):
+    for workload_index, workload in enumerate(workloads):
         x_base = margin["left"] + workload_index * group_width + 24
         for technology_index, technology in enumerate(TECHNOLOGIES):
             row = next(
-                item
-                for item in selected_rows
-                if item["workload"] == workload and item["technology"] == technology["label"]
+                (
+                    item
+                    for item in selected_rows
+                    if item["workload"] == workload and item["technology"] == technology["label"]
+                ),
+                None,
             )
+            if row is None:
+                continue
             value = row[metric]
             bar_x = x_base + technology_index * (bar_width + bar_gap)
             bar_y = y(value)
@@ -170,7 +167,7 @@ def make_chart(scenario, rows, metric, title, unit):
             )
 
     x_labels = []
-    for index, workload in enumerate(WORKLOADS):
+    for index, workload in enumerate(workloads):
         x = margin["left"] + index * group_width + group_width / 2
         x_labels.append(
             f'<text x="{x:.1f}" y="{height - 78}" text-anchor="middle" font-size="13" fill="#111827">{escape(workload)}</text>'
@@ -218,8 +215,6 @@ def write_summary(results_dir, rows):
         "technology",
         "workload",
         "requestCount",
-        "failureCount",
-        "errorRatePercent",
         "throughputRps",
         "p95LatencyMs",
     ]
@@ -261,10 +256,17 @@ def generate_for_target(results_dir, charts_dir):
     results_dir.mkdir(parents=True, exist_ok=True)
     charts_dir.mkdir(parents=True, exist_ok=True)
     rows = collect_rows(results_dir)
+    if not rows:
+        raise FileNotFoundError(
+            f"Nenhum dado Locust encontrado em {results_dir}. "
+            "Execute a bateria de testes antes de gerar os gráficos."
+        )
     write_summary(results_dir, rows)
 
     generated = []
     for scenario in SCENARIOS:
+        if not any(row["scenario"] == scenario["slug"] for row in rows):
+            continue
         outputs = [
             (
                 charts_dir / f"locust-throughput-{scenario['slug']}-u{scenario['users']}.svg",
@@ -277,12 +279,6 @@ def generate_for_target(results_dir, charts_dir):
                 "p95LatencyMs",
                 "Latência p95 por tecnologia e cenário",
                 "ms",
-            ),
-            (
-                charts_dir / f"locust-error-rate-{scenario['slug']}-u{scenario['users']}.svg",
-                "errorRatePercent",
-                "Taxa de erros por tecnologia e cenário",
-                "%",
             ),
         ]
         for path, metric, title, unit in outputs:

@@ -14,6 +14,14 @@ O serviço gerencia:
 - Músicas.
 - Playlists.
 
+A base inicial fica inteiramente em memória e já nasce com uma massa maior para os testes de carga:
+
+| Entidade  | Quantidade inicial |
+| --------- | -----------------: |
+| Usuários  |                300 |
+| Músicas   |                500 |
+| Playlists |                400 |
+
 Operações cobertas:
 
 - Criar, consultar, alterar e remover usuários.
@@ -252,6 +260,8 @@ Esses módulos contêm:
 
 Os servidores apenas adaptam suas chamadas para esse mesmo domínio em cada linguagem. Assim, a diferença entre REST, GraphQL, SOAP e gRPC fica concentrada no mecanismo de invocação remota, não na regra de negócio.
 
+Os dados iniciais são gerados de forma determinística no código das duas linguagens. Não há banco de dados nem arquivo externo; ao reiniciar ou chamar `reset`, cada serviço volta para a mesma massa em memória com centenas de registros.
+
 ## Estrutura
 
 ```text
@@ -307,6 +317,34 @@ Rodar apenas JavaScript:
 .\scripts\run_javascript.ps1
 ```
 
+Rodar uma API específica de uma linguagem:
+
+```powershell
+.\scripts\run_python.ps1 -Api rest
+.\scripts\run_python.ps1 -Api graphql
+.\scripts\run_python.ps1 -Api soap
+.\scripts\run_python.ps1 -Api grpc
+
+.\scripts\run_javascript.ps1 -Api rest
+.\scripts\run_javascript.ps1 -Api graphql
+.\scripts\run_javascript.ps1 -Api soap
+.\scripts\run_javascript.ps1 -Api grpc
+```
+
+Subir uma API e deixá-la disponível para acesso posterior, sem executar Locust:
+
+```powershell
+.\scripts\run_python.ps1 -Api rest -StartOnly
+.\scripts\run_javascript.ps1 -Api graphql -StartOnly
+```
+
+Para subir, testar e manter os containers ligados ao final:
+
+```powershell
+.\scripts\run_python.ps1 -Api soap -KeepServices
+.\scripts\run_javascript.ps1 -Api grpc -KeepServices
+```
+
 Rodar as duas implementações:
 
 ```powershell
@@ -350,6 +388,8 @@ docker compose up -d rest-python graphql-python soap-python grpc-python
 docker compose --profile python-scenarios run --rm locust-python
 ```
 
+Para filtrar a bateria para uma tecnologia ao executar o runner diretamente, use `LOCUST_TECHNOLOGIES` com `rest`, `graphql`, `soap` ou `grpc`.
+
 Controlar o `spawn-rate`:
 
 ```powershell
@@ -371,13 +411,17 @@ results/python/
 results/javascript/
 ```
 
+Quando `-Api` é usado, os resultados ficam em subpastas por tecnologia, por exemplo `results/python/rest/` ou `results/javascript/graphql/`.
+
 ## Cenários do Locust
 
-Cada tecnologia executa os mesmos cenários:
+Cada tecnologia executa os mesmos cenários de leitura geral, sempre retornando todos os registros da entidade:
 
-- `catalogo-leitura`: lista usuários, músicas e playlists.
-- `relacionamentos-leitura`: consulta playlists por usuário, músicas por playlist e playlists por música.
-- `usuarios-escrita`: cria e remove usuários temporários.
+- `listar-usuarios`: retorna todos os usuários.
+- `listar-musicas`: retorna todas as músicas.
+- `listar-playlists`: retorna todas as playlists.
+
+O CRUD completo continua disponível nas APIs para uso manual, mas a bateria do Locust usa apenas essas listagens gerais para forçar respostas maiores com a massa em memória.
 
 O `locustfile.py` não define pausas artificiais entre tarefas. Os usuários virtuais executam chamadas continuamente durante o tempo do teste.
 
@@ -387,15 +431,7 @@ As principais métricas são:
 
 - vazão em requisições por segundo;
 - latência média;
-- latência p95;
-- quantidade de falhas;
-- taxa de erros.
-
-A taxa de erros é calculada assim:
-
-```text
-failureCount / requestCount * 100
-```
+- latência p95.
 
 ## Gráficos
 
@@ -414,21 +450,18 @@ Se preferir executar o gerador diretamente no host, sem `LOCUST_RESULTS_DIR`, el
 
 Quando `LOCUST_RESULTS_DIR` estiver definido, o script gera apenas para o diretório informado. Esse é o comportamento usado pelos serviços `charts-python` e `charts-js` no Docker Compose.
 
-São gerados três gráficos para cada carga, dentro de `results/python/charts/` e `results/javascript/charts/`:
+São gerados dois gráficos para cada carga, dentro de `results/python/charts/` e `results/javascript/charts/`:
 
 - vazão;
-- latência p95;
-- taxa de erros.
+- latência p95.
 
 Arquivos esperados:
 
 ```text
 results/python/charts/locust-throughput-carga-baixa-u50.svg
 results/python/charts/locust-p95-latency-carga-baixa-u50.svg
-results/python/charts/locust-error-rate-carga-baixa-u50.svg
 results/javascript/charts/locust-throughput-carga-baixa-u50.svg
 results/javascript/charts/locust-p95-latency-carga-baixa-u50.svg
-results/javascript/charts/locust-error-rate-carga-baixa-u50.svg
 ```
 
 Também são gerados:
@@ -545,7 +578,7 @@ gRPC é eficiente para comunicação entre serviços, mas exige clientes compat�
 
 ## Observações
 
-Os dados ficam em memória. Ao reiniciar um servidor, a base volta ao estado inicial.
+Os dados ficam em memória. Ao reiniciar um servidor ou chamar `reset`, a base volta ao estado inicial com 300 usuários, 500 músicas e 400 playlists.
 
 Os testes de escrita criam usuários temporários e os removem em seguida.
 

@@ -11,7 +11,12 @@ class DomainError(Exception):
         self.code = code
 
 
-INITIAL_DATA = {
+INITIAL_USER_COUNT = 300
+INITIAL_SONG_COUNT = 500
+INITIAL_PLAYLIST_COUNT = 400
+
+
+BASE_DATA = {
     "users": [
         {"id": "u1", "name": "Ana Costa", "email": "ana@example.com"},
         {"id": "u2", "name": "Bruno Lima", "email": "bruno@example.com"},
@@ -60,6 +65,139 @@ INITIAL_DATA = {
         {"id": "p3", "userId": "u2", "name": "Viagem", "songIds": ["s1", "s2", "s4"]},
     ],
 }
+
+
+def _generated_users():
+    first_names = [
+        "Alice",
+        "Bianca",
+        "Caio",
+        "Daniel",
+        "Elisa",
+        "Felipe",
+        "Gabriela",
+        "Heitor",
+        "Isabela",
+        "Jonas",
+        "Laura",
+        "Marcos",
+        "Nina",
+        "Otavio",
+        "Paula",
+        "Rafael",
+        "Sofia",
+        "Tiago",
+        "Valeria",
+        "Yuri",
+    ]
+    surnames = [
+        "Almeida",
+        "Barbosa",
+        "Campos",
+        "Dias",
+        "Freitas",
+        "Gomes",
+        "Lopes",
+        "Martins",
+        "Nogueira",
+        "Pereira",
+        "Rocha",
+        "Santana",
+    ]
+    start = len(BASE_DATA["users"]) + 1
+    return [
+        {
+            "id": f"u{index}",
+            "name": f"{first_names[index % len(first_names)]} {surnames[index % len(surnames)]} {index:03d}",
+            "email": f"usuario{index:03d}@example.com",
+        }
+        for index in range(start, INITIAL_USER_COUNT + 1)
+    ]
+
+
+def _generated_songs():
+    title_words = [
+        "Aurora",
+        "Cidade",
+        "Circuito",
+        "Delta",
+        "Estrada",
+        "Farol",
+        "Jardim",
+        "Litoral",
+        "Neblina",
+        "Pulso",
+        "Ritmo",
+        "Saturno",
+        "Vento",
+    ]
+    artists = [
+        "Banda Central",
+        "Duo Atlantico",
+        "Grupo Prisma",
+        "Lia e os Sinais",
+        "Mar Aberto",
+        "Norte Livre",
+        "Projeto Beta",
+        "Quarteto Solar",
+        "Trio Estacao",
+        "Vozes do Sul",
+    ]
+    albums = ["Volume", "Sessao", "Arquivo", "Colecao", "Mapa", "Registro", "Caderno", "Ao Vivo"]
+    start = len(BASE_DATA["songs"]) + 1
+    return [
+        {
+            "id": f"s{index}",
+            "title": f"{title_words[index % len(title_words)]} {index:03d}",
+            "artist": artists[index % len(artists)],
+            "album": f"{albums[index % len(albums)]} {1 + (index % 20):02d}",
+            "durationSeconds": 120 + (index * 7) % 260,
+        }
+        for index in range(start, INITIAL_SONG_COUNT + 1)
+    ]
+
+
+def _generated_playlists():
+    names = [
+        "Trabalho",
+        "Intervalo",
+        "Treino",
+        "Estrada",
+        "Domingo",
+        "Codigo",
+        "Estudo",
+        "Noite",
+        "Cafe",
+        "Viagem",
+    ]
+    start = len(BASE_DATA["playlists"]) + 1
+    playlists = []
+    for index in range(start, INITIAL_PLAYLIST_COUNT + 1):
+        user_id = f"u{1 + ((index * 5) % INITIAL_USER_COUNT)}"
+        song_ids = [
+            f"s{1 + (((index * 7) + offset * 17) % INITIAL_SONG_COUNT)}"
+            for offset in range(5)
+        ]
+        playlists.append(
+            {
+                "id": f"p{index}",
+                "userId": user_id,
+                "name": f"{names[index % len(names)]} {index:03d}",
+                "songIds": song_ids,
+            }
+        )
+    return playlists
+
+
+def _build_initial_data():
+    return {
+        "users": [*deepcopy(BASE_DATA["users"]), *_generated_users()],
+        "songs": [*deepcopy(BASE_DATA["songs"]), *_generated_songs()],
+        "playlists": [*deepcopy(BASE_DATA["playlists"]), *_generated_playlists()],
+    }
+
+
+INITIAL_DATA = _build_initial_data()
 
 
 def _clone(value):
