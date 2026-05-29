@@ -30,7 +30,7 @@ TECHNOLOGY_FILTER = [
 
 def scenario_name(users):
     names = {
-        50: "carga-baixa",
+        50: "carga-leve",
         250: "carga-media",
         500: "carga-alta",
     }

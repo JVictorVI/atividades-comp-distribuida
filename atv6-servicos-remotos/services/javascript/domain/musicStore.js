@@ -195,7 +195,15 @@ function buildInitialData() {
 const INITIAL_DATA = buildInitialData();
 
 function clone(value) {
-  return JSON.parse(JSON.stringify(value));
+  if (Array.isArray(value)) {
+    return value.map((item) => clone(item));
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, clone(item)])
+    );
+  }
+  return value;
 }
 
 function requireString(value, fieldName) {
@@ -242,6 +250,10 @@ function toMap(items) {
 
 function listValues(items) {
   return [...items.values()].map((item) => clone(item));
+}
+
+function listFilteredValues(items, predicate) {
+  return [...items.values()].filter(predicate).map((item) => clone(item));
 }
 
 function plainTypeName(itemType) {
@@ -376,7 +388,8 @@ export class MusicStore {
       this.assertExists(this.songs, songId, "Musica");
     }
 
-    return listValues(this.playlists).filter(
+    return listFilteredValues(
+      this.playlists,
       (playlist) =>
         (!userId || playlist.userId === userId) &&
         (!songId || playlist.songIds.includes(songId))
@@ -438,7 +451,7 @@ export class MusicStore {
 
   listUserPlaylists(userId) {
     this.assertExists(this.users, userId, "Usuario");
-    return listValues(this.playlists).filter((playlist) => playlist.userId === userId);
+    return listFilteredValues(this.playlists, (playlist) => playlist.userId === userId);
   }
 
   listPlaylistSongs(playlistId) {
@@ -451,7 +464,7 @@ export class MusicStore {
 
   listSongPlaylists(songId) {
     this.assertExists(this.songs, songId, "Musica");
-    return listValues(this.playlists).filter((playlist) => playlist.songIds.includes(songId));
+    return listFilteredValues(this.playlists, (playlist) => playlist.songIds.includes(songId));
   }
 }
 

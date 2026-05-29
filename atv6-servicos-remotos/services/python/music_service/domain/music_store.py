@@ -201,7 +201,11 @@ INITIAL_DATA = _build_initial_data()
 
 
 def _clone(value):
-    return deepcopy(value)
+    if isinstance(value, dict):
+        return {key: _clone(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_clone(item) for item in value]
+    return value
 
 
 def _require_string(value, field_name: str) -> str:
@@ -368,10 +372,9 @@ class MusicStore:
             if song_id:
                 self._assert_exists(self.songs, song_id, "Música")
 
-            playlists = self._list_values(self.playlists)
             return [
-                playlist
-                for playlist in playlists
+                _clone(playlist)
+                for playlist in self.playlists.values()
                 if (not user_id or playlist["userId"] == user_id)
                 and (not song_id or song_id in playlist["songIds"])
             ]
@@ -429,7 +432,11 @@ class MusicStore:
     def list_user_playlists(self, user_id: str):
         with self._lock:
             self._assert_exists(self.users, user_id, "Usuário")
-            return [playlist for playlist in self._list_values(self.playlists) if playlist["userId"] == user_id]
+            return [
+                _clone(playlist)
+                for playlist in self.playlists.values()
+                if playlist["userId"] == user_id
+            ]
 
     def list_playlist_songs(self, playlist_id: str):
         with self._lock:
@@ -444,8 +451,8 @@ class MusicStore:
         with self._lock:
             self._assert_exists(self.songs, song_id, "Música")
             return [
-                playlist
-                for playlist in self._list_values(self.playlists)
+                _clone(playlist)
+                for playlist in self.playlists.values()
                 if song_id in playlist["songIds"]
             ]
 

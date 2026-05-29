@@ -110,9 +110,9 @@ services:
       dockerfile: services/javascript/Dockerfile
     command: node services/javascript/servers/grpcServer.js
     ports:
-      - "51051:51051"
+      - "55051:55051"
     environment:
-      JS_GRPC_PORT: 51051
+      JS_GRPC_PORT: 55051
     healthcheck:
       test: ["CMD", "node", "services/javascript/healthcheckGrpc.js"]
       interval: 5s
@@ -169,7 +169,7 @@ services:
       REST_HOST: http://rest-js:3100
       GRAPHQL_HOST: http://graphql-js:3101
       SOAP_HOST: http://soap-js:3102
-      GRPC_TARGET: grpc-js:51051
+      GRPC_TARGET: grpc-js:55051
       LOCUST_RESULTS_DIR: /app/results/javascript
       LOCUST_DURATION: ${LOCUST_DURATION:-1m}
       LOCUST_SPAWN_RATE: ${LOCUST_SPAWN_RATE:-100}
@@ -203,6 +203,21 @@ services:
     environment:
       LOCUST_RESULTS_DIR: /app/results/javascript
       LOCUST_CHARTS_DIR: /app/results/javascript/charts
+      LOCUST_USER_COUNTS: ${LOCUST_USER_COUNTS:-50,250,500}
+    volumes:
+      - ./results:/app/results
+
+  charts-combined:
+    image: music-streaming-python:latest
+    build:
+      context: .
+      dockerfile: services/python/Dockerfile
+    profiles:
+      - combined-charts
+    command: python scripts/generate_charts.py
+    environment:
+      LOCUST_RESULTS_DIR: ""
+      LOCUST_CHARTS_DIR: ""
       LOCUST_USER_COUNTS: ${LOCUST_USER_COUNTS:-50,250,500}
     volumes:
       - ./results:/app/results

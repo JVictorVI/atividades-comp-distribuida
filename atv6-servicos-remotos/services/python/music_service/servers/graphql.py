@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import Body, FastAPI
 from fastapi.responses import JSONResponse
 from graphql import build_schema, graphql_sync
 import uvicorn
@@ -127,22 +127,46 @@ bind_resolver("Mutation", "updatePlaylist", lambda _obj, _info, id, input: store
 bind_resolver("Mutation", "deletePlaylist", lambda _obj, _info, id: store.delete_playlist(id))
 
 
+def graphql_error(error):
+    original = getattr(error, "original_error", error)
+    formatted = getattr(error, "formatted", {"message": str(error) or "Erro inesperado"})
+    content = dict(formatted)
+    extensions = dict(content.get("extensions") or {})
+    extensions["code"] = getattr(original, "code", extensions.get("code", "INTERNAL_ERROR"))
+    content["extensions"] = extensions
+    return content
+
+
+def invalid_query_error():
+    return {
+        "message": "query é obrigatória",
+        "extensions": {"code": "INVALID_INPUT"},
+    }
+
+
 @app.get("/health")
 def health():
     return {"ok": True, "technology": "GraphQL"}
 
 
 @app.post("/graphql")
-async def graphql_endpoint(request: Request):
-    payload = await request.json()
-    result = graphql_sync(
-        SCHEMA,
-        payload.get("query"),
-        variable_values=payload.get("variables"),
-    )
+def graphql_endpoint(payload: dict = Body(default_factory=dict)):
+    query = payload.get("query")
+    if not isinstance(query, str) or not query.strip():
+        return JSONResponse(status_code=400, content={"data": None, "errors": [invalid_query_error()]})
+
+    try:
+        result = graphql_sync(
+            SCHEMA,
+            query,
+            variable_values=payload.get("variables") or {},
+        )
+    except Exception as error:
+        return JSONResponse(status_code=400, content={"data": None, "errors": [graphql_error(error)]})
+
     content = {"data": result.data}
     if result.errors:
-        content["errors"] = [error.formatted for error in result.errors]
+        content["errors"] = [graphql_error(error) for error in result.errors]
     return JSONResponse(status_code=400 if result.errors else 200, content=content)
 
 

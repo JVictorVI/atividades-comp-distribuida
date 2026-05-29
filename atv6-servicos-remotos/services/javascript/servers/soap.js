@@ -82,17 +82,51 @@ function parseEnvelope(xml) {
 }
 
 function soapResponse(operation, success, payload) {
-  const payloadJson = escapeXml(JSON.stringify(payload));
   const successText = success ? "true" : "false";
   return `<?xml version="1.0" encoding="UTF-8"?>
 <soap:Envelope xmlns:soap="${SOAP_NAMESPACE}" xmlns:tns="${NAMESPACE}">
   <soap:Body>
     <tns:${operation}Response>
       <success>${successText}</success>
-      <payload>${payloadJson}</payload>
+      <payload>${xmlPayload(payload)}</payload>
     </tns:${operation}Response>
   </soap:Body>
 </soap:Envelope>`;
+}
+
+function xmlText(value) {
+  if (typeof value === "boolean") {
+    return value ? "true" : "false";
+  }
+  if (value === undefined || value === null) {
+    return "";
+  }
+  return escapeXml(value);
+}
+
+function xmlElement(name, value) {
+  if (Array.isArray(value)) {
+    return `<${name}>${value.map((item) => xmlElement("item", item)).join("")}</${name}>`;
+  }
+  if (value && typeof value === "object") {
+    const children = Object.entries(value)
+      .map(([key, item]) => xmlElement(key, item))
+      .join("");
+    return `<${name}>${children}</${name}>`;
+  }
+  return `<${name}>${xmlText(value)}</${name}>`;
+}
+
+function xmlPayload(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => xmlElement("item", item)).join("");
+  }
+  if (value && typeof value === "object") {
+    return Object.entries(value)
+      .map(([key, item]) => xmlElement(key, item))
+      .join("");
+  }
+  return xmlText(value);
 }
 
 function execute(operation, args) {
@@ -148,7 +182,7 @@ function wsdl() {
   const elements = OPERATIONS.map(
     (name) => `
       <xsd:element name="${name}" type="tns:GenericRequestType"/>
-      <xsd:element name="${name}Response" type="tns:JsonResponseType"/>`
+      <xsd:element name="${name}Response" type="tns:SoapResponseType"/>`
   ).join("\n");
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -165,10 +199,10 @@ function wsdl() {
           <xsd:any minOccurs="0" maxOccurs="unbounded" processContents="lax"/>
         </xsd:sequence>
       </xsd:complexType>
-      <xsd:complexType name="JsonResponseType">
+      <xsd:complexType name="SoapResponseType">
         <xsd:sequence>
           <xsd:element name="success" type="xsd:boolean"/>
-          <xsd:element name="payload" type="xsd:string"/>
+          <xsd:element name="payload" type="tns:GenericRequestType"/>
         </xsd:sequence>
       </xsd:complexType>
       ${elements}

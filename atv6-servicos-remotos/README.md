@@ -41,7 +41,7 @@ REST:
 
 GraphQL:
 
-- Implementado com `graphql-core` e FastAPI.
+- Implementado com `graphql-core` e FastAPI na versão Python; na versão JavaScript, com a biblioteca `graphql` e `node:http`.
 - Usa schema tipado e permite consultar exatamente os campos desejados.
 - Porta local: `3001`.
 
@@ -262,6 +262,14 @@ Os servidores apenas adaptam suas chamadas para esse mesmo domínio em cada ling
 
 Os dados iniciais são gerados de forma determinística no código das duas linguagens. Não há banco de dados nem arquivo externo; ao reiniciar ou chamar `reset`, cada serviço volta para a mesma massa em memória com centenas de registros.
 
+## Equivalência das Implementações
+
+As implementações em Python e JavaScript são equivalentes em comportamento para o escopo do trabalho. As duas linguagens expõem as mesmas entidades, as mesmas operações de CRUD e os mesmos cenários de leitura em REST, GraphQL, SOAP e gRPC.
+
+Foram mantidos os mesmos dados iniciais, as mesmas regras de validação e as mesmas relações entre usuários, músicas e playlists. Dessa forma, os testes de carga comparam principalmente o mecanismo de comunicação remota, a serialização e o servidor usado em cada linguagem, não diferenças na regra de negócio.
+
+A estrutura segue boas práticas para um projeto acadêmico de comparação: serviços separados por linguagem, execução independente por API, contratos consistentes, dados em memória reiniciáveis e scripts automatizados para testes e gráficos. Algumas escolhas são simplificadas de propósito, como SOAP e gRPC com implementação manual em partes específicas, porque o objetivo é comparar os modelos de comunicação sem adicionar dependências ou geração automática de código além do necessário.
+
 ## Estrutura
 
 ```text
@@ -299,7 +307,7 @@ Arquivos importantes:
 - `scripts/run_javascript.ps1`: executa apenas a implementação JavaScript.
 - `scripts/run_all.ps1`: executa Python e JavaScript no mesmo comando.
 - `scripts/run_locust_scenarios.py`: executa a bateria com 50, 250 e 500 usuários.
-- `scripts/generate_charts.py`: gera gráficos SVG e resumo agregado. Quando executado sem `LOCUST_RESULTS_DIR`, detecta automaticamente `results/python` e `results/javascript`, se existirem.
+- `scripts/generate_charts.py`: gera gráficos SVG, resumo agregado e comparativo Python x JavaScript. Quando executado sem `LOCUST_RESULTS_DIR`, detecta automaticamente `results/python` e `results/javascript`, se existirem.
 
 ## Execução com PowerShell
 
@@ -375,7 +383,7 @@ Os testes usam três cargas:
 
 | Cenário       | Usuários virtuais |
 | ------------- | ----------------: |
-| `carga-baixa` |                50 |
+| `carga-leve`  |                50 |
 | `carga-media` |               250 |
 | `carga-alta`  |               500 |
 
@@ -415,13 +423,15 @@ Quando `-Api` é usado, os resultados ficam em subpastas por tecnologia, por exe
 
 ## Cenários do Locust
 
-Cada tecnologia executa os mesmos cenários de leitura geral, sempre retornando todos os registros da entidade:
+Cada tecnologia executa os mesmos cenários de leitura geral:
 
-- `listar-usuarios`: retorna todos os usuários.
-- `listar-musicas`: retorna todas as músicas.
-- `listar-playlists`: retorna todas as playlists.
+- `listar-usuarios`: lista os dados de todos os usuários do serviço.
+- `listar-musicas`: lista os dados de todas as músicas mantidas pelo serviço.
+- `listar-playlists-usuario`: lista os dados de todas as playlists de um determinado usuário.
+- `listar-musicas-playlist`: lista os dados de todas as músicas de uma determinada playlist.
+- `listar-playlists-musica`: lista os dados de todas as playlists que contêm uma determinada música.
 
-O CRUD completo continua disponível nas APIs para uso manual, mas a bateria do Locust usa apenas essas listagens gerais para forçar respostas maiores com a massa em memória.
+O CRUD completo continua disponível nas APIs para uso manual, mas a bateria do Locust usa apenas essas consultas de leitura para forçar respostas maiores com a massa em memória.
 
 O `locustfile.py` não define pausas artificiais entre tarefas. Os usuários virtuais executam chamadas continuamente durante o tempo do teste.
 
@@ -450,18 +460,60 @@ Se preferir executar o gerador diretamente no host, sem `LOCUST_RESULTS_DIR`, el
 
 Quando `LOCUST_RESULTS_DIR` estiver definido, o script gera apenas para o diretório informado. Esse é o comportamento usado pelos serviços `charts-python` e `charts-js` no Docker Compose.
 
-São gerados dois gráficos para cada carga, dentro de `results/python/charts/` e `results/javascript/charts/`:
+São gerados quatro gráficos para cada carga, separados nas subpastas técnicas `leve`, `medio` e `alto`, que representam carga leve, carga média e carga alta dentro de `results/python/charts/` e `results/javascript/charts/`. Dois gráficos agregam os cinco cenários de leitura e mostram a média por tecnologia:
 
-- vazão;
-- latência p95.
+- vazão média;
+- latência p95 média.
+
+Os outros dois gráficos mantêm a visão detalhada por cenário de leitura, como usuários, músicas, playlists do usuário, músicas da playlist e playlists que contêm uma música:
+
+- vazão por tecnologia e cenário de leitura;
+- latência p95 por tecnologia e cenário de leitura.
+
+Quando os resultados das duas linguagens existem, também são gerados quatro gráficos comparativos por carga. Dois usam as mesmas médias e barras verticais agrupadas por tecnologia, comparando pares como `REST Python` x `REST JavaScript`. Os outros dois detalham os cenários de leitura:
+
+```text
+results/charts/comparativo/leve/locust-comparison-throughput-carga-leve-u50.svg
+results/charts/comparativo/leve/locust-comparison-p95-latency-carga-leve-u50.svg
+results/charts/comparativo/leve/locust-comparison-throughput-por-cenario-carga-leve-u50.svg
+results/charts/comparativo/leve/locust-comparison-p95-latency-por-cenario-carga-leve-u50.svg
+results/charts/comparativo/medio/locust-comparison-throughput-carga-media-u250.svg
+results/charts/comparativo/medio/locust-comparison-p95-latency-carga-media-u250.svg
+results/charts/comparativo/medio/locust-comparison-throughput-por-cenario-carga-media-u250.svg
+results/charts/comparativo/medio/locust-comparison-p95-latency-por-cenario-carga-media-u250.svg
+results/charts/comparativo/alto/locust-comparison-throughput-carga-alta-u500.svg
+results/charts/comparativo/alto/locust-comparison-p95-latency-carga-alta-u500.svg
+results/charts/comparativo/alto/locust-comparison-throughput-por-cenario-carga-alta-u500.svg
+results/charts/comparativo/alto/locust-comparison-p95-latency-por-cenario-carga-alta-u500.svg
+```
 
 Arquivos esperados:
 
 ```text
-results/python/charts/locust-throughput-carga-baixa-u50.svg
-results/python/charts/locust-p95-latency-carga-baixa-u50.svg
-results/javascript/charts/locust-throughput-carga-baixa-u50.svg
-results/javascript/charts/locust-p95-latency-carga-baixa-u50.svg
+results/python/charts/leve/locust-throughput-carga-leve-u50.svg
+results/python/charts/leve/locust-p95-latency-carga-leve-u50.svg
+results/python/charts/leve/locust-throughput-por-cenario-carga-leve-u50.svg
+results/python/charts/leve/locust-p95-latency-por-cenario-carga-leve-u50.svg
+results/python/charts/medio/locust-throughput-carga-media-u250.svg
+results/python/charts/medio/locust-p95-latency-carga-media-u250.svg
+results/python/charts/medio/locust-throughput-por-cenario-carga-media-u250.svg
+results/python/charts/medio/locust-p95-latency-por-cenario-carga-media-u250.svg
+results/python/charts/alto/locust-throughput-carga-alta-u500.svg
+results/python/charts/alto/locust-p95-latency-carga-alta-u500.svg
+results/python/charts/alto/locust-throughput-por-cenario-carga-alta-u500.svg
+results/python/charts/alto/locust-p95-latency-por-cenario-carga-alta-u500.svg
+results/javascript/charts/leve/locust-throughput-carga-leve-u50.svg
+results/javascript/charts/leve/locust-p95-latency-carga-leve-u50.svg
+results/javascript/charts/leve/locust-throughput-por-cenario-carga-leve-u50.svg
+results/javascript/charts/leve/locust-p95-latency-por-cenario-carga-leve-u50.svg
+results/javascript/charts/medio/locust-throughput-carga-media-u250.svg
+results/javascript/charts/medio/locust-p95-latency-carga-media-u250.svg
+results/javascript/charts/medio/locust-throughput-por-cenario-carga-media-u250.svg
+results/javascript/charts/medio/locust-p95-latency-por-cenario-carga-media-u250.svg
+results/javascript/charts/alto/locust-throughput-carga-alta-u500.svg
+results/javascript/charts/alto/locust-p95-latency-carga-alta-u500.svg
+results/javascript/charts/alto/locust-throughput-por-cenario-carga-alta-u500.svg
+results/javascript/charts/alto/locust-p95-latency-por-cenario-carga-alta-u500.svg
 ```
 
 Também são gerados:
@@ -471,6 +523,8 @@ results/python/locust-summary.csv
 results/python/locust-summary.json
 results/javascript/locust-summary.csv
 results/javascript/locust-summary.json
+results/locust-combined-summary.csv
+results/locust-combined-summary.json
 ```
 
 ## Execução Manual sem o Script Principal
@@ -485,6 +539,7 @@ docker compose --profile python-charts run --rm charts-python
 docker compose up -d rest-js graphql-js soap-js grpc-js
 docker compose --profile js-scenarios run --rm locust-js
 docker compose --profile js-charts run --rm charts-js
+docker compose --profile combined-charts run --rm charts-combined
 docker compose down --remove-orphans
 ```
 

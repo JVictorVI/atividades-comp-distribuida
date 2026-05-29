@@ -54,9 +54,19 @@ try {
         throw "Falha ao rodar a bateria JavaScript."
     }
 
+    Write-Host "Gerando grafico comparativo Python x JavaScript..."
+    & docker compose --profile combined-charts run --rm --no-deps `
+        -e "LOCUST_RESULTS_DIR=" `
+        -e "LOCUST_CHARTS_DIR=" `
+        charts-combined
+    if ($LASTEXITCODE -ne 0) {
+        throw "Falha ao gerar o grafico comparativo."
+    }
+
     Write-Host "Fluxo completo concluido."
     Write-Host "Resultados Python: $ProjectRoot\results\python"
     Write-Host "Resultados JavaScript: $ProjectRoot\results\javascript"
+    Write-Host "Comparativo: $ProjectRoot\results\charts\comparativo"
 }
 finally {
     if ($KeepServices) {

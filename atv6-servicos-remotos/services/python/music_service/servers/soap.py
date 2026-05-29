@@ -1,8 +1,7 @@
-import json
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape
 
-from fastapi import FastAPI, Request
+from fastapi import Body, FastAPI
 from fastapi.responses import Response
 import uvicorn
 
@@ -35,15 +34,40 @@ def find_body(root):
     return None
 
 
+def xml_text(value) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if value is None:
+        return ""
+    return escape(str(value))
+
+
+def xml_element(name: str, value) -> str:
+    if isinstance(value, dict):
+        children = "".join(xml_element(key, item) for key, item in value.items())
+        return f"<{name}>{children}</{name}>"
+    if isinstance(value, list):
+        children = "".join(xml_element("item", item) for item in value)
+        return f"<{name}>{children}</{name}>"
+    return f"<{name}>{xml_text(value)}</{name}>"
+
+
+def xml_payload(value) -> str:
+    if isinstance(value, list):
+        return "".join(xml_element("item", item) for item in value)
+    if isinstance(value, dict):
+        return "".join(xml_element(key, item) for key, item in value.items())
+    return xml_text(value)
+
+
 def soap_response(operation: str, success: bool, payload) -> str:
-    payload_json = escape(json.dumps(payload, ensure_ascii=False))
     success_text = "true" if success else "false"
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <soap:Envelope xmlns:soap="{SOAP_NAMESPACE}" xmlns:tns="{NAMESPACE}">
   <soap:Body>
     <tns:{operation}Response>
       <success>{success_text}</success>
-      <payload>{payload_json}</payload>
+      <payload>{xml_payload(payload)}</payload>
     </tns:{operation}Response>
   </soap:Body>
 </soap:Envelope>"""
@@ -125,7 +149,7 @@ def wsdl() -> str:
     elements = "\n".join(
         f"""
       <xsd:element name="{name}" type="tns:GenericRequestType"/>
-      <xsd:element name="{name}Response" type="tns:JsonResponseType"/>"""
+      <xsd:element name="{name}Response" type="tns:SoapResponseType"/>"""
         for name in operations
     )
 
@@ -143,10 +167,10 @@ def wsdl() -> str:
           <xsd:any minOccurs="0" maxOccurs="unbounded" processContents="lax"/>
         </xsd:sequence>
       </xsd:complexType>
-      <xsd:complexType name="JsonResponseType">
+      <xsd:complexType name="SoapResponseType">
         <xsd:sequence>
           <xsd:element name="success" type="xsd:boolean"/>
-          <xsd:element name="payload" type="xsd:string"/>
+          <xsd:element name="payload" type="tns:GenericRequestType"/>
         </xsd:sequence>
       </xsd:complexType>
       {elements}
@@ -171,12 +195,14 @@ def health():
     return {"ok": True, "technology": "SOAP"}
 
 
-@app.api_route("/soap", methods=["GET", "POST"])
-async def soap_endpoint(request: Request):
-    if request.method == "GET":
-        return Response(content=wsdl(), media_type="text/xml")
+@app.get("/soap")
+def soap_wsdl():
+    return Response(content=wsdl(), media_type="text/xml")
 
-    text = (await request.body()).decode("utf-8")
+
+@app.post("/soap")
+def soap_endpoint(body: bytes = Body(default=b"")):
+    text = body.decode("utf-8")
     try:
         root = ElementTree.fromstring(text)
         body = find_body(root)

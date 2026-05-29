@@ -1,112 +1,155 @@
 import http from "node:http";
 
+import { buildSchema, graphqlSync } from "graphql";
+
 import { GRAPHQL_PORT } from "../config.js";
 import { DomainError, MusicStore, plainError } from "../domain/musicStore.js";
 import { handleHttpError, readJson, sendJson } from "../httpUtils.js";
 
 const store = new MusicStore();
 
-function compact(value) {
-  if (!value || typeof value !== "object") {
-    return {};
+const schema = buildSchema(`
+  type User {
+    id: ID!
+    name: String!
+    email: String!
   }
-  return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined));
+
+  type Song {
+    id: ID!
+    title: String!
+    artist: String!
+    album: String!
+    durationSeconds: Int!
+  }
+
+  type Playlist {
+    id: ID!
+    userId: ID!
+    name: String!
+    songIds: [ID!]!
+  }
+
+  input UserInput {
+    name: String!
+    email: String!
+  }
+
+  input UserPatch {
+    name: String
+    email: String
+  }
+
+  input SongInput {
+    title: String!
+    artist: String!
+    album: String!
+    durationSeconds: Int!
+  }
+
+  input SongPatch {
+    title: String
+    artist: String
+    album: String
+    durationSeconds: Int
+  }
+
+  input PlaylistInput {
+    userId: ID!
+    name: String!
+    songIds: [ID!]!
+  }
+
+  input PlaylistPatch {
+    userId: ID
+    name: String
+    songIds: [ID!]
+  }
+
+  type MutationResult {
+    ok: Boolean!
+  }
+
+  type Query {
+    users: [User!]!
+    user(id: ID!): User!
+    songs: [Song!]!
+    song(id: ID!): Song!
+    playlists(userId: ID, songId: ID): [Playlist!]!
+    playlist(id: ID!): Playlist!
+    userPlaylists(userId: ID!): [Playlist!]!
+    playlistSongs(playlistId: ID!): [Song!]!
+    songPlaylists(songId: ID!): [Playlist!]!
+  }
+
+  type Mutation {
+    reset: MutationResult!
+    createUser(input: UserInput!): User!
+    updateUser(id: ID!, input: UserPatch!): User!
+    deleteUser(id: ID!): MutationResult!
+    createSong(input: SongInput!): Song!
+    updateSong(id: ID!, input: SongPatch!): Song!
+    deleteSong(id: ID!): MutationResult!
+    createPlaylist(input: PlaylistInput!): Playlist!
+    updatePlaylist(id: ID!, input: PlaylistPatch!): Playlist!
+    deletePlaylist(id: ID!): MutationResult!
+  }
+`);
+
+function bindResolver(typeName, fieldName, resolver) {
+  schema.getType(typeName).getFields()[fieldName].resolve = resolver;
 }
 
-function normalizeQuery(query) {
-  return String(query || "").replace(/\s+/g, " ").trim();
+bindResolver("Query", "users", () => store.listUsers());
+bindResolver("Query", "user", (_source, args) => store.getUser(args.id));
+bindResolver("Query", "songs", () => store.listSongs());
+bindResolver("Query", "song", (_source, args) => store.getSong(args.id));
+bindResolver("Query", "playlists", (_source, args) => store.listPlaylists(args));
+bindResolver("Query", "playlist", (_source, args) => store.getPlaylist(args.id));
+bindResolver("Query", "userPlaylists", (_source, args) => store.listUserPlaylists(args.userId));
+bindResolver("Query", "playlistSongs", (_source, args) => store.listPlaylistSongs(args.playlistId));
+bindResolver("Query", "songPlaylists", (_source, args) => store.listSongPlaylists(args.songId));
+
+bindResolver("Mutation", "reset", () => store.reset());
+bindResolver("Mutation", "createUser", (_source, args) => store.createUser(args.input));
+bindResolver("Mutation", "updateUser", (_source, args) => store.updateUser(args.id, args.input));
+bindResolver("Mutation", "deleteUser", (_source, args) => store.deleteUser(args.id));
+bindResolver("Mutation", "createSong", (_source, args) => store.createSong(args.input));
+bindResolver("Mutation", "updateSong", (_source, args) => store.updateSong(args.id, args.input));
+bindResolver("Mutation", "deleteSong", (_source, args) => store.deleteSong(args.id));
+bindResolver("Mutation", "createPlaylist", (_source, args) => store.createPlaylist(args.input));
+bindResolver("Mutation", "updatePlaylist", (_source, args) => store.updatePlaylist(args.id, args.input));
+bindResolver("Mutation", "deletePlaylist", (_source, args) => store.deletePlaylist(args.id));
+
+function graphQlError(error) {
+  const original = error.originalError || error;
+  const formatted = {
+    message: error.message || "Erro inesperado",
+    extensions: {
+      code: original.code || "INTERNAL_ERROR"
+    }
+  };
+
+  if (error.locations) {
+    formatted.locations = error.locations;
+  }
+  if (error.path) {
+    formatted.path = error.path;
+  }
+
+  return formatted;
 }
 
-function hasField(query, fieldName) {
-  const escaped = fieldName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`(^|[\\s{])${escaped}\\s*(\\(|{|$)`).test(query);
-}
-
-function inlineArg(query, fieldName) {
-  const match = query.match(new RegExp(`${fieldName}\\s*:\\s*"?([A-Za-z0-9_-]+)"?`));
-  return match ? match[1] : undefined;
-}
-
-function executeGraphql(rawQuery, variables = {}) {
-  const query = normalizeQuery(rawQuery);
-  const data = {};
-
-  if (!query) {
+function executeGraphql(source, variables = {}) {
+  if (typeof source !== "string" || source.trim() === "") {
     throw new DomainError(400, "INVALID_INPUT", "query e obrigatoria");
   }
 
-  if (query.includes("mutation")) {
-    if (hasField(query, "reset")) {
-      data.reset = store.reset();
-    } else if (hasField(query, "createUser")) {
-      data.createUser = store.createUser(variables.input || {});
-    } else if (hasField(query, "updateUser")) {
-      data.updateUser = store.updateUser(variables.id || inlineArg(query, "id"), variables.input || {});
-    } else if (hasField(query, "deleteUser")) {
-      data.deleteUser = store.deleteUser(variables.id || inlineArg(query, "id"));
-    } else if (hasField(query, "createSong")) {
-      data.createSong = store.createSong(variables.input || {});
-    } else if (hasField(query, "updateSong")) {
-      data.updateSong = store.updateSong(variables.id || inlineArg(query, "id"), variables.input || {});
-    } else if (hasField(query, "deleteSong")) {
-      data.deleteSong = store.deleteSong(variables.id || inlineArg(query, "id"));
-    } else if (hasField(query, "createPlaylist")) {
-      data.createPlaylist = store.createPlaylist(variables.input || {});
-    } else if (hasField(query, "updatePlaylist")) {
-      data.updatePlaylist = store.updatePlaylist(variables.id || inlineArg(query, "id"), variables.input || {});
-    } else if (hasField(query, "deletePlaylist")) {
-      data.deletePlaylist = store.deletePlaylist(variables.id || inlineArg(query, "id"));
-    } else {
-      throw new DomainError(400, "UNKNOWN_OPERATION", "Mutacao GraphQL desconhecida");
-    }
-    return data;
-  }
-
-  if (hasField(query, "users")) {
-    data.users = store.listUsers();
-  }
-  if (hasField(query, "user")) {
-    data.user = store.getUser(variables.id || inlineArg(query, "id"));
-  }
-  if (hasField(query, "songs")) {
-    data.songs = store.listSongs();
-  }
-  if (hasField(query, "song")) {
-    data.song = store.getSong(variables.id || inlineArg(query, "id"));
-  }
-  if (hasField(query, "playlists")) {
-    data.playlists = store.listPlaylists(compact({
-      userId: variables.userId || inlineArg(query, "userId"),
-      songId: variables.songId || inlineArg(query, "songId")
-    }));
-  }
-  if (hasField(query, "playlist")) {
-    data.playlist = store.getPlaylist(variables.id || inlineArg(query, "id"));
-  }
-  if (hasField(query, "userPlaylists")) {
-    data.userPlaylists = store.listUserPlaylists(variables.userId || inlineArg(query, "userId"));
-  }
-  if (hasField(query, "playlistSongs")) {
-    data.playlistSongs = store.listPlaylistSongs(variables.playlistId || inlineArg(query, "playlistId"));
-  }
-  if (hasField(query, "songPlaylists")) {
-    data.songPlaylists = store.listSongPlaylists(variables.songId || inlineArg(query, "songId"));
-  }
-
-  if (Object.keys(data).length === 0) {
-    throw new DomainError(400, "UNKNOWN_OPERATION", "Consulta GraphQL desconhecida");
-  }
-
-  return data;
-}
-
-function graphQlError(error) {
-  return {
-    message: error.message || "Erro inesperado",
-    extensions: {
-      code: error.code || "INTERNAL_ERROR"
-    }
-  };
+  return graphqlSync({
+    schema,
+    source,
+    variableValues: variables
+  });
 }
 
 const server = http.createServer((request, response) => {
@@ -126,9 +169,12 @@ const server = http.createServer((request, response) => {
 
       const payload = await readJson(request);
       try {
-        sendJson(response, 200, {
-          data: executeGraphql(payload.query, payload.variables || {})
-        });
+        const result = executeGraphql(payload.query, payload.variables || {});
+        const content = { data: result.data };
+        if (result.errors) {
+          content.errors = result.errors.map(graphQlError);
+        }
+        sendJson(response, result.errors ? 400 : 200, content);
       } catch (error) {
         sendJson(response, 400, {
           data: null,

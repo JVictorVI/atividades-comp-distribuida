@@ -9,7 +9,7 @@ Esta pasta contém a implementação em Node.js do mesmo trabalho feito em Pytho
 
 Assim como a versão Python, a base inicial fica em memória e é gerada com 300 usuários, 500 músicas e 400 playlists.
 
-Os servidores REST, GraphQL e SOAP usam `node:http`. O servidor gRPC usa `node:http2` e serializa as mensagens conforme o contrato compartilhado `proto/music.proto`.
+Os servidores REST e SOAP usam `node:http`. O servidor GraphQL usa `node:http` junto com a biblioteca `graphql`. O servidor gRPC usa `node:http2` e serializa as mensagens conforme o contrato compartilhado `proto/music.proto`.
 
 ## Portas locais
 
@@ -20,7 +20,7 @@ Para poder rodar junto com a versão Python, a versão JavaScript usa portas dif
 | REST       | 3100  |
 | GraphQL    | 3101  |
 | SOAP       | 3102  |
-| gRPC       | 51051 |
+| gRPC       | 55051 |
 
 ## Executar localmente
 

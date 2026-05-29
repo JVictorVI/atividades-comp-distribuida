@@ -28,7 +28,7 @@ $EndpointByApi = @{
     rest = "http://localhost:3100"
     graphql = "http://localhost:3101/graphql"
     soap = "http://localhost:3102/soap"
-    grpc = "localhost:51051"
+    grpc = "localhost:55051"
 }
 $ApiServices = @($ApiNames | ForEach-Object { $ServiceByApi[$_] })
 $ContainerResultsDir = if ($Api -eq "all") { "/app/results/javascript" } else { "/app/results/javascript/$Api" }
