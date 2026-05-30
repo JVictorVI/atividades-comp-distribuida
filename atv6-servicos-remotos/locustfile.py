@@ -2,10 +2,18 @@ import html
 import itertools
 import os
 import re
+import sys
 import time
+from pathlib import Path
 
 import grpc
 from locust import HttpUser, User, tag, task
+
+PYTHON_SERVICE_DIR = Path(__file__).resolve().parent / "services" / "python"
+if PYTHON_SERVICE_DIR.exists():
+    sys.path.insert(0, str(PYTHON_SERVICE_DIR))
+
+from music_service.generated import music_pb2, music_pb2_grpc
 
 try:
     from grpc.experimental import gevent as grpc_gevent
@@ -176,53 +184,31 @@ class SoapApiUser(MusicHttpUser):
         self.soap(operation, name=name, fields=fields)
 
 
-def encode_varint(value):
-    encoded = bytearray()
-    while True:
-        byte = value & 0x7F
-        value >>= 7
-        if value:
-            encoded.append(byte | 0x80)
-        else:
-            encoded.append(byte)
-            return bytes(encoded)
-
-
-def pb_string(field_number, value):
-    data = str(value).encode("utf-8")
-    return encode_varint((field_number << 3) | 2) + encode_varint(len(data)) + data
-
-
 class GrpcMusicUser(User):
     def on_start(self):
         self.catalog_counter = itertools.count()
         self.channel = grpc.insecure_channel(GRPC_TARGET)
-        self.methods = {
-            "ListUsers": self.channel.unary_unary("/music.MusicStreaming/ListUsers"),
-            "ListSongs": self.channel.unary_unary("/music.MusicStreaming/ListSongs"),
-            "ListUserPlaylists": self.channel.unary_unary("/music.MusicStreaming/ListUserPlaylists"),
-            "ListPlaylistSongs": self.channel.unary_unary("/music.MusicStreaming/ListPlaylistSongs"),
-            "ListSongPlaylists": self.channel.unary_unary("/music.MusicStreaming/ListSongPlaylists"),
-        }
+        self.stub = music_pb2_grpc.MusicStreamingStub(self.channel)
 
     def on_stop(self):
         self.channel.close()
 
-    def grpc_call(self, method, name, payload=b""):
+    def grpc_call(self, method, name, payload):
         started = time.perf_counter()
-        response = b""
+        response = None
         exception = None
 
         try:
-            response = self.methods[method](payload, timeout=10)
+            response = method(payload, timeout=10)
         except Exception as exc:
             exception = exc
 
+        response_length = response.ByteSize() if response is not None else 0
         self.environment.events.request.fire(
             request_type="gRPC",
             name=name,
             response_time=(time.perf_counter() - started) * 1000,
-            response_length=len(response or b""),
+            response_length=response_length,
             response=response,
             context={},
             exception=exception,
@@ -234,11 +220,23 @@ class GrpcMusicUser(User):
         method, name, payload = next_item(
             self.catalog_counter,
             [
-                ("ListUsers", "gRPC/listar-usuarios", b""),
-                ("ListSongs", "gRPC/listar-musicas", b""),
-                ("ListUserPlaylists", "gRPC/listar-playlists-usuario", pb_string(1, USER_ID)),
-                ("ListPlaylistSongs", "gRPC/listar-musicas-playlist", pb_string(1, PLAYLIST_ID)),
-                ("ListSongPlaylists", "gRPC/listar-playlists-musica", pb_string(1, SONG_ID)),
+                (self.stub.ListUsers, "gRPC/listar-usuarios", music_pb2.Empty()),
+                (self.stub.ListSongs, "gRPC/listar-musicas", music_pb2.Empty()),
+                (
+                    self.stub.ListUserPlaylists,
+                    "gRPC/listar-playlists-usuario",
+                    music_pb2.UserPlaylistsRequest(userId=USER_ID),
+                ),
+                (
+                    self.stub.ListPlaylistSongs,
+                    "gRPC/listar-musicas-playlist",
+                    music_pb2.PlaylistSongsRequest(playlistId=PLAYLIST_ID),
+                ),
+                (
+                    self.stub.ListSongPlaylists,
+                    "gRPC/listar-playlists-musica",
+                    music_pb2.SongPlaylistsRequest(songId=SONG_ID),
+                ),
             ],
         )
         self.grpc_call(method, name=name, payload=payload)

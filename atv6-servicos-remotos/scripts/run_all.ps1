@@ -57,7 +57,7 @@ try {
     Write-Host "Gerando grafico comparativo Python x JavaScript..."
     & docker compose --profile combined-charts run --rm --no-deps `
         -e "LOCUST_RESULTS_DIR=" `
-        -e "LOCUST_CHARTS_DIR=" `
+        -e "LOCUST_CHARTS_DIR=/app/results/charts" `
         charts-combined
     if ($LASTEXITCODE -ne 0) {
         throw "Falha ao gerar o grafico comparativo."
@@ -66,7 +66,7 @@ try {
     Write-Host "Fluxo completo concluido."
     Write-Host "Resultados Python: $ProjectRoot\results\python"
     Write-Host "Resultados JavaScript: $ProjectRoot\results\javascript"
-    Write-Host "Comparativo: $ProjectRoot\results\charts\comparativo"
+    Write-Host "Graficos: $ProjectRoot\results\charts"
 }
 finally {
     if ($KeepServices) {

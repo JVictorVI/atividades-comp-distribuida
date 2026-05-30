@@ -60,7 +60,7 @@ BASE_DATA = {
         },
     ],
     "playlists": [
-        {"id": "p1", "userId": "u1", "name": "Manhã leve", "songIds": ["s1", "s3", "s4"]},
+        {"id": "p1", "userId": "u1", "name": "Manha leve", "songIds": ["s1", "s3", "s4"]},
         {"id": "p2", "userId": "u1", "name": "Foco", "songIds": ["s2", "s5"]},
         {"id": "p3", "userId": "u2", "name": "Viagem", "songIds": ["s1", "s2", "s4"]},
     ],
@@ -210,7 +210,7 @@ def _clone(value):
 
 def _require_string(value, field_name: str) -> str:
     if not isinstance(value, str) or not value.strip():
-        raise DomainError(400, "INVALID_INPUT", f"{field_name} é obrigatório")
+        raise DomainError(400, "INVALID_INPUT", f"{field_name} e obrigatorio")
     return value.strip()
 
 
@@ -237,7 +237,7 @@ def _normalize_song_ids(song_ids) -> list[str]:
     if isinstance(song_ids, str):
         return [song_id.strip() for song_id in song_ids.split(",") if song_id.strip()]
     if not isinstance(song_ids, list):
-        raise DomainError(400, "INVALID_INPUT", "songIds deve ser lista ou texto separado por vírgulas")
+        raise DomainError(400, "INVALID_INPUT", "songIds deve ser lista ou texto separado por virgulas")
     return [_require_string(song_id, "songId") for song_id in song_ids]
 
 
@@ -271,7 +271,7 @@ class MusicStore:
     @staticmethod
     def _assert_exists(items, item_id: str, item_type: str):
         if item_id not in items:
-            raise DomainError(404, "NOT_FOUND", f"{item_type} {item_id} não encontrado")
+            raise DomainError(404, "NOT_FOUND", f"{item_type} {item_id} nao encontrado")
 
     def list_users(self):
         with self._lock:
@@ -279,7 +279,7 @@ class MusicStore:
 
     def get_user(self, user_id: str):
         with self._lock:
-            self._assert_exists(self.users, user_id, "Usuário")
+            self._assert_exists(self.users, user_id, "Usuario")
             return _clone(self.users[user_id])
 
     def create_user(self, data):
@@ -294,7 +294,7 @@ class MusicStore:
 
     def update_user(self, user_id: str, data):
         with self._lock:
-            self._assert_exists(self.users, user_id, "Usuário")
+            self._assert_exists(self.users, user_id, "Usuario")
             current = self.users[user_id]
             updated = {
                 **current,
@@ -306,7 +306,7 @@ class MusicStore:
 
     def delete_user(self, user_id: str):
         with self._lock:
-            self._assert_exists(self.users, user_id, "Usuário")
+            self._assert_exists(self.users, user_id, "Usuario")
             del self.users[user_id]
             self.playlists = {
                 playlist_id: playlist
@@ -321,7 +321,7 @@ class MusicStore:
 
     def get_song(self, song_id: str):
         with self._lock:
-            self._assert_exists(self.songs, song_id, "Música")
+            self._assert_exists(self.songs, song_id, "Musica")
             return _clone(self.songs[song_id])
 
     def create_song(self, data):
@@ -338,7 +338,7 @@ class MusicStore:
 
     def update_song(self, song_id: str, data):
         with self._lock:
-            self._assert_exists(self.songs, song_id, "Música")
+            self._assert_exists(self.songs, song_id, "Musica")
             current = self.songs[song_id]
             duration = (data or {}).get("durationSeconds")
             updated = {
@@ -355,7 +355,7 @@ class MusicStore:
 
     def delete_song(self, song_id: str):
         with self._lock:
-            self._assert_exists(self.songs, song_id, "Música")
+            self._assert_exists(self.songs, song_id, "Musica")
             del self.songs[song_id]
             for playlist in self.playlists.values():
                 playlist["songIds"] = [current_id for current_id in playlist["songIds"] if current_id != song_id]
@@ -368,9 +368,9 @@ class MusicStore:
             song_id = filters.get("songId") or None
 
             if user_id:
-                self._assert_exists(self.users, user_id, "Usuário")
+                self._assert_exists(self.users, user_id, "Usuario")
             if song_id:
-                self._assert_exists(self.songs, song_id, "Música")
+                self._assert_exists(self.songs, song_id, "Musica")
 
             return [
                 _clone(playlist)
@@ -389,9 +389,9 @@ class MusicStore:
             data = data or {}
             user_id = _require_string(data.get("userId"), "userId")
             song_ids = _normalize_song_ids(data.get("songIds"))
-            self._assert_exists(self.users, user_id, "Usuário")
+            self._assert_exists(self.users, user_id, "Usuario")
             for song_id in song_ids:
-                self._assert_exists(self.songs, song_id, "Música")
+                self._assert_exists(self.songs, song_id, "Musica")
 
             playlist = {
                 "id": self._next_id("playlist"),
@@ -410,9 +410,9 @@ class MusicStore:
             user_id = _optional_string(data.get("userId"), "userId") or current["userId"]
             song_ids = current["songIds"] if data.get("songIds") is None else _normalize_song_ids(data.get("songIds"))
 
-            self._assert_exists(self.users, user_id, "Usuário")
+            self._assert_exists(self.users, user_id, "Usuario")
             for song_id in song_ids:
-                self._assert_exists(self.songs, song_id, "Música")
+                self._assert_exists(self.songs, song_id, "Musica")
 
             updated = {
                 **current,
@@ -431,7 +431,7 @@ class MusicStore:
 
     def list_user_playlists(self, user_id: str):
         with self._lock:
-            self._assert_exists(self.users, user_id, "Usuário")
+            self._assert_exists(self.users, user_id, "Usuario")
             return [
                 _clone(playlist)
                 for playlist in self.playlists.values()
@@ -449,7 +449,7 @@ class MusicStore:
 
     def list_song_playlists(self, song_id: str):
         with self._lock:
-            self._assert_exists(self.songs, song_id, "Música")
+            self._assert_exists(self.songs, song_id, "Musica")
             return [
                 _clone(playlist)
                 for playlist in self.playlists.values()

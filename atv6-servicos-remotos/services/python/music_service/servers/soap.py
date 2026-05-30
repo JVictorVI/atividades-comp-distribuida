@@ -1,23 +1,79 @@
+import os
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape
 
-from fastapi import Body, FastAPI
-from fastapi.responses import Response
-import uvicorn
-
 from music_service.config import SOAP_PORT
 from music_service.domain.music_store import MusicStore, plain_error
+from music_service.http_utils import (
+    MusicHttpHandler,
+    create_http_server,
+    method_not_allowed,
+    not_found,
+    read_body,
+    route_parts,
+    run_http_server,
+    send_json,
+    send_text,
+)
 
 
 NAMESPACE = "http://example.com/music-streaming"
 SOAP_NAMESPACE = "http://schemas.xmlsoap.org/soap/envelope/"
+SOAP_COMPLEXITY_PASSES = int(os.getenv("SOAP_COMPLEXITY_PASSES", "4"))
+
+OPERATIONS = [
+    "Reset",
+    "ListUsers",
+    "GetUser",
+    "CreateUser",
+    "UpdateUser",
+    "DeleteUser",
+    "ListSongs",
+    "GetSong",
+    "CreateSong",
+    "UpdateSong",
+    "DeleteSong",
+    "ListPlaylists",
+    "GetPlaylist",
+    "CreatePlaylist",
+    "UpdatePlaylist",
+    "DeletePlaylist",
+    "ListUserPlaylists",
+    "ListPlaylistSongs",
+    "ListSongPlaylists",
+]
+
+FIELD_RULES = {
+    "Reset": (set(), set()),
+    "ListUsers": (set(), set()),
+    "ListSongs": (set(), set()),
+    "GetUser": ({"id"}, {"id"}),
+    "DeleteUser": ({"id"}, {"id"}),
+    "GetSong": ({"id"}, {"id"}),
+    "DeleteSong": ({"id"}, {"id"}),
+    "GetPlaylist": ({"id"}, {"id"}),
+    "DeletePlaylist": ({"id"}, {"id"}),
+    "ListUserPlaylists": ({"userId"}, {"userId"}),
+    "ListPlaylistSongs": ({"playlistId"}, {"playlistId"}),
+    "ListSongPlaylists": ({"songId"}, {"songId"}),
+    "CreateUser": ({"name", "email"}, {"name", "email"}),
+    "CreateSong": ({"title", "artist", "album", "durationSeconds"}, {"title", "artist", "album", "durationSeconds"}),
+    "CreatePlaylist": ({"userId", "name", "songIds"}, {"userId", "name", "songIds"}),
+    "UpdateUser": ({"id"}, {"id", "name", "email"}),
+    "UpdateSong": ({"id"}, {"id", "title", "artist", "album", "durationSeconds"}),
+    "UpdatePlaylist": ({"id"}, {"id", "userId", "name", "songIds"}),
+    "ListPlaylists": (set(), {"userId", "songId"}),
+}
 
 store = MusicStore()
-app = FastAPI(title="Music Streaming SOAP")
 
 
 def local_name(tag: str) -> str:
     return tag.rsplit("}", 1)[-1] if "}" in tag else tag
+
+
+def namespace_uri(tag: str) -> str:
+    return tag[1:].split("}", 1)[0] if tag.startswith("{") else ""
 
 
 def operation_args(operation_element):
@@ -32,6 +88,58 @@ def find_body(root):
         if local_name(element.tag) == "Body":
             return element
     return None
+
+
+def canonicalize_xml_tree(root):
+    tokens = []
+    for _pass_index in range(SOAP_COMPLEXITY_PASSES):
+        for element in root.iter():
+            attrs = "|".join(
+                f"{local_name(key)}={value.strip()}"
+                for key, value in sorted(element.attrib.items())
+            )
+            text = " ".join((element.text or "").split())
+            tokens.append(f"{namespace_uri(element.tag)}:{local_name(element.tag)}:{attrs}:{text}")
+    return "\n".join(tokens)
+
+
+def validate_operation_args(operation: str, args: dict):
+    required, allowed = FIELD_RULES[operation]
+    received = set(args)
+    missing = sorted(required - received)
+    unexpected = sorted(received - allowed)
+    if missing:
+        raise ValueError(f"Campos obrigatorios ausentes em {operation}: {', '.join(missing)}")
+    if unexpected:
+        raise ValueError(f"Campos nao permitidos em {operation}: {', '.join(unexpected)}")
+
+
+def parse_soap_request(text: str):
+    root = ElementTree.fromstring(text)
+    canonicalize_xml_tree(root)
+
+    if local_name(root.tag) != "Envelope" or namespace_uri(root.tag) != SOAP_NAMESPACE:
+        raise ValueError("Envelope SOAP invalido")
+
+    body = find_body(root)
+    if body is None:
+        raise ValueError("Envelope SOAP sem Body")
+
+    operation_elements = [child for child in list(body) if isinstance(child.tag, str)]
+    if len(operation_elements) != 1:
+        raise ValueError("Envelope SOAP deve conter exatamente uma operacao")
+
+    operation_element = operation_elements[0]
+    if namespace_uri(operation_element.tag) not in ("", NAMESPACE):
+        raise ValueError("Namespace da operacao SOAP invalido")
+
+    operation = local_name(operation_element.tag)
+    if operation not in OPERATIONS:
+        raise ValueError(f"Operacao SOAP desconhecida: {operation}")
+
+    args = operation_args(operation_element)
+    validate_operation_args(operation, args)
+    return operation, args
 
 
 def xml_text(value) -> str:
@@ -62,7 +170,7 @@ def xml_payload(value) -> str:
 
 def soap_response(operation: str, success: bool, payload) -> str:
     success_text = "true" if success else "false"
-    return f"""<?xml version="1.0" encoding="UTF-8"?>
+    response = f"""<?xml version="1.0" encoding="UTF-8"?>
 <soap:Envelope xmlns:soap="{SOAP_NAMESPACE}" xmlns:tns="{NAMESPACE}">
   <soap:Body>
     <tns:{operation}Response>
@@ -71,6 +179,21 @@ def soap_response(operation: str, success: bool, payload) -> str:
     </tns:{operation}Response>
   </soap:Body>
 </soap:Envelope>"""
+    validate_soap_response(response)
+    return response
+
+
+def validate_soap_response(response: str):
+    root = ElementTree.fromstring(response)
+    canonicalize_xml_tree(root)
+    if local_name(root.tag) != "Envelope" or namespace_uri(root.tag) != SOAP_NAMESPACE:
+        raise ValueError("Resposta SOAP invalida")
+    body = find_body(root)
+    if body is None:
+        raise ValueError("Resposta SOAP sem Body")
+    response_elements = [child for child in list(body) if isinstance(child.tag, str)]
+    if len(response_elements) != 1:
+        raise ValueError("Resposta SOAP deve conter exatamente um elemento")
 
 
 def execute(operation: str, args: dict):
@@ -96,38 +219,15 @@ def execute(operation: str, args: dict):
         "ListSongPlaylists": lambda: store.list_song_playlists(args.get("songId")),
     }
 
-    if operation not in operations:
-        raise ValueError(f"Operação SOAP desconhecida: {operation}")
     return operations[operation]()
 
 
 def wsdl() -> str:
-    operations = [
-        "Reset",
-        "ListUsers",
-        "GetUser",
-        "CreateUser",
-        "UpdateUser",
-        "DeleteUser",
-        "ListSongs",
-        "GetSong",
-        "CreateSong",
-        "UpdateSong",
-        "DeleteSong",
-        "ListPlaylists",
-        "GetPlaylist",
-        "CreatePlaylist",
-        "UpdatePlaylist",
-        "DeletePlaylist",
-        "ListUserPlaylists",
-        "ListPlaylistSongs",
-        "ListSongPlaylists",
-    ]
     messages = "\n".join(
         f"""
     <message name="{name}Request"><part name="parameters" element="tns:{name}"/></message>
     <message name="{name}Response"><part name="parameters" element="tns:{name}Response"/></message>"""
-        for name in operations
+        for name in OPERATIONS
     )
     port_operations = "\n".join(
         f"""
@@ -135,7 +235,7 @@ def wsdl() -> str:
         <input message="tns:{name}Request"/>
         <output message="tns:{name}Response"/>
       </operation>"""
-        for name in operations
+        for name in OPERATIONS
     )
     binding_operations = "\n".join(
         f"""
@@ -144,13 +244,13 @@ def wsdl() -> str:
         <input><soap:body use="literal"/></input>
         <output><soap:body use="literal"/></output>
       </operation>"""
-        for name in operations
+        for name in OPERATIONS
     )
     elements = "\n".join(
         f"""
       <xsd:element name="{name}" type="tns:GenericRequestType"/>
       <xsd:element name="{name}Response" type="tns:SoapResponseType"/>"""
-        for name in operations
+        for name in OPERATIONS
     )
 
     return f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -190,37 +290,57 @@ def wsdl() -> str:
 </definitions>"""
 
 
-@app.get("/health")
-def health():
-    return {"ok": True, "technology": "SOAP"}
+class SoapHandler(MusicHttpHandler):
+    def do_GET(self):
+        self.handle_request()
 
+    def do_POST(self):
+        self.handle_request()
 
-@app.get("/soap")
-def soap_wsdl():
-    return Response(content=wsdl(), media_type="text/xml")
+    def do_PUT(self):
+        self.handle_request()
 
+    def do_DELETE(self):
+        self.handle_request()
 
-@app.post("/soap")
-def soap_endpoint(body: bytes = Body(default=b"")):
-    text = body.decode("utf-8")
-    try:
-        root = ElementTree.fromstring(text)
-        body = find_body(root)
-        operation_element = list(body)[0] if body is not None and list(body) else None
-        if operation_element is None:
-            raise ValueError("Envelope SOAP sem operação")
-        operation = local_name(operation_element.tag)
-        result = execute(operation, operation_args(operation_element))
-        response = soap_response(operation, True, result)
-        return Response(content=response, media_type="text/xml")
-    except Exception as error:
-        operation = "Fault"
-        response = soap_response(operation, False, plain_error(error))
-        return Response(content=response, status_code=200, media_type="text/xml")
+    def handle_request(self):
+        _parsed, parts, _query = route_parts(self)
+
+        if self.command == "GET" and parts == ["health"]:
+            send_json(self, 200, {"ok": True, "technology": "SOAP Python"})
+            return
+
+        if parts != ["soap"]:
+            not_found(self)
+            return
+
+        if self.command == "GET":
+            send_text(self, 200, wsdl(), "text/xml; charset=utf-8")
+            return
+
+        if self.command != "POST":
+            method_not_allowed(self)
+            return
+
+        try:
+            operation, args = parse_soap_request(read_body(self))
+            result = execute(operation, args)
+            send_text(self, 200, soap_response(operation, True, result), "text/xml; charset=utf-8")
+        except Exception as error:
+            send_text(
+                self,
+                200,
+                soap_response("Fault", False, plain_error(error)),
+                "text/xml; charset=utf-8",
+            )
 
 
 def main():
-    uvicorn.run(app, host="0.0.0.0", port=SOAP_PORT)
+    run_http_server(SoapHandler, SOAP_PORT, "SOAP Python")
+
+
+def create_server():
+    return create_http_server(SoapHandler, SOAP_PORT)
 
 
 if __name__ == "__main__":

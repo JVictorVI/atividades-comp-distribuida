@@ -1,11 +1,15 @@
 import csv
 import json
 import os
+import re
 from html import escape
 from pathlib import Path
 
+from PIL import Image, ImageDraw, ImageFont
+
 
 DEFAULT_RESULTS_DIR = Path("results")
+DEFAULT_CHARTS_DIR = DEFAULT_RESULTS_DIR / "charts"
 RESULTS_DIR_ENV = os.getenv("LOCUST_RESULTS_DIR")
 CHARTS_DIR_ENV = os.getenv("LOCUST_CHARTS_DIR")
 
@@ -20,6 +24,9 @@ LANGUAGES = [
     {"label": "Python", "slug": "python"},
     {"label": "JavaScript", "slug": "javascript"},
 ]
+
+LANGUAGE_BY_SLUG = {language["slug"]: language for language in LANGUAGES}
+TECHNOLOGY_BY_SLUG = {technology["slug"]: technology for technology in TECHNOLOGIES}
 
 def scenario_name(users):
     names = {
@@ -79,6 +86,59 @@ def number(value):
         return float(value or 0)
     except ValueError:
         return 0.0
+
+
+def slugify(value):
+    slug = re.sub(r"[^a-z0-9]+", "-", str(value).lower()).strip("-")
+    return slug or "locust"
+
+
+def default_charts_dir(results_dir=None):
+    if CHARTS_DIR_ENV:
+        return Path(CHARTS_DIR_ENV)
+
+    if results_dir:
+        parts = [part.lower() for part in results_dir.parts]
+        language_indexes = [
+            index
+            for index, part in enumerate(parts)
+            if part in LANGUAGE_BY_SLUG
+        ]
+        if language_indexes:
+            language_index = language_indexes[-1]
+            parent_parts = results_dir.parts[:language_index]
+            if parent_parts:
+                return Path(*parent_parts) / "charts"
+
+    return DEFAULT_CHARTS_DIR
+
+
+def infer_target_scope(results_dir):
+    parts = [part.lower() for part in results_dir.parts]
+    language = next(
+        (
+            LANGUAGE_BY_SLUG[part]
+            for part in reversed(parts)
+            if part in LANGUAGE_BY_SLUG
+        ),
+        None,
+    )
+    technology = TECHNOLOGY_BY_SLUG.get(results_dir.name.lower())
+
+    if language and technology:
+        return (
+            f"{language['slug']}-{technology['slug']}",
+            f"{language['label']} {technology['label']}",
+        )
+    if language:
+        return language["slug"], language["label"]
+
+    scope_slug = slugify(results_dir.name)
+    return scope_slug, scope_slug.replace("-", " ").title()
+
+
+def scoped_title(scope_label, title):
+    return f"{scope_label} - {title}" if scope_label else title
 
 
 def locust_stats_path(results_dir, scenario, technology):
@@ -231,6 +291,315 @@ def format_value(metric, value):
 
 def format_axis_tick(metric, value):
     return str(round(value))
+
+
+FONT_CACHE = {}
+
+
+def chart_font(size, bold=False):
+    key = (size, bold)
+    if key in FONT_CACHE:
+        return FONT_CACHE[key]
+
+    names = (
+        ["DejaVuSans-Bold.ttf", "arialbd.ttf", "Arial Bold.ttf"]
+        if bold
+        else ["DejaVuSans.ttf", "arial.ttf", "Arial.ttf"]
+    )
+    for name in names:
+        try:
+            font = ImageFont.truetype(name, size)
+            FONT_CACHE[key] = font
+            return font
+        except OSError:
+            continue
+
+    font = ImageFont.load_default()
+    FONT_CACHE[key] = font
+    return font
+
+
+def text_box(draw, text, font):
+    return draw.textbbox((0, 0), str(text), font=font)
+
+
+def text_width(draw, text, font):
+    left, _top, right, _bottom = text_box(draw, text, font)
+    return right - left
+
+
+def draw_text_center(draw, x, y, text, font, fill="#111827"):
+    text = str(text)
+    width = text_width(draw, text, font)
+    draw.text((x - width / 2, y), text, font=font, fill=fill)
+
+
+def draw_text_right(draw, x, y, text, font, fill="#4b5563"):
+    text = str(text)
+    width = text_width(draw, text, font)
+    draw.text((x - width, y), text, font=font, fill=fill)
+
+
+def draw_centered_lines(draw, x, y, lines, font, fill="#111827", line_height=16):
+    for index, line in enumerate(lines):
+        draw_text_center(draw, x, y + index * line_height, line, font, fill)
+
+
+def draw_title(draw, margin, title, subtitle):
+    draw.text((margin["left"], 28), title, font=chart_font(22, True), fill="#111827")
+    draw.text((margin["left"], 56), subtitle, font=chart_font(13), fill="#4b5563")
+
+
+def draw_axes(draw, width, margin, plot_height, axis_ticks, y, metric):
+    tick_font = chart_font(12)
+    for tick in axis_ticks:
+        tick_y = y(tick)
+        draw.line(
+            [(margin["left"], tick_y), (width - margin["right"], tick_y)],
+            fill="#e5e7eb",
+            width=1,
+        )
+        draw_text_right(
+            draw,
+            margin["left"] - 12,
+            tick_y - 7,
+            format_axis_tick(metric, tick),
+            tick_font,
+        )
+
+    draw.line(
+        [(margin["left"], margin["top"]), (margin["left"], margin["top"] + plot_height)],
+        fill="#111827",
+        width=1,
+    )
+    draw.line(
+        [
+            (margin["left"], margin["top"] + plot_height),
+            (width - margin["right"], margin["top"] + plot_height),
+        ],
+        fill="#111827",
+        width=1,
+    )
+
+
+def save_png(path, image):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    image.save(path, format="PNG", optimize=True)
+
+
+def draw_bar(draw, x, y, width, height, color):
+    draw.rectangle([x, y, x + width, y + height], fill=color)
+
+
+def make_average_chart_image(scenario, rows, metric, title, unit):
+    grouped = aggregate_technology_rows(rows, scenario)
+    width = 1040
+    height = 580
+    margin = {"top": 72, "right": 46, "bottom": 106, "left": 92}
+    plot_width = width - margin["left"] - margin["right"]
+    plot_height = height - margin["top"] - margin["bottom"]
+    max_raw_value = max((row[metric] for row in grouped.values()), default=0)
+    max_value = max(1, max_raw_value * 1.14)
+    group_width = plot_width / max(1, len(TECHNOLOGIES))
+    bar_width = min(120, group_width - 80)
+
+    def y(value):
+        return margin["top"] + plot_height - (value / max_value) * plot_height
+
+    image = Image.new("RGB", (width, height), "#ffffff")
+    draw = ImageDraw.Draw(image)
+    subtitle = f"{scenario['label']} - {scenario['users']} usuários virtuais - média dos cenários de leitura - unidade: {unit}"
+    draw_title(draw, margin, title, subtitle)
+    draw_axes(draw, width, margin, plot_height, [max_value * ratio for ratio in [0, 0.25, 0.5, 0.75, 1]], y, metric)
+
+    label_font = chart_font(14)
+    value_font = chart_font(12)
+    for technology_index, technology in enumerate(TECHNOLOGIES):
+        row = grouped.get(technology["label"])
+        if row is None:
+            continue
+        value = row[metric]
+        x_center = margin["left"] + technology_index * group_width + group_width / 2
+        bar_x = x_center - bar_width / 2
+        bar_y = y(value)
+        bar_height = margin["top"] + plot_height - bar_y
+        draw_bar(draw, bar_x, bar_y, bar_width, bar_height, COLORS[technology["label"]])
+        draw_text_center(draw, x_center, bar_y - 20, format_value(metric, value), value_font)
+        draw_text_center(draw, x_center, height - 64, technology["label"], label_font)
+
+    return image
+
+
+def make_detailed_chart_image(scenario, rows, metric, title, unit):
+    selected_rows = [row for row in rows if row["scenario"] == scenario["slug"]]
+    workloads = ordered_workloads(selected_rows)
+    width = 1040
+    height = 580
+    margin = {"top": 72, "right": 38, "bottom": 126, "left": 92}
+    plot_width = width - margin["left"] - margin["right"]
+    plot_height = height - margin["top"] - margin["bottom"]
+    max_raw_value = max((row[metric] for row in selected_rows), default=0)
+    max_value = max(1, max_raw_value * 1.14)
+    group_width = plot_width / max(1, len(workloads))
+    bar_gap = 9
+    bar_width = max(8, (group_width - 48 - bar_gap * (len(TECHNOLOGIES) - 1)) / len(TECHNOLOGIES))
+
+    def y(value):
+        return margin["top"] + plot_height - (value / max_value) * plot_height
+
+    image = Image.new("RGB", (width, height), "#ffffff")
+    draw = ImageDraw.Draw(image)
+    subtitle = f"{scenario['label']} - {scenario['users']} usuários virtuais - cenários de leitura - unidade: {unit}"
+    draw_title(draw, margin, title, subtitle)
+    draw_axes(draw, width, margin, plot_height, [max_value * ratio for ratio in [0, 0.25, 0.5, 0.75, 1]], y, metric)
+
+    value_font = chart_font(11)
+    label_font = chart_font(13)
+    legend_font = chart_font(13)
+    for workload_index, workload in enumerate(workloads):
+        x_base = margin["left"] + workload_index * group_width + 24
+        x_label = margin["left"] + workload_index * group_width + group_width / 2
+        draw_centered_lines(draw, x_label, height - 86, workload_label_lines(workload), label_font, line_height=16)
+
+        for technology_index, technology in enumerate(TECHNOLOGIES):
+            row = next(
+                (
+                    item
+                    for item in selected_rows
+                    if item["workload"] == workload and item["technology"] == technology["label"]
+                ),
+                None,
+            )
+            if row is None:
+                continue
+            value = row[metric]
+            bar_x = x_base + technology_index * (bar_width + bar_gap)
+            bar_y = y(value)
+            bar_height = margin["top"] + plot_height - bar_y
+            draw_bar(draw, bar_x, bar_y, bar_width, bar_height, COLORS[technology["label"]])
+            draw_text_center(draw, bar_x + bar_width / 2, bar_y - 19, format_value(metric, value), value_font)
+
+    for index, technology in enumerate(TECHNOLOGIES):
+        x = margin["left"] + index * 132
+        y_legend = height - 46
+        draw.rectangle([x, y_legend, x + 14, y_legend + 14], fill=COLORS[technology["label"]])
+        draw.text((x + 22, y_legend - 2), technology["label"], font=legend_font, fill="#111827")
+
+    return image
+
+
+def make_comparison_chart_image(scenario, rows, metric, title, unit):
+    grouped = aggregate_comparison_rows(rows, scenario)
+    width = 1060
+    height = 590
+    margin = {"top": 82, "right": 52, "bottom": 104, "left": 92}
+    plot_width = width - margin["left"] - margin["right"]
+    plot_height = height - margin["top"] - margin["bottom"]
+    group_width = plot_width / max(1, len(TECHNOLOGIES))
+    bar_gap = 12
+    bar_width = (group_width - 86 - bar_gap) / len(LANGUAGES)
+    max_raw_value = max((row[metric] for row in grouped.values()), default=0)
+    max_value = max(1, max_raw_value * 1.16)
+
+    def y(value):
+        return margin["top"] + plot_height - (value / max_value) * plot_height
+
+    image = Image.new("RGB", (width, height), "#ffffff")
+    draw = ImageDraw.Draw(image)
+    subtitle = f"{scenario['label']} - {scenario['users']} usuários virtuais - média dos cenários de leitura por tecnologia - unidade: {unit}"
+    draw_title(draw, margin, title, subtitle)
+    draw_axes(draw, width, margin, plot_height, [max_value * ratio for ratio in [0, 0.25, 0.5, 0.75, 1]], y, metric)
+
+    label_font = chart_font(14)
+    value_font = chart_font(11)
+    legend_font = chart_font(13)
+    for technology_index, technology in enumerate(TECHNOLOGIES):
+        group_x = margin["left"] + technology_index * group_width
+        x_base = group_x + 42
+        label_x = group_x + group_width / 2
+        draw_text_center(draw, label_x, height - 68, technology["label"], label_font)
+
+        for language_index, language in enumerate(LANGUAGES):
+            row = grouped.get((language["label"], technology["label"]))
+            if row is None:
+                continue
+            value = row[metric]
+            bar_x = x_base + language_index * (bar_width + bar_gap)
+            bar_y = y(value)
+            bar_height = margin["top"] + plot_height - bar_y
+            draw_bar(draw, bar_x, bar_y, bar_width, bar_height, LANGUAGE_COLORS[language["label"]])
+            draw_text_center(draw, bar_x + bar_width / 2, bar_y - 19, format_value(metric, value), value_font)
+
+    for index, language in enumerate(LANGUAGES):
+        x_legend = margin["left"] + index * 148
+        y_legend = height - 42
+        draw.rectangle([x_legend, y_legend, x_legend + 14, y_legend + 14], fill=LANGUAGE_COLORS[language["label"]])
+        draw.text((x_legend + 22, y_legend - 2), language["label"], font=legend_font, fill="#111827")
+
+    return image
+
+
+def make_detailed_comparison_chart_image(scenario, rows, metric, title, unit):
+    selected_rows = [row for row in rows if row["scenario"] == scenario["slug"]]
+    workloads = ordered_workloads(selected_rows)
+    lookup = {
+        (row["workload"], row["technology"], row["language"]): row
+        for row in selected_rows
+    }
+    width = max(1320, 290 * max(1, len(workloads)) + 120)
+    height = 660
+    margin = {"top": 82, "right": 52, "bottom": 148, "left": 92}
+    plot_width = width - margin["left"] - margin["right"]
+    plot_height = height - margin["top"] - margin["bottom"]
+    group_width = plot_width / max(1, len(workloads))
+    technology_width = (group_width - 46) / len(TECHNOLOGIES)
+    bar_gap = 4
+    bar_width = max(10, min(24, (technology_width - 18 - bar_gap) / len(LANGUAGES)))
+    max_raw_value = max((row[metric] for row in selected_rows), default=0)
+    max_value = max(1, max_raw_value * 1.16)
+
+    def y(value):
+        return margin["top"] + plot_height - (value / max_value) * plot_height
+
+    image = Image.new("RGB", (width, height), "#ffffff")
+    draw = ImageDraw.Draw(image)
+    subtitle = f"{scenario['label']} - {scenario['users']} usuários virtuais - cenários de leitura por tecnologia - unidade: {unit}"
+    draw_title(draw, margin, title, subtitle)
+    draw_axes(draw, width, margin, plot_height, [max_value * ratio for ratio in [0, 0.25, 0.5, 0.75, 1]], y, metric)
+
+    tech_font = chart_font(10)
+    workload_font = chart_font(12)
+    value_font = chart_font(9)
+    legend_font = chart_font(13)
+    for workload_index, workload in enumerate(workloads):
+        group_x = margin["left"] + workload_index * group_width + 23
+        workload_center = margin["left"] + workload_index * group_width + group_width / 2
+        draw_centered_lines(draw, workload_center, height - 76, workload_label_lines(workload), workload_font, line_height=15)
+
+        for technology_index, technology in enumerate(TECHNOLOGIES):
+            pair_width = len(LANGUAGES) * bar_width + (len(LANGUAGES) - 1) * bar_gap
+            pair_x = group_x + technology_index * technology_width + (technology_width - pair_width) / 2
+            pair_center = pair_x + pair_width / 2
+            draw_text_center(draw, pair_center, height - 106, technology["label"], tech_font, "#4b5563")
+
+            for language_index, language in enumerate(LANGUAGES):
+                row = lookup.get((workload, technology["label"], language["label"]))
+                if row is None:
+                    continue
+                value = row[metric]
+                bar_x = pair_x + language_index * (bar_width + bar_gap)
+                bar_y = y(value)
+                bar_height = margin["top"] + plot_height - bar_y
+                draw_bar(draw, bar_x, bar_y, bar_width, bar_height, LANGUAGE_COLORS[language["label"]])
+                draw_text_center(draw, bar_x + bar_width / 2, bar_y - 16, format_value(metric, value), value_font)
+
+    for index, language in enumerate(LANGUAGES):
+        x_legend = margin["left"] + index * 148
+        y_legend = height - 40
+        draw.rectangle([x_legend, y_legend, x_legend + 14, y_legend + 14], fill=LANGUAGE_COLORS[language["label"]])
+        draw.text((x_legend + 22, y_legend - 2), language["label"], font=legend_font, fill="#111827")
+
+    return image
 
 
 def make_detailed_chart(scenario, rows, metric, title, unit):
@@ -608,38 +977,38 @@ def has_locust_stats(results_dir):
 
 def language_targets(results_root, charts_root=None):
     targets = []
+    charts_dir = charts_root or default_charts_dir(results_root)
     for language in LANGUAGES:
         results_dir = results_root / language["slug"]
         if has_locust_stats(results_dir):
-            charts_dir = charts_root / language["slug"] if charts_root else results_dir / "charts"
-            targets.append((results_dir, charts_dir))
+            targets.append((results_dir, charts_dir, language["slug"], language["label"]))
     return targets
 
 
 def chart_targets():
     if RESULTS_DIR_ENV:
         results_dir = Path(RESULTS_DIR_ENV)
-        charts_root = Path(CHARTS_DIR_ENV) if CHARTS_DIR_ENV else None
+        charts_root = default_charts_dir(results_dir)
         targets = language_targets(results_dir, charts_root)
         if targets:
             return targets
-        charts_dir = charts_root if charts_root else results_dir / "charts"
-        return [(results_dir, charts_dir)]
+        scope_slug, scope_label = infer_target_scope(results_dir)
+        return [(results_dir, charts_root, scope_slug, scope_label)]
 
-    charts_root = Path(CHARTS_DIR_ENV) if CHARTS_DIR_ENV else None
+    charts_root = default_charts_dir(DEFAULT_RESULTS_DIR)
     targets = language_targets(DEFAULT_RESULTS_DIR, charts_root)
 
     if targets:
         return targets
 
     if has_locust_stats(DEFAULT_RESULTS_DIR):
-        charts_dir = Path(CHARTS_DIR_ENV) if CHARTS_DIR_ENV else DEFAULT_RESULTS_DIR / "charts"
-        return [(DEFAULT_RESULTS_DIR, charts_dir)]
+        scope_slug, scope_label = infer_target_scope(DEFAULT_RESULTS_DIR)
+        return [(DEFAULT_RESULTS_DIR, charts_root, scope_slug, scope_label)]
 
     return []
 
 
-def generate_for_target(results_dir, charts_dir):
+def generate_for_target(results_dir, charts_dir, scope_slug, scope_label):
     results_dir.mkdir(parents=True, exist_ok=True)
     charts_dir.mkdir(parents=True, exist_ok=True)
     rows = collect_rows(results_dir)
@@ -651,20 +1020,19 @@ def generate_for_target(results_dir, charts_dir):
     write_summary(results_dir, rows)
 
     generated = []
+    prefix = f"{scope_slug}-" if scope_slug else ""
     for scenario in SCENARIOS:
         if not any(row["scenario"] == scenario["slug"] for row in rows):
             continue
-        scenario_charts_dir = charts_dir / scenario["folder"]
-        scenario_charts_dir.mkdir(parents=True, exist_ok=True)
         average_outputs = [
             (
-                scenario_charts_dir / f"locust-throughput-{scenario['slug']}-u{scenario['users']}.svg",
+                charts_dir / f"{prefix}locust-throughput-{scenario['slug']}-u{scenario['users']}.png",
                 "throughputRps",
                 "Vazão média por tecnologia",
                 "req/s",
             ),
             (
-                scenario_charts_dir / f"locust-p95-latency-{scenario['slug']}-u{scenario['users']}.svg",
+                charts_dir / f"{prefix}locust-p95-latency-{scenario['slug']}-u{scenario['users']}.png",
                 "p95LatencyMs",
                 "Latência p95 média por tecnologia",
                 "ms",
@@ -672,23 +1040,29 @@ def generate_for_target(results_dir, charts_dir):
         ]
         detailed_outputs = [
             (
-                scenario_charts_dir / f"locust-throughput-por-cenario-{scenario['slug']}-u{scenario['users']}.svg",
+                charts_dir / f"{prefix}locust-throughput-por-cenario-{scenario['slug']}-u{scenario['users']}.png",
                 "throughputRps",
                 "Vazão por tecnologia e cenário de leitura",
                 "req/s",
             ),
             (
-                scenario_charts_dir / f"locust-p95-latency-por-cenario-{scenario['slug']}-u{scenario['users']}.svg",
+                charts_dir / f"{prefix}locust-p95-latency-por-cenario-{scenario['slug']}-u{scenario['users']}.png",
                 "p95LatencyMs",
                 "Latência p95 por tecnologia e cenário de leitura",
                 "ms",
             ),
         ]
         for path, metric, title, unit in average_outputs:
-            path.write_text(make_average_chart(scenario, rows, metric, title, unit), encoding="utf-8")
+            save_png(
+                path,
+                make_average_chart_image(scenario, rows, metric, scoped_title(scope_label, title), unit),
+            )
             generated.append(path)
         for path, metric, title, unit in detailed_outputs:
-            path.write_text(make_detailed_chart(scenario, rows, metric, title, unit), encoding="utf-8")
+            save_png(
+                path,
+                make_detailed_chart_image(scenario, rows, metric, scoped_title(scope_label, title), unit),
+            )
             generated.append(path)
 
     print(f"Graficos Locust gerados para {results_dir}:")
@@ -699,30 +1073,29 @@ def generate_for_target(results_dir, charts_dir):
     print(results_dir / "locust-summary.json")
 
 
-def generate_combined_charts(results_root=DEFAULT_RESULTS_DIR):
+def generate_combined_charts(results_root=DEFAULT_RESULTS_DIR, charts_dir=None):
     rows = collect_language_rows(results_root)
     languages = {row["language"] for row in rows}
     if len(languages) < 2:
         return []
 
     write_combined_summary(results_root, rows)
-    charts_dir = results_root / "charts" / "comparativo"
+    charts_dir = charts_dir or default_charts_dir(results_root)
+    charts_dir.mkdir(parents=True, exist_ok=True)
     generated = []
     for scenario in SCENARIOS:
         grouped = aggregate_comparison_rows(rows, scenario)
         if not grouped:
             continue
-        scenario_charts_dir = charts_dir / scenario["folder"]
-        scenario_charts_dir.mkdir(parents=True, exist_ok=True)
         average_outputs = [
             (
-                scenario_charts_dir / f"locust-comparison-throughput-{scenario['slug']}-u{scenario['users']}.svg",
+                charts_dir / f"comparativo-locust-throughput-{scenario['slug']}-u{scenario['users']}.png",
                 "throughputRps",
                 "Comparativo Python x JavaScript - vazão",
                 "req/s",
             ),
             (
-                scenario_charts_dir / f"locust-comparison-p95-latency-{scenario['slug']}-u{scenario['users']}.svg",
+                charts_dir / f"comparativo-locust-p95-latency-{scenario['slug']}-u{scenario['users']}.png",
                 "p95LatencyMs",
                 "Comparativo Python x JavaScript - latência p95",
                 "ms",
@@ -730,23 +1103,23 @@ def generate_combined_charts(results_root=DEFAULT_RESULTS_DIR):
         ]
         detailed_outputs = [
             (
-                scenario_charts_dir / f"locust-comparison-throughput-por-cenario-{scenario['slug']}-u{scenario['users']}.svg",
+                charts_dir / f"comparativo-locust-throughput-por-cenario-{scenario['slug']}-u{scenario['users']}.png",
                 "throughputRps",
                 "Comparativo Python x JavaScript por cenário - vazão",
                 "req/s",
             ),
             (
-                scenario_charts_dir / f"locust-comparison-p95-latency-por-cenario-{scenario['slug']}-u{scenario['users']}.svg",
+                charts_dir / f"comparativo-locust-p95-latency-por-cenario-{scenario['slug']}-u{scenario['users']}.png",
                 "p95LatencyMs",
                 "Comparativo Python x JavaScript por cenário - latência p95",
                 "ms",
             ),
         ]
         for path, metric, title, unit in average_outputs:
-            path.write_text(make_comparison_chart(scenario, rows, metric, title, unit), encoding="utf-8")
+            save_png(path, make_comparison_chart_image(scenario, rows, metric, title, unit))
             generated.append(path)
         for path, metric, title, unit in detailed_outputs:
-            path.write_text(make_detailed_comparison_chart(scenario, rows, metric, title, unit), encoding="utf-8")
+            save_png(path, make_detailed_comparison_chart_image(scenario, rows, metric, title, unit))
             generated.append(path)
 
     if generated:
@@ -767,12 +1140,13 @@ def main():
             "Nenhum CSV Locust encontrado. Execute a bateria de testes ou informe LOCUST_RESULTS_DIR."
         )
 
-    for results_dir, charts_dir in targets:
-        generate_for_target(results_dir, charts_dir)
+    for results_dir, charts_dir, scope_slug, scope_label in targets:
+        generate_for_target(results_dir, charts_dir, scope_slug, scope_label)
 
     if len(targets) > 1 or not RESULTS_DIR_ENV:
         results_root = Path(RESULTS_DIR_ENV) if RESULTS_DIR_ENV and len(targets) > 1 else DEFAULT_RESULTS_DIR
-        generate_combined_charts(results_root)
+        charts_dir = targets[0][1] if targets else default_charts_dir(results_root)
+        generate_combined_charts(results_root, charts_dir)
 
 
 if __name__ == "__main__":

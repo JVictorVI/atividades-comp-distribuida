@@ -35,28 +35,30 @@ Operações cobertas:
 
 REST:
 
-- Implementado com FastAPI.
+- Implementado com HTTP minimalista nas duas linguagens: `http.server` em Python e `node:http` em JavaScript.
 - Usa URLs, JSON e métodos HTTP.
 - Porta local: `3000`.
 
 GraphQL:
 
-- Implementado com `graphql-core` e FastAPI na versão Python; na versão JavaScript, com a biblioteca `graphql` e `node:http`.
+- Implementado com `graphql-core` e `http.server` na versão Python; na versão JavaScript, com a biblioteca `graphql` e `node:http`.
 - Usa schema tipado e permite consultar exatamente os campos desejados.
 - Porta local: `3001`.
 
 SOAP:
 
-- Implementado em Python com FastAPI e XML; na versão JavaScript, com `node:http` e XML.
-- Expõe endpoint SOAP e WSDL básico.
+- Implementado com HTTP minimalista e XML nas duas linguagens: `http.server` em Python e `node:http` em JavaScript.
+- Expõe endpoint SOAP, WSDL e validações adicionais de envelope, namespace, operação e campos.
+- O custo extra de processamento XML pode ser ajustado com `SOAP_COMPLEXITY_PASSES`.
 - Porta local: `3002`.
 
 gRPC:
 
-- Implementado com `grpcio` em Python e com `node:http2` na versão JavaScript.
+- Implementado com `grpcio` em Python e com `@grpc/grpc-js` na versão JavaScript.
 - Usa o contrato `proto/music.proto`.
-- Os servidores usam handlers gRPC genéricos e serialização Protocol Buffers.
-- Porta local: `50051`.
+- O Python usa código protobuf/gRPC gerado por `grpcio-tools`.
+- O JavaScript usa `@grpc/proto-loader` para carregar o contrato `.proto` e delegar a serialização para a biblioteca gRPC.
+- Portas locais: `50051` em Python e `55051` em JavaScript.
 
 ## Origem, Características, Vantagens e Desvantagens
 
@@ -225,17 +227,19 @@ Exemplo em Python:
 ```python
 import grpc
 
+from music_service.generated import music_pb2, music_pb2_grpc
+
 channel = grpc.insecure_channel("localhost:50051")
 
 try:
-    list_songs = channel.unary_unary("/music.MusicStreaming/ListSongs")
-    response_bytes = list_songs(b"", timeout=5)
-    print(response_bytes)
+    client = music_pb2_grpc.MusicStreamingStub(channel)
+    response = client.ListSongs(music_pb2.Empty(), timeout=5)
+    print(response.songs)
 finally:
     channel.close()
 ```
 
-Em uma implementação gRPC tradicional, clientes e servidores também poderiam ser gerados automaticamente a partir do arquivo `proto/music.proto`. Neste projeto, as implementações usam handlers genéricos para manter o código simples e evitar etapas adicionais de geração.
+No gRPC, o contrato em `proto/music.proto` é a fonte principal das mensagens e operações. A versão Python usa módulos gerados a partir desse contrato, enquanto a versão JavaScript carrega o mesmo arquivo `.proto` com a biblioteca oficial de gRPC para Node.js. Assim, a serialização Protocol Buffers fica sob responsabilidade das bibliotecas, não de código manual do projeto.
 
 ## Como Foi Feito
 
@@ -268,7 +272,7 @@ As implementações em Python e JavaScript são equivalentes em comportamento pa
 
 Foram mantidos os mesmos dados iniciais, as mesmas regras de validação e as mesmas relações entre usuários, músicas e playlists. Dessa forma, os testes de carga comparam principalmente o mecanismo de comunicação remota, a serialização e o servidor usado em cada linguagem, não diferenças na regra de negócio.
 
-A estrutura segue boas práticas para um projeto acadêmico de comparação: serviços separados por linguagem, execução independente por API, contratos consistentes, dados em memória reiniciáveis e scripts automatizados para testes e gráficos. Algumas escolhas são simplificadas de propósito, como SOAP e gRPC com implementação manual em partes específicas, porque o objetivo é comparar os modelos de comunicação sem adicionar dependências ou geração automática de código além do necessário.
+A estrutura segue boas práticas para um projeto acadêmico de comparação: serviços separados por linguagem, execução independente por API, contratos consistentes, dados em memória reiniciáveis e scripts automatizados para testes e gráficos. As APIs HTTP usam servidores minimalistas nas duas linguagens para reduzir diferenças de framework. O SOAP inclui validações e reprocessamento de XML para representar melhor o custo típico desse modelo. O gRPC usa a toolchain de Protocol Buffers em vez de serialização manual.
 
 ## Estrutura
 
@@ -283,6 +287,9 @@ A estrutura segue boas práticas para um projeto acadêmico de comparação: ser
 |   |   |-- Dockerfile
 |   |   |-- requirements.txt
 |   |   `-- music_service/
+|   |       |-- generated/
+|   |       |-- http_utils.py
+|   |       `-- servers/
 |   `-- javascript/
 |       |-- Dockerfile
 |       |-- package.json
@@ -301,13 +308,15 @@ Arquivos importantes:
 
 - `services/python/Dockerfile`: imagem Python usada pelos servidores Python, Locust e gráficos.
 - `services/javascript/Dockerfile`: imagem Node.js usada pelos servidores JavaScript.
+- `services/python/music_service/generated/`: módulos protobuf/gRPC gerados a partir de `proto/music.proto`.
+- `services/python/music_service/http_utils.py`: utilitário HTTP minimalista usado por REST, GraphQL e SOAP em Python.
 - `docker-compose.yml`: sobe as APIs das duas linguagens, Locust, bateria de testes e geração de gráficos.
 - `locustfile.py`: define os usuários virtuais e cenários de carga.
 - `scripts/run_python.ps1`: executa apenas a implementação Python.
 - `scripts/run_javascript.ps1`: executa apenas a implementação JavaScript.
 - `scripts/run_all.ps1`: executa Python e JavaScript no mesmo comando.
 - `scripts/run_locust_scenarios.py`: executa a bateria com 50, 250 e 500 usuários.
-- `scripts/generate_charts.py`: gera gráficos SVG, resumo agregado e comparativo Python x JavaScript. Quando executado sem `LOCUST_RESULTS_DIR`, detecta automaticamente `results/python` e `results/javascript`, se existirem.
+- `scripts/generate_charts.py`: gera gráficos PNG, resumo agregado e comparativo Python x JavaScript. Quando executado sem `LOCUST_RESULTS_DIR`, detecta automaticamente `results/python` e `results/javascript`, se existirem.
 
 ## Execução com PowerShell
 
@@ -460,7 +469,15 @@ Se preferir executar o gerador diretamente no host, sem `LOCUST_RESULTS_DIR`, el
 
 Quando `LOCUST_RESULTS_DIR` estiver definido, o script gera apenas para o diretório informado. Esse é o comportamento usado pelos serviços `charts-python` e `charts-js` no Docker Compose.
 
-São gerados quatro gráficos para cada carga, separados nas subpastas técnicas `leve`, `medio` e `alto`, que representam carga leve, carga média e carga alta dentro de `results/python/charts/` e `results/javascript/charts/`. Dois gráficos agregam os cinco cenários de leitura e mostram a média por tecnologia:
+Todos os arquivos PNG são gravados diretamente em uma única pasta:
+
+```text
+results/charts/
+```
+
+Os nomes dos arquivos indicam a linguagem e a carga, por exemplo `python-locust-throughput-carga-leve-u50.png`, `javascript-locust-p95-latency-carga-alta-u500.png` e `comparativo-locust-throughput-carga-media-u250.png`.
+
+São gerados quatro gráficos para cada carga. Dois gráficos agregam os cinco cenários de leitura e mostram a média por tecnologia:
 
 - vazão média;
 - latência p95 média.
@@ -470,50 +487,23 @@ Os outros dois gráficos mantêm a visão detalhada por cenário de leitura, com
 - vazão por tecnologia e cenário de leitura;
 - latência p95 por tecnologia e cenário de leitura.
 
-Quando os resultados das duas linguagens existem, também são gerados quatro gráficos comparativos por carga. Dois usam as mesmas médias e barras verticais agrupadas por tecnologia, comparando pares como `REST Python` x `REST JavaScript`. Os outros dois detalham os cenários de leitura:
-
-```text
-results/charts/comparativo/leve/locust-comparison-throughput-carga-leve-u50.svg
-results/charts/comparativo/leve/locust-comparison-p95-latency-carga-leve-u50.svg
-results/charts/comparativo/leve/locust-comparison-throughput-por-cenario-carga-leve-u50.svg
-results/charts/comparativo/leve/locust-comparison-p95-latency-por-cenario-carga-leve-u50.svg
-results/charts/comparativo/medio/locust-comparison-throughput-carga-media-u250.svg
-results/charts/comparativo/medio/locust-comparison-p95-latency-carga-media-u250.svg
-results/charts/comparativo/medio/locust-comparison-throughput-por-cenario-carga-media-u250.svg
-results/charts/comparativo/medio/locust-comparison-p95-latency-por-cenario-carga-media-u250.svg
-results/charts/comparativo/alto/locust-comparison-throughput-carga-alta-u500.svg
-results/charts/comparativo/alto/locust-comparison-p95-latency-carga-alta-u500.svg
-results/charts/comparativo/alto/locust-comparison-throughput-por-cenario-carga-alta-u500.svg
-results/charts/comparativo/alto/locust-comparison-p95-latency-por-cenario-carga-alta-u500.svg
-```
+Quando os resultados das duas linguagens existem, também são gerados quatro gráficos comparativos por carga. Dois usam as mesmas médias e barras verticais agrupadas por tecnologia, comparando pares como `REST Python` x `REST JavaScript`. Os outros dois detalham os cenários de leitura.
 
 Arquivos esperados:
 
 ```text
-results/python/charts/leve/locust-throughput-carga-leve-u50.svg
-results/python/charts/leve/locust-p95-latency-carga-leve-u50.svg
-results/python/charts/leve/locust-throughput-por-cenario-carga-leve-u50.svg
-results/python/charts/leve/locust-p95-latency-por-cenario-carga-leve-u50.svg
-results/python/charts/medio/locust-throughput-carga-media-u250.svg
-results/python/charts/medio/locust-p95-latency-carga-media-u250.svg
-results/python/charts/medio/locust-throughput-por-cenario-carga-media-u250.svg
-results/python/charts/medio/locust-p95-latency-por-cenario-carga-media-u250.svg
-results/python/charts/alto/locust-throughput-carga-alta-u500.svg
-results/python/charts/alto/locust-p95-latency-carga-alta-u500.svg
-results/python/charts/alto/locust-throughput-por-cenario-carga-alta-u500.svg
-results/python/charts/alto/locust-p95-latency-por-cenario-carga-alta-u500.svg
-results/javascript/charts/leve/locust-throughput-carga-leve-u50.svg
-results/javascript/charts/leve/locust-p95-latency-carga-leve-u50.svg
-results/javascript/charts/leve/locust-throughput-por-cenario-carga-leve-u50.svg
-results/javascript/charts/leve/locust-p95-latency-por-cenario-carga-leve-u50.svg
-results/javascript/charts/medio/locust-throughput-carga-media-u250.svg
-results/javascript/charts/medio/locust-p95-latency-carga-media-u250.svg
-results/javascript/charts/medio/locust-throughput-por-cenario-carga-media-u250.svg
-results/javascript/charts/medio/locust-p95-latency-por-cenario-carga-media-u250.svg
-results/javascript/charts/alto/locust-throughput-carga-alta-u500.svg
-results/javascript/charts/alto/locust-p95-latency-carga-alta-u500.svg
-results/javascript/charts/alto/locust-throughput-por-cenario-carga-alta-u500.svg
-results/javascript/charts/alto/locust-p95-latency-por-cenario-carga-alta-u500.svg
+results/charts/python-locust-throughput-carga-leve-u50.png
+results/charts/python-locust-p95-latency-carga-leve-u50.png
+results/charts/python-locust-throughput-por-cenario-carga-leve-u50.png
+results/charts/python-locust-p95-latency-por-cenario-carga-leve-u50.png
+results/charts/javascript-locust-throughput-carga-leve-u50.png
+results/charts/javascript-locust-p95-latency-carga-leve-u50.png
+results/charts/javascript-locust-throughput-por-cenario-carga-leve-u50.png
+results/charts/javascript-locust-p95-latency-por-cenario-carga-leve-u50.png
+results/charts/comparativo-locust-throughput-carga-leve-u50.png
+results/charts/comparativo-locust-p95-latency-carga-leve-u50.png
+results/charts/comparativo-locust-throughput-por-cenario-carga-leve-u50.png
+results/charts/comparativo-locust-p95-latency-por-cenario-carga-leve-u50.png
 ```
 
 Também são gerados:
@@ -612,11 +602,13 @@ gRPC:
 ```python
 import grpc
 
+from music_service.generated import music_pb2, music_pb2_grpc
+
 channel = grpc.insecure_channel("localhost:50051")
-list_users = channel.unary_unary("/music.MusicStreaming/ListUsers")
 
 try:
-    print(list_users(b"", timeout=5))
+    client = music_pb2_grpc.MusicStreamingStub(channel)
+    print(client.ListUsers(music_pb2.Empty(), timeout=5).users)
 finally:
     channel.close()
 ```

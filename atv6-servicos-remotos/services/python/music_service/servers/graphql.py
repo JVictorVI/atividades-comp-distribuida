@@ -1,14 +1,19 @@
-from fastapi import Body, FastAPI
-from fastapi.responses import JSONResponse
 from graphql import build_schema, graphql_sync
-import uvicorn
 
 from music_service.config import GRAPHQL_PORT
-from music_service.domain.music_store import MusicStore
+from music_service.domain.music_store import DomainError, MusicStore, plain_error
+from music_service.http_utils import (
+    MusicHttpHandler,
+    create_http_server,
+    handle_http_error,
+    read_json,
+    route_parts,
+    run_http_server,
+    send_json,
+)
 
 
 store = MusicStore()
-app = FastAPI(title="Music Streaming GraphQL")
 
 SCHEMA = build_schema(
     """
@@ -109,7 +114,13 @@ bind_resolver("Query", "users", lambda *_: store.list_users())
 bind_resolver("Query", "user", lambda _obj, _info, id: store.get_user(id))
 bind_resolver("Query", "songs", lambda *_: store.list_songs())
 bind_resolver("Query", "song", lambda _obj, _info, id: store.get_song(id))
-bind_resolver("Query", "playlists", lambda _obj, _info, userId=None, songId=None: store.list_playlists({"userId": userId, "songId": songId}))
+bind_resolver(
+    "Query",
+    "playlists",
+    lambda _obj, _info, userId=None, songId=None: store.list_playlists(
+        {"userId": userId, "songId": songId}
+    ),
+)
 bind_resolver("Query", "playlist", lambda _obj, _info, id: store.get_playlist(id))
 bind_resolver("Query", "userPlaylists", lambda _obj, _info, userId: store.list_user_playlists(userId))
 bind_resolver("Query", "playlistSongs", lambda _obj, _info, playlistId: store.list_playlist_songs(playlistId))
@@ -139,39 +150,69 @@ def graphql_error(error):
 
 def invalid_query_error():
     return {
-        "message": "query é obrigatória",
+        "message": "query e obrigatoria",
         "extensions": {"code": "INVALID_INPUT"},
     }
 
 
-@app.get("/health")
-def health():
-    return {"ok": True, "technology": "GraphQL"}
+def execute_graphql(source, variables=None):
+    if not isinstance(source, str) or not source.strip():
+        raise DomainError(400, "INVALID_INPUT", "query e obrigatoria")
+
+    return graphql_sync(
+        SCHEMA,
+        source,
+        variable_values=variables or {},
+    )
 
 
-@app.post("/graphql")
-def graphql_endpoint(payload: dict = Body(default_factory=dict)):
-    query = payload.get("query")
-    if not isinstance(query, str) or not query.strip():
-        return JSONResponse(status_code=400, content={"data": None, "errors": [invalid_query_error()]})
+class GraphqlHandler(MusicHttpHandler):
+    def do_GET(self):
+        self.handle_request()
 
-    try:
-        result = graphql_sync(
-            SCHEMA,
-            query,
-            variable_values=payload.get("variables") or {},
-        )
-    except Exception as error:
-        return JSONResponse(status_code=400, content={"data": None, "errors": [graphql_error(error)]})
+    def do_POST(self):
+        self.handle_request()
 
-    content = {"data": result.data}
-    if result.errors:
-        content["errors"] = [graphql_error(error) for error in result.errors]
-    return JSONResponse(status_code=400 if result.errors else 200, content=content)
+    def handle_request(self):
+        try:
+            parsed, _parts, _query = route_parts(self)
+
+            if self.command == "GET" and parsed.path == "/health":
+                send_json(self, 200, {"ok": True, "technology": "GraphQL Python"})
+                return
+
+            if self.command != "POST" or parsed.path != "/graphql":
+                send_json(
+                    self,
+                    404,
+                    plain_error(DomainError(404, "NOT_FOUND", "Rota nao encontrada")),
+                )
+                return
+
+            payload = read_json(self)
+            try:
+                result = execute_graphql(payload.get("query"), payload.get("variables") or {})
+            except DomainError:
+                send_json(self, 400, {"data": None, "errors": [invalid_query_error()]})
+                return
+            except Exception as error:
+                send_json(self, 400, {"data": None, "errors": [graphql_error(error)]})
+                return
+
+            content = {"data": result.data}
+            if result.errors:
+                content["errors"] = [graphql_error(error) for error in result.errors]
+            send_json(self, 400 if result.errors else 200, content)
+        except Exception as error:
+            handle_http_error(self, error)
+
+
+def create_server():
+    return create_http_server(GraphqlHandler, GRAPHQL_PORT)
 
 
 def main():
-    uvicorn.run(app, host="0.0.0.0", port=GRAPHQL_PORT)
+    run_http_server(GraphqlHandler, GRAPHQL_PORT, "GraphQL Python")
 
 
 if __name__ == "__main__":

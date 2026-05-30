@@ -1,44 +1,35 @@
-import http2 from "node:http2";
+import grpc from "@grpc/grpc-js";
+import protoLoader from "@grpc/proto-loader";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { GRPC_PORT } from "./config.js";
 
-function frameEmptyMessage() {
-  return Buffer.alloc(5);
-}
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const PROTO_PATH = resolve(__dirname, "../../proto/music.proto");
+const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
+  keepCase: true,
+  longs: String,
+  enums: String,
+  defaults: false,
+  oneofs: true
+});
+const proto = grpc.loadPackageDefinition(packageDefinition).music;
+const client = new proto.MusicStreaming(
+  `127.0.0.1:${GRPC_PORT}`,
+  grpc.credentials.createInsecure()
+);
 
-const client = http2.connect(`http://127.0.0.1:${GRPC_PORT}`);
 const timeout = setTimeout(() => {
-  client.destroy();
+  client.close();
   process.exit(1);
 }, 2000);
 
-client.on("error", () => {
-  clearTimeout(timeout);
-  process.exit(1);
-});
-
-const request = client.request({
-  ":method": "POST",
-  ":path": "/music.MusicStreaming/ListUsers",
-  "content-type": "application/grpc+proto",
-  te: "trailers"
-});
-
-let responseLength = 0;
-request.on("data", (chunk) => {
-  responseLength += chunk.length;
-});
-
-request.on("end", () => {
+client.ListUsers({}, (error, response) => {
   clearTimeout(timeout);
   client.close();
-  process.exit(responseLength > 5 ? 0 : 1);
+  if (error || !response || !Array.isArray(response.users) || response.users.length === 0) {
+    process.exit(1);
+  }
+  process.exit(0);
 });
-
-request.on("error", () => {
-  clearTimeout(timeout);
-  client.destroy();
-  process.exit(1);
-});
-
-request.end(frameEmptyMessage());

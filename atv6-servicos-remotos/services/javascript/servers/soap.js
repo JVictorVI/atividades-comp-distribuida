@@ -6,6 +6,7 @@ import { readBody, sendJson, sendText } from "../httpUtils.js";
 
 const NAMESPACE = "http://example.com/music-streaming";
 const SOAP_NAMESPACE = "http://schemas.xmlsoap.org/soap/envelope/";
+const SOAP_COMPLEXITY_PASSES = Number.parseInt(process.env.SOAP_COMPLEXITY_PASSES || "4", 10);
 const OPERATIONS = [
   "Reset",
   "ListUsers",
@@ -27,6 +28,27 @@ const OPERATIONS = [
   "ListPlaylistSongs",
   "ListSongPlaylists"
 ];
+const FIELD_RULES = {
+  Reset: [[], []],
+  ListUsers: [[], []],
+  ListSongs: [[], []],
+  GetUser: [["id"], ["id"]],
+  DeleteUser: [["id"], ["id"]],
+  GetSong: [["id"], ["id"]],
+  DeleteSong: [["id"], ["id"]],
+  GetPlaylist: [["id"], ["id"]],
+  DeletePlaylist: [["id"], ["id"]],
+  ListUserPlaylists: [["userId"], ["userId"]],
+  ListPlaylistSongs: [["playlistId"], ["playlistId"]],
+  ListSongPlaylists: [["songId"], ["songId"]],
+  CreateUser: [["name", "email"], ["name", "email"]],
+  CreateSong: [["title", "artist", "album", "durationSeconds"], ["title", "artist", "album", "durationSeconds"]],
+  CreatePlaylist: [["userId", "name", "songIds"], ["userId", "name", "songIds"]],
+  UpdateUser: [["id"], ["id", "name", "email"]],
+  UpdateSong: [["id"], ["id", "title", "artist", "album", "durationSeconds"]],
+  UpdatePlaylist: [["id"], ["id", "userId", "name", "songIds"]],
+  ListPlaylists: [[], ["userId", "songId"]]
+};
 
 const store = new MusicStore();
 
@@ -52,23 +74,96 @@ function localName(tag) {
   return tag.includes(":") ? tag.split(":").pop() : tag;
 }
 
+function tagPrefix(tag) {
+  return tag.includes(":") ? tag.split(":", 1)[0] : "";
+}
+
+function namespaceDeclarations(xml) {
+  const namespaces = new Map();
+  const pattern = /\sxmlns(?::([A-Za-z_][\w.-]*))?="([^"]+)"/g;
+  for (const match of xml.matchAll(pattern)) {
+    namespaces.set(match[1] || "", match[2]);
+  }
+  return namespaces;
+}
+
+function namespaceUri(tag, namespaces) {
+  return namespaces.get(tagPrefix(tag)) || "";
+}
+
+function canonicalizeXml(xml) {
+  const tokens = [];
+  const tagPattern = /<\s*(\/?)([A-Za-z_][\w:.-]*)([^>]*)>/g;
+  for (let pass = 0; pass < SOAP_COMPLEXITY_PASSES; pass += 1) {
+    for (const match of xml.matchAll(tagPattern)) {
+      const [, closing, tag, rawAttributes] = match;
+      const attrs = [...rawAttributes.matchAll(/([A-Za-z_][\w:.-]*)="([^"]*)"/g)]
+        .map(([, key, value]) => `${localName(key)}=${value.trim()}`)
+        .sort()
+        .join("|");
+      tokens.push(`${closing ? "/" : ""}${tagPrefix(tag)}:${localName(tag)}:${attrs}`);
+    }
+  }
+  return tokens.join("\n");
+}
+
 function firstTag(source) {
   const match = source.match(/<([A-Za-z_][\w:.-]*)(?:\s[^>]*)?>([\s\S]*?)<\/\1>/);
-  if (!match) {
+  if (match) {
+    return {
+      rawName: match[1],
+      name: localName(match[1]),
+      inner: match[2]
+    };
+  }
+
+  const selfClosingMatch = source.match(/<([A-Za-z_][\w:.-]*)(?:\s[^>]*)?\s\/>/);
+  if (!selfClosingMatch) {
     return null;
   }
+
   return {
-    name: localName(match[1]),
-    inner: match[2]
+    rawName: selfClosingMatch[1],
+    name: localName(selfClosingMatch[1]),
+    inner: ""
   };
 }
 
+function validateOperationArgs(operation, args) {
+  const [required, allowed] = FIELD_RULES[operation];
+  const received = new Set(Object.keys(args));
+  const missing = required.filter((field) => !received.has(field));
+  const unexpected = [...received].filter((field) => !allowed.includes(field));
+  if (missing.length) {
+    throw new Error(`Campos obrigatorios ausentes em ${operation}: ${missing.join(", ")}`);
+  }
+  if (unexpected.length) {
+    throw new Error(`Campos nao permitidos em ${operation}: ${unexpected.join(", ")}`);
+  }
+}
+
 function parseEnvelope(xml) {
+  canonicalizeXml(xml);
+  const namespaces = namespaceDeclarations(xml);
+  const envelopeMatch = xml.match(/<([A-Za-z_][\w:.-]*)(?:\s[^>]*)?>/);
+  if (!envelopeMatch || localName(envelopeMatch[1]) !== "Envelope" || namespaceUri(envelopeMatch[1], namespaces) !== SOAP_NAMESPACE) {
+    throw new Error("Envelope SOAP invalido");
+  }
+
   const bodyMatch = xml.match(/<([A-Za-z_][\w:.-]*:)?Body(?:\s[^>]*)?>([\s\S]*?)<\/([A-Za-z_][\w:.-]*:)?Body>/);
-  const body = bodyMatch ? bodyMatch[2] : xml;
+  if (!bodyMatch) {
+    throw new Error("Envelope SOAP sem Body");
+  }
+  const body = bodyMatch[2];
   const operation = firstTag(body);
   if (!operation) {
     throw new Error("Envelope SOAP sem operacao");
+  }
+  if (!["", NAMESPACE].includes(namespaceUri(operation.rawName, namespaces))) {
+    throw new Error("Namespace da operacao SOAP invalido");
+  }
+  if (!OPERATIONS.includes(operation.name)) {
+    throw new Error(`Operacao SOAP desconhecida: ${operation.name}`);
   }
 
   const args = {};
@@ -78,12 +173,13 @@ function parseEnvelope(xml) {
     args[name] = unescapeXml(match[2].trim());
   }
 
+  validateOperationArgs(operation.name, args);
   return { operation: operation.name, args };
 }
 
 function soapResponse(operation, success, payload) {
   const successText = success ? "true" : "false";
-  return `<?xml version="1.0" encoding="UTF-8"?>
+  const response = `<?xml version="1.0" encoding="UTF-8"?>
 <soap:Envelope xmlns:soap="${SOAP_NAMESPACE}" xmlns:tns="${NAMESPACE}">
   <soap:Body>
     <tns:${operation}Response>
@@ -92,6 +188,24 @@ function soapResponse(operation, success, payload) {
     </tns:${operation}Response>
   </soap:Body>
 </soap:Envelope>`;
+  validateSoapResponse(response);
+  return response;
+}
+
+function validateSoapResponse(response) {
+  canonicalizeXml(response);
+  const namespaces = namespaceDeclarations(response);
+  const envelopeMatch = response.match(/<([A-Za-z_][\w:.-]*)(?:\s[^>]*)?>/);
+  if (!envelopeMatch || localName(envelopeMatch[1]) !== "Envelope" || namespaceUri(envelopeMatch[1], namespaces) !== SOAP_NAMESPACE) {
+    throw new Error("Resposta SOAP invalida");
+  }
+  const bodyMatch = response.match(/<([A-Za-z_][\w:.-]*:)?Body(?:\s[^>]*)?>([\s\S]*?)<\/([A-Za-z_][\w:.-]*:)?Body>/);
+  if (!bodyMatch) {
+    throw new Error("Resposta SOAP sem Body");
+  }
+  if (!firstTag(bodyMatch[2])) {
+    throw new Error("Resposta SOAP sem elemento de operacao");
+  }
 }
 
 function xmlText(value) {
@@ -152,9 +266,6 @@ function execute(operation, args) {
     ListSongPlaylists: () => store.listSongPlaylists(args.songId)
   };
 
-  if (!operations[operation]) {
-    throw new Error(`Operacao SOAP desconhecida: ${operation}`);
-  }
   return operations[operation]();
 }
 

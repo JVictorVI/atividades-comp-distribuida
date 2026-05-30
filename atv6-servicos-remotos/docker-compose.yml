@@ -187,7 +187,7 @@ services:
     command: python scripts/generate_charts.py
     environment:
       LOCUST_RESULTS_DIR: /app/results/python
-      LOCUST_CHARTS_DIR: /app/results/python/charts
+      LOCUST_CHARTS_DIR: /app/results/charts
       LOCUST_USER_COUNTS: ${LOCUST_USER_COUNTS:-50,250,500}
     volumes:
       - ./results:/app/results
@@ -202,7 +202,7 @@ services:
     command: python scripts/generate_charts.py
     environment:
       LOCUST_RESULTS_DIR: /app/results/javascript
-      LOCUST_CHARTS_DIR: /app/results/javascript/charts
+      LOCUST_CHARTS_DIR: /app/results/charts
       LOCUST_USER_COUNTS: ${LOCUST_USER_COUNTS:-50,250,500}
     volumes:
       - ./results:/app/results
@@ -217,7 +217,7 @@ services:
     command: python scripts/generate_charts.py
     environment:
       LOCUST_RESULTS_DIR: ""
-      LOCUST_CHARTS_DIR: ""
+      LOCUST_CHARTS_DIR: /app/results/charts
       LOCUST_USER_COUNTS: ${LOCUST_USER_COUNTS:-50,250,500}
     volumes:
       - ./results:/app/results

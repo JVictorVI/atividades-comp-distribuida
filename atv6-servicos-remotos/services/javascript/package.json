@@ -9,9 +9,11 @@
     "graphql": "node servers/graphql.js",
     "soap": "node servers/soap.js",
     "grpc": "node servers/grpcServer.js",
-    "check": "node --check domain/musicStore.js && node --check httpUtils.js && node --check protobuf.js && node --check servers/rest.js && node --check servers/graphql.js && node --check servers/soap.js && node --check servers/grpcServer.js && node --check healthcheckGrpc.js"
+    "check": "node --check domain/musicStore.js && node --check httpUtils.js && node --check servers/rest.js && node --check servers/graphql.js && node --check servers/soap.js && node --check servers/grpcServer.js && node --check healthcheckGrpc.js"
   },
   "dependencies": {
+    "@grpc/grpc-js": "^1.14.4",
+    "@grpc/proto-loader": "^0.8.1",
     "graphql": "16.10.0"
   }
 }

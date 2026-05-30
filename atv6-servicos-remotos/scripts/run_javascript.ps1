@@ -32,9 +32,9 @@ $EndpointByApi = @{
 }
 $ApiServices = @($ApiNames | ForEach-Object { $ServiceByApi[$_] })
 $ContainerResultsDir = if ($Api -eq "all") { "/app/results/javascript" } else { "/app/results/javascript/$Api" }
-$ContainerChartsDir = "$ContainerResultsDir/charts"
+$ContainerChartsDir = "/app/results/charts"
 $HostResultsDir = if ($Api -eq "all") { "$ProjectRoot\results\javascript" } else { "$ProjectRoot\results\javascript\$Api" }
-$HostChartsDir = "$HostResultsDir\charts"
+$HostChartsDir = "$ProjectRoot\results\charts"
 
 function Test-PositiveIntList {
     param([string]$Value)
