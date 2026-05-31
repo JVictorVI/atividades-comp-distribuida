@@ -4,6 +4,22 @@ Projeto com implementações em Python e JavaScript/Node.js para comparar SOAP, 
 
 Detalhes específicos da versão JavaScript ficam em `services/javascript/README.md`.
 
+## Equipe
+
+- João Victor da Silva Ferreira - 2314387
+- Paulo Marconi Araújo Tomaz da Silva - 2310435
+
+## Ambiente de execução
+
+Os testes foram executados em uma máquina com as seguintes especificações:
+
+| Componente          | Especificação       |
+| ------------------- | ------------------- |
+| Sistema operacional | Windows 11          |
+| Processador         | Intel Core 5 210H   |
+| Memória RAM         | 24 GB DDR5 5600 MHz |
+| Armazenamento       | SSD de 1 TB         |
+
 ## Objetivo
 
 O objetivo é comparar tecnologias de invocação remota em um mesmo domínio. Para manter a comparação justa, as quatro APIs de cada linguagem usam a mesma regra de negócio e a mesma base de dados em memória.
@@ -536,116 +552,85 @@ results/locust-combined-summary.csv
 results/locust-combined-summary.json
 ```
 
-## Execução Manual sem o Script Principal
+## Análise e Discussão dos Resultados
 
-O fluxo recomendado é usar os scripts principais. Ainda assim, se quiser executar as etapas manualmente com Docker Compose, use:
+A análise abaixo usa os gráficos comparativos gerados em `results/charts/`. Em todos os casos, a vazão está em requisições por segundo, então valores maiores são melhores; a latência usa p95 em milissegundos, então valores menores são melhores. Os números apresentados são a média dos cinco cenários de leitura do Locust: listar usuários, listar músicas, listar playlists do usuário, listar músicas da playlist e listar playlists que contêm uma música.
 
-```powershell
-docker compose build rest-python rest-js
-docker compose up -d rest-python graphql-python soap-python grpc-python
-docker compose --profile python-scenarios run --rm locust-python
-docker compose --profile python-charts run --rm charts-python
-docker compose up -d rest-js graphql-js soap-js grpc-js
-docker compose --profile js-scenarios run --rm locust-js
-docker compose --profile js-charts run --rm charts-js
-docker compose --profile combined-charts run --rm charts-combined
-docker compose down --remove-orphans
-```
+### Carga leve: 50 usuários virtuais
 
-Também é possível preparar um ambiente Python local para desenvolvimento:
+![Comparativo de vazão com 50 usuários](results/charts/comparativo-locust-throughput-carga-leve-u50.png)
 
-```powershell
-Set-Location services\python
-python -m venv .venv
-& .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-```
+![Comparativo de latência p95 com 50 usuários](results/charts/comparativo-locust-p95-latency-carga-leve-u50.png)
 
-A execução local completa exige subir os quatro servidores manualmente em terminais separados:
+| Tecnologia | Python req/s | JavaScript req/s | Python p95 | JavaScript p95 |
+| ---------- | -----------: | ---------------: | ---------: | -------------: |
+| REST       |       322,99 |           516,00 |      35 ms |          19 ms |
+| GraphQL    |        67,17 |           366,59 |     232 ms |          32 ms |
+| SOAP       |        53,82 |            66,02 |     384 ms |         222 ms |
+| gRPC       |       305,57 |         1.020,42 |      40 ms |          13 ms |
 
-```powershell
-& .\.venv\Scripts\python.exe -m music_service.servers.rest
-& .\.venv\Scripts\python.exe -m music_service.servers.graphql
-& .\.venv\Scripts\python.exe -m music_service.servers.soap
-& .\.venv\Scripts\python.exe -m music_service.servers.grpc_server
-```
+Com 50 usuários, a diferença entre as tecnologias já aparece mesmo antes de o sistema entrar em saturação forte. No JavaScript, o gRPC foi o melhor resultado geral, com 1.020,42 req/s e p95 de 13 ms. Isso é coerente com o uso de HTTP/2, chamadas unary e Protocol Buffers, que reduzem payload textual e custo de parsing. O REST JavaScript também ficou forte, com 516,00 req/s e p95 de 19 ms, porque usa `node:http` diretamente e apenas serializa JSON, sem uma camada de framework pesada.
 
-Depois, em outro terminal:
+No Python, REST e gRPC ficaram próximos em vazão: 322,99 req/s no REST e 305,57 req/s no gRPC. O REST se beneficia de uma rota direta, JSON simples e pouca mediação entre HTTP e domínio. Já o gRPC Python usa `grpcio`, mas cada resposta passa pela construção explícita de objetos protobuf em Python, como listas de `User`, `Song` e `Playlist`; esse custo de alocação aparece mesmo com uma serialização binária eficiente.
 
-```powershell
-& .\services\python\.venv\Scripts\python.exe scripts/run_locust_scenarios.py
-& .\services\python\.venv\Scripts\python.exe scripts/generate_charts.py
-```
+O ponto mais chamativo da carga leve é o GraphQL Python: 67,17 req/s e p95 de 232 ms, contra 366,59 req/s e 32 ms no JavaScript. As duas versões usam execução síncrona de GraphQL, mas no Python a biblioteca `graphql-core` faz parsing, validação, execução do schema e resolução de campos em cima de objetos Python a cada requisição. Como esse trabalho é majoritariamente CPU-bound e ocorre dentro de threads do `ThreadingHTTPServer`, o GIL limita o ganho de paralelismo efetivo. No JavaScript, a biblioteca `graphql` roda sobre V8, e o servidor `node:http` mantém muitas conexões concorrentes com menos custo por conexão.
 
-## Exemplos Rápidos em Python
+SOAP foi a tecnologia mais custosa nas duas linguagens. Mesmo em 50 usuários, o Python ficou em 53,82 req/s e 384 ms de p95; o JavaScript ficou em 66,02 req/s e 222 ms. Isso reflete a verbosidade do XML e o custo adicional implementado no projeto: o servidor valida envelope, namespace, operação, campos e ainda executa passagens de canonicalização configuradas por `SOAP_COMPLEXITY_PASSES`. A implementação JavaScript usa bastante manipulação de string e expressões regulares, que o V8 costuma otimizar bem; a versão Python usa `ElementTree` e cria árvores XML para requisição e resposta, o que aumenta o custo.
 
-REST:
+### Carga média: 250 usuários virtuais
 
-```python
-import requests
+![Comparativo de vazão com 250 usuários](results/charts/comparativo-locust-throughput-carga-media-u250.png)
 
-response = requests.get("http://localhost:3000/users", timeout=5)
-print(response.json())
-```
+![Comparativo de latência p95 com 250 usuários](results/charts/comparativo-locust-p95-latency-carga-media-u250.png)
 
-GraphQL:
+| Tecnologia | Python req/s | JavaScript req/s | Python p95 | JavaScript p95 |
+| ---------- | -----------: | ---------------: | ---------: | -------------: |
+| REST       |       399,97 |           486,57 |      68 ms |          43 ms |
+| GraphQL    |        66,80 |           357,28 |     858 ms |          80 ms |
+| SOAP       |        50,48 |            65,64 |   1.560 ms |         762 ms |
+| gRPC       |       310,57 |         1.028,82 |     202 ms |          58 ms |
 
-```python
-import requests
+Com 250 usuários, a diferença principal deixa de ser apenas vazão e passa a ser estabilidade sob concorrência. O JavaScript gRPC manteve praticamente o mesmo patamar de vazão, subindo para 1.028,82 req/s, com p95 de 58 ms. Isso indica que, nessa faixa, o servidor ainda não chegou ao mesmo gargalo visto nas versões Python. O REST JavaScript também permaneceu alto, com 486,57 req/s e 43 ms, enquanto o GraphQL JavaScript teve queda moderada para 357,28 req/s e p95 de 80 ms.
 
-query = "query { users { id name email } }"
-response = requests.post("http://localhost:3001/graphql", json={"query": query}, timeout=5)
-print(response.json())
-```
+No Python, REST subiu para 399,97 req/s, mas já com p95 de 68 ms. Esse aumento em relação à carga leve pode ocorrer porque a carga maior mantém o servidor mais ocupado e reduz períodos ociosos, mas o ganho para aí: o teste passa a se aproximar do limite prático do servidor HTTP minimalista e da serialização JSON em Python.
 
-SOAP:
+GraphQL Python praticamente não aumentou a vazão: foi de 67,17 req/s para 66,80 req/s. A latência, porém, subiu de 232 ms para 858 ms. Esse é um sinal clássico de saturação: o servidor atinge sua capacidade de processamento por segundo, e as requisições excedentes passam a esperar mais tempo na fila. O mesmo padrão aparece no SOAP Python, que caiu para 50,48 req/s e teve p95 de 1.560 ms. Ou seja, aumentar usuários não gerou mais trabalho concluído por segundo; gerou espera.
 
-```python
-import requests
+O gRPC Python ficou em 310,57 req/s e p95 de 202 ms. Ele mantém boa vazão frente a GraphQL e SOAP, mas se distancia muito do JavaScript. Um fator específico da implementação é o `ThreadPoolExecutor(max_workers=64)` do servidor Python: quando muitos usuários concorrem, as chamadas que excedem a capacidade dos workers aguardam. Além disso, a conversão manual dos dicionários do domínio para mensagens protobuf cria muitos objetos por resposta, o que pressiona CPU, memória e coletor de lixo.
 
-envelope = """
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-  <soap:Body>
-    <ListPlaylistSongs>
-      <playlistId>p1</playlistId>
-    </ListPlaylistSongs>
-  </soap:Body>
-</soap:Envelope>
-"""
+### Carga alta: 500 usuários virtuais
 
-response = requests.post("http://localhost:3002/soap", data=envelope, timeout=5)
-print(response.text)
-```
+![Comparativo de vazão com 500 usuários](results/charts/comparativo-locust-throughput-carga-alta-u500.png)
 
-gRPC:
+![Comparativo de latência p95 com 500 usuários](results/charts/comparativo-locust-p95-latency-carga-alta-u500.png)
 
-```python
-import grpc
+| Tecnologia | Python req/s | JavaScript req/s | Python p95 | JavaScript p95 |
+| ---------- | -----------: | ---------------: | ---------: | -------------: |
+| REST       |       402,28 |           479,13 |      70 ms |          46 ms |
+| GraphQL    |        64,57 |           346,08 |   1.620 ms |          83 ms |
+| SOAP       |        50,59 |            65,66 |   2.180 ms |         814 ms |
+| gRPC       |       309,05 |         1.029,02 |     394 ms |         110 ms |
 
-from music_service.generated import music_pb2, music_pb2_grpc
+Com 500 usuários, os limites ficam bem nítidos. JavaScript gRPC continuou como melhor opção, com 1.029,02 req/s e p95 de 110 ms. Mesmo com aumento de latência em relação à carga média, ele sustentou a vazão. O REST JavaScript também se manteve estável, com 479,13 req/s e p95 de 46 ms. GraphQL JavaScript caiu pouco em vazão, para 346,08 req/s, e manteve p95 de 83 ms, valor muito menor que o GraphQL Python.
 
-channel = grpc.insecure_channel("localhost:50051")
+No Python, REST ficou praticamente no mesmo patamar da carga média: 402,28 req/s e p95 de 70 ms. Esse é um resultado importante, porque mostra que REST foi a opção Python mais equilibrada para esse conjunto de consultas: simples, previsível e com latência controlada. O gRPC Python manteve cerca de 309,05 req/s, mas a latência p95 subiu para 394 ms. A vazão estável com latência crescente sugere que a pilha consegue processar uma quantidade parecida de chamadas por segundo, mas com mais tempo de espera sob concorrência.
 
-try:
-    client = music_pb2_grpc.MusicStreamingStub(channel)
-    print(client.ListUsers(music_pb2.Empty(), timeout=5).users)
-finally:
-    channel.close()
-```
+GraphQL Python chegou ao pior descolamento entre linguagens: 64,57 req/s e p95 de 1.620 ms, contra 346,08 req/s e 83 ms no JavaScript. Isso reforça que o custo não vem apenas do protocolo GraphQL em si, mas da combinação entre biblioteca, runtime, modelo de concorrência e volume de objetos processados por consulta. As consultas retornam coleções relativamente grandes da base em memória, e o GraphQL precisa percorrer o schema e resolver campos para cada item retornado. Em Python, esse trabalho envolve muitas chamadas pequenas e alocações; em JavaScript, a execução síncrona também existe, mas o V8 e o servidor HTTP do Node lidaram melhor com esse tipo de carga.
 
-## Pontos para Análise
+SOAP Python foi o caso mais pesado: 50,59 req/s e p95 de 2.180 ms. SOAP JavaScript também foi limitado, com 65,66 req/s e 814 ms, mas sofreu menos. A proximidade de vazão entre Python e JavaScript em SOAP mostra que o formato XML e as validações dominam o custo total, reduzindo o espaço para ganhos de runtime. Ainda assim, a latência Python cresceu mais porque cada requisição faz parsing e validação XML em estruturas de objetos, enquanto a versão JavaScript usa um caminho mais baseado em strings.
 
-REST é simples, direto e adequado para APIs CRUD.
+## Conclusão
 
-GraphQL é interessante quando o cliente precisa controlar quais campos buscar e compor consultas relacionais.
+Os resultados indicam três grupos de comportamento. O primeiro é o das APIs com baixo overhead de protocolo, especialmente REST e gRPC. REST foi muito competitivo por usar HTTP e JSON de forma direta; gRPC foi superior no JavaScript por combinar payload binário, contrato forte e uma implementação eficiente da pilha gRPC para Node.js. O segundo grupo é o GraphQL: ele oferece flexibilidade ao cliente, mas cobra esse benefício com parsing da query, validação do schema, execução do plano e resolução de campos. Esse custo ficou aceitável no JavaScript e muito alto no Python. O terceiro grupo é o SOAP, no qual XML, envelope, validação e payload textual dominaram o tempo de processamento.
 
-SOAP tem contrato formal e boa compatibilidade com cenários corporativos, mas é mais verboso.
+As versões foram aproximadas em nível de implementação: as APIs REST, GraphQL e SOAP usam servidores HTTP minimalistas nas duas linguagens, sem frameworks web completos, e compartilham a mesma massa de dados em memória. Essa escolha ajuda a comparar o custo das tecnologias de invocação, mas também evidencia uma diferença importante entre os runtimes. No JavaScript, o `node:http` é naturalmente orientado a eventos e assíncrono, conseguindo manter muitas conexões abertas com baixa sobrecarga por requisição. No Python, o `ThreadingHTTPServer` cria um modelo baseado em múltiplas threads, que funciona bem para casos simples, mas sofre mais quando a requisição exige muito trabalho de CPU, alocação de objetos ou parsing pesado.
 
-gRPC é eficiente para comunicação entre serviços, mas exige clientes compatíveis com gRPC e Protocol Buffers.
+Essa diferença de concorrência aparece com força em GraphQL e SOAP. No GraphQL Python, cada chamada passa por parsing da consulta, validação do schema, execução síncrona e resolução dos campos retornados. Como essas etapas são principalmente CPU-bound, várias threads não significam paralelismo pleno por causa do GIL, e o aumento de usuários passa a gerar fila. Por isso a vazão do GraphQL Python fica praticamente parada entre 50, 250 e 500 usuários, enquanto a latência p95 sobe de 232 ms para 858 ms e depois 1.620 ms. No SOAP Python ocorre algo parecido: o parsing XML, a criação de árvores com `ElementTree`, a validação do envelope e as passagens de canonicalização tornam cada requisição mais pesada; a vazão fica perto de 50 req/s, enquanto o p95 cresce até 2.180 ms na carga alta.
 
-## Observações
+No JavaScript, essas mesmas APIs também pagam custos de protocolo, mas o runtime absorve melhor a concorrência do teste. O Node.js mantém o gerenciamento de conexões e eventos em uma pilha otimizada, e o V8 tende a executar bem manipulação de JSON, strings e objetos de curta duração. Isso ajuda a explicar por que o GraphQL JavaScript sustentou 366,59 req/s em 50 usuários, 357,28 req/s em 250 e 346,08 req/s em 500, mantendo p95 abaixo de 83 ms na carga alta. Ainda assim, o SOAP JavaScript continuou limitado, porque XML e validações pesadas são caros em qualquer runtime; a diferença é que a degradação de latência foi menor do que no Python.
 
-Os dados ficam em memória. Ao reiniciar um servidor ou chamar `reset`, a base volta ao estado inicial com 300 usuários, 500 músicas e 400 playlists.
+Também é importante notar que vazão e latência contam histórias complementares. Quando a vazão fica praticamente constante e a latência cresce muito, como ocorreu em GraphQL Python e SOAP Python, o sistema está saturado. Ele não consegue concluir muito mais requisições por segundo; em vez disso, acumula espera. Já JavaScript gRPC manteve vazão próxima de 1.020 req/s a 1.029 req/s nas três cargas, com aumento gradual de p95 de 13 ms para 58 ms e depois 110 ms, sinal de maior folga operacional.
 
-Os testes de escrita criam usuários temporários e os removem em seguida.
+Esses resultados não significam que JavaScript será sempre mais rápido nem que Python seja inadequado para serviços remotos. Eles mostram que, nesta implementação minimalista, com Locust gerando muitas chamadas curtas, respostas em memória e bastante serialização, o modelo de execução do Node.js foi mais favorável. Em uma aplicação real, frameworks assíncronos em Python, uso de múltiplos processos, cache de queries GraphQL, limitação de complexidade de consultas, serialização otimizada e ajustes no servidor poderiam mudar parte desse cenário.
 
-Os resultados variam de acordo com máquina, Docker, sistema operacional, duração do teste e `spawn-rate`.
+Por fim, os números reforçam uma conclusão prática: se o objetivo principal for simplicidade e previsibilidade, REST apresentou bom equilíbrio nas duas linguagens. Se o objetivo for máxima vazão entre serviços, gRPC foi a melhor escolha, especialmente em JavaScript. GraphQL é útil quando o cliente precisa controlar a forma dos dados, mas precisa de cuidado com custo de execução, cache, complexidade de queries e otimização dos resolvers. SOAP manteve valor como modelo formal e compatível com integrações legadas, mas foi o mais caro para esse cenário de alto volume de chamadas.

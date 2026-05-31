@@ -293,6 +293,16 @@ def format_axis_tick(metric, value):
     return str(round(value))
 
 
+CHART_TITLE_FONT_SIZE = 30
+CHART_TITLE_MIN_FONT_SIZE = 24
+CHART_SUBTITLE_FONT_SIZE = 17
+CHART_SUBTITLE_MIN_FONT_SIZE = 14
+CHART_TITLE_Y = 22
+CHART_SUBTITLE_Y = 62
+CHART_PLOT_TOP = 108
+SVG_TITLE_Y = 48
+SVG_SUBTITLE_Y = 78
+
 FONT_CACHE = {}
 
 
@@ -345,9 +355,33 @@ def draw_centered_lines(draw, x, y, lines, font, fill="#111827", line_height=16)
         draw_text_center(draw, x, y + index * line_height, line, font, fill)
 
 
-def draw_title(draw, margin, title, subtitle):
-    draw.text((margin["left"], 28), title, font=chart_font(22, True), fill="#111827")
-    draw.text((margin["left"], 56), subtitle, font=chart_font(13), fill="#4b5563")
+def fitted_chart_font(draw, text, max_width, size, min_size, bold=False):
+    for font_size in range(size, min_size - 1, -1):
+        font = chart_font(font_size, bold)
+        if text_width(draw, text, font) <= max_width:
+            return font
+    return chart_font(min_size, bold)
+
+
+def draw_title(draw, margin, width, title, subtitle):
+    max_width = width - margin["left"] - margin["right"]
+    title_font = fitted_chart_font(
+        draw,
+        title,
+        max_width,
+        CHART_TITLE_FONT_SIZE,
+        CHART_TITLE_MIN_FONT_SIZE,
+        True,
+    )
+    subtitle_font = fitted_chart_font(
+        draw,
+        subtitle,
+        max_width,
+        CHART_SUBTITLE_FONT_SIZE,
+        CHART_SUBTITLE_MIN_FONT_SIZE,
+    )
+    draw.text((margin["left"], CHART_TITLE_Y), title, font=title_font, fill="#111827")
+    draw.text((margin["left"], CHART_SUBTITLE_Y), subtitle, font=subtitle_font, fill="#4b5563")
 
 
 def draw_axes(draw, width, margin, plot_height, axis_ticks, y, metric):
@@ -395,7 +429,7 @@ def make_average_chart_image(scenario, rows, metric, title, unit):
     grouped = aggregate_technology_rows(rows, scenario)
     width = 1040
     height = 580
-    margin = {"top": 72, "right": 46, "bottom": 106, "left": 92}
+    margin = {"top": CHART_PLOT_TOP, "right": 46, "bottom": 106, "left": 92}
     plot_width = width - margin["left"] - margin["right"]
     plot_height = height - margin["top"] - margin["bottom"]
     max_raw_value = max((row[metric] for row in grouped.values()), default=0)
@@ -409,7 +443,7 @@ def make_average_chart_image(scenario, rows, metric, title, unit):
     image = Image.new("RGB", (width, height), "#ffffff")
     draw = ImageDraw.Draw(image)
     subtitle = f"{scenario['label']} - {scenario['users']} usuários virtuais - média dos cenários de leitura - unidade: {unit}"
-    draw_title(draw, margin, title, subtitle)
+    draw_title(draw, margin, width, title, subtitle)
     draw_axes(draw, width, margin, plot_height, [max_value * ratio for ratio in [0, 0.25, 0.5, 0.75, 1]], y, metric)
 
     label_font = chart_font(14)
@@ -435,7 +469,7 @@ def make_detailed_chart_image(scenario, rows, metric, title, unit):
     workloads = ordered_workloads(selected_rows)
     width = 1040
     height = 580
-    margin = {"top": 72, "right": 38, "bottom": 126, "left": 92}
+    margin = {"top": CHART_PLOT_TOP, "right": 38, "bottom": 126, "left": 92}
     plot_width = width - margin["left"] - margin["right"]
     plot_height = height - margin["top"] - margin["bottom"]
     max_raw_value = max((row[metric] for row in selected_rows), default=0)
@@ -450,7 +484,7 @@ def make_detailed_chart_image(scenario, rows, metric, title, unit):
     image = Image.new("RGB", (width, height), "#ffffff")
     draw = ImageDraw.Draw(image)
     subtitle = f"{scenario['label']} - {scenario['users']} usuários virtuais - cenários de leitura - unidade: {unit}"
-    draw_title(draw, margin, title, subtitle)
+    draw_title(draw, margin, width, title, subtitle)
     draw_axes(draw, width, margin, plot_height, [max_value * ratio for ratio in [0, 0.25, 0.5, 0.75, 1]], y, metric)
 
     value_font = chart_font(11)
@@ -492,7 +526,7 @@ def make_comparison_chart_image(scenario, rows, metric, title, unit):
     grouped = aggregate_comparison_rows(rows, scenario)
     width = 1060
     height = 590
-    margin = {"top": 82, "right": 52, "bottom": 104, "left": 92}
+    margin = {"top": CHART_PLOT_TOP, "right": 52, "bottom": 104, "left": 92}
     plot_width = width - margin["left"] - margin["right"]
     plot_height = height - margin["top"] - margin["bottom"]
     group_width = plot_width / max(1, len(TECHNOLOGIES))
@@ -507,7 +541,7 @@ def make_comparison_chart_image(scenario, rows, metric, title, unit):
     image = Image.new("RGB", (width, height), "#ffffff")
     draw = ImageDraw.Draw(image)
     subtitle = f"{scenario['label']} - {scenario['users']} usuários virtuais - média dos cenários de leitura por tecnologia - unidade: {unit}"
-    draw_title(draw, margin, title, subtitle)
+    draw_title(draw, margin, width, title, subtitle)
     draw_axes(draw, width, margin, plot_height, [max_value * ratio for ratio in [0, 0.25, 0.5, 0.75, 1]], y, metric)
 
     label_font = chart_font(14)
@@ -548,7 +582,7 @@ def make_detailed_comparison_chart_image(scenario, rows, metric, title, unit):
     }
     width = max(1320, 290 * max(1, len(workloads)) + 120)
     height = 660
-    margin = {"top": 82, "right": 52, "bottom": 148, "left": 92}
+    margin = {"top": CHART_PLOT_TOP, "right": 52, "bottom": 148, "left": 92}
     plot_width = width - margin["left"] - margin["right"]
     plot_height = height - margin["top"] - margin["bottom"]
     group_width = plot_width / max(1, len(workloads))
@@ -564,7 +598,7 @@ def make_detailed_comparison_chart_image(scenario, rows, metric, title, unit):
     image = Image.new("RGB", (width, height), "#ffffff")
     draw = ImageDraw.Draw(image)
     subtitle = f"{scenario['label']} - {scenario['users']} usuários virtuais - cenários de leitura por tecnologia - unidade: {unit}"
-    draw_title(draw, margin, title, subtitle)
+    draw_title(draw, margin, width, title, subtitle)
     draw_axes(draw, width, margin, plot_height, [max_value * ratio for ratio in [0, 0.25, 0.5, 0.75, 1]], y, metric)
 
     tech_font = chart_font(10)
@@ -607,7 +641,7 @@ def make_detailed_chart(scenario, rows, metric, title, unit):
     workloads = ordered_workloads(selected_rows)
     width = 1040
     height = 580
-    margin = {"top": 72, "right": 38, "bottom": 126, "left": 92}
+    margin = {"top": CHART_PLOT_TOP, "right": 38, "bottom": 126, "left": 92}
     plot_width = width - margin["left"] - margin["right"]
     plot_height = height - margin["top"] - margin["bottom"]
     max_raw_value = max((row[metric] for row in selected_rows), default=0)
@@ -679,8 +713,8 @@ def make_detailed_chart(scenario, rows, metric, title, unit):
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-label="{escape(title + ' - ' + scenario['label'])}">
   <rect width="100%" height="100%" fill="#ffffff"/>
-  <text x="{margin['left']}" y="38" font-size="22" font-weight="700" fill="#111827">{escape(title)}</text>
-  <text x="{margin['left']}" y="61" font-size="13" fill="#4b5563">{escape(subtitle)}</text>
+  <text x="{margin['left']}" y="{SVG_TITLE_Y}" font-size="{CHART_TITLE_FONT_SIZE}" font-weight="700" fill="#111827">{escape(title)}</text>
+  <text x="{margin['left']}" y="{SVG_SUBTITLE_Y}" font-size="{CHART_SUBTITLE_FONT_SIZE}" fill="#4b5563">{escape(subtitle)}</text>
   {''.join(y_ticks)}
   <line x1="{margin['left']}" x2="{margin['left']}" y1="{margin['top']}" y2="{margin['top'] + plot_height}" stroke="#111827"/>
   <line x1="{margin['left']}" x2="{width - margin['right']}" y1="{margin['top'] + plot_height}" y2="{margin['top'] + plot_height}" stroke="#111827"/>
@@ -694,7 +728,7 @@ def make_average_chart(scenario, rows, metric, title, unit):
     grouped = aggregate_technology_rows(rows, scenario)
     width = 1040
     height = 580
-    margin = {"top": 72, "right": 46, "bottom": 106, "left": 92}
+    margin = {"top": CHART_PLOT_TOP, "right": 46, "bottom": 106, "left": 92}
     plot_width = width - margin["left"] - margin["right"]
     plot_height = height - margin["top"] - margin["bottom"]
     max_raw_value = max((row[metric] for row in grouped.values()), default=0)
@@ -740,8 +774,8 @@ def make_average_chart(scenario, rows, metric, title, unit):
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-label="{escape(title + ' - ' + scenario['label'])}">
   <rect width="100%" height="100%" fill="#ffffff"/>
-  <text x="{margin['left']}" y="38" font-size="22" font-weight="700" fill="#111827">{escape(title)}</text>
-  <text x="{margin['left']}" y="61" font-size="13" fill="#4b5563">{escape(subtitle)}</text>
+  <text x="{margin['left']}" y="{SVG_TITLE_Y}" font-size="{CHART_TITLE_FONT_SIZE}" font-weight="700" fill="#111827">{escape(title)}</text>
+  <text x="{margin['left']}" y="{SVG_SUBTITLE_Y}" font-size="{CHART_SUBTITLE_FONT_SIZE}" fill="#4b5563">{escape(subtitle)}</text>
   {''.join(y_ticks)}
   <line x1="{margin['left']}" x2="{margin['left']}" y1="{margin['top']}" y2="{margin['top'] + plot_height}" stroke="#111827"/>
   <line x1="{margin['left']}" x2="{width - margin['right']}" y1="{margin['top'] + plot_height}" y2="{margin['top'] + plot_height}" stroke="#111827"/>
@@ -754,7 +788,7 @@ def make_comparison_chart(scenario, rows, metric, title, unit):
     grouped = aggregate_comparison_rows(rows, scenario)
     width = 1060
     height = 590
-    margin = {"top": 82, "right": 52, "bottom": 104, "left": 92}
+    margin = {"top": CHART_PLOT_TOP, "right": 52, "bottom": 104, "left": 92}
     plot_width = width - margin["left"] - margin["right"]
     plot_height = height - margin["top"] - margin["bottom"]
     group_width = plot_width / max(1, len(TECHNOLOGIES))
@@ -818,8 +852,8 @@ def make_comparison_chart(scenario, rows, metric, title, unit):
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-label="{escape(title + ' - ' + scenario['label'])}">
   <rect width="100%" height="100%" fill="#ffffff"/>
-  <text x="{margin['left']}" y="38" font-size="22" font-weight="700" fill="#111827">{escape(title)}</text>
-  <text x="{margin['left']}" y="62" font-size="13" fill="#4b5563">{escape(subtitle)}</text>
+  <text x="{margin['left']}" y="{SVG_TITLE_Y}" font-size="{CHART_TITLE_FONT_SIZE}" font-weight="700" fill="#111827">{escape(title)}</text>
+  <text x="{margin['left']}" y="{SVG_SUBTITLE_Y}" font-size="{CHART_SUBTITLE_FONT_SIZE}" fill="#4b5563">{escape(subtitle)}</text>
   {''.join(y_ticks)}
   <line x1="{margin['left']}" x2="{margin['left']}" y1="{margin['top']}" y2="{margin['top'] + plot_height}" stroke="#111827"/>
   <line x1="{margin['left']}" x2="{width - margin['right']}" y1="{margin['top'] + plot_height}" y2="{margin['top'] + plot_height}" stroke="#111827"/>
@@ -838,7 +872,7 @@ def make_detailed_comparison_chart(scenario, rows, metric, title, unit):
     }
     width = max(1320, 290 * max(1, len(workloads)) + 120)
     height = 660
-    margin = {"top": 82, "right": 52, "bottom": 148, "left": 92}
+    margin = {"top": CHART_PLOT_TOP, "right": 52, "bottom": 148, "left": 92}
     plot_width = width - margin["left"] - margin["right"]
     plot_height = height - margin["top"] - margin["bottom"]
     group_width = plot_width / max(1, len(workloads))
@@ -915,8 +949,8 @@ def make_detailed_comparison_chart(scenario, rows, metric, title, unit):
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-label="{escape(title + ' - ' + scenario['label'])}">
   <rect width="100%" height="100%" fill="#ffffff"/>
-  <text x="{margin['left']}" y="38" font-size="22" font-weight="700" fill="#111827">{escape(title)}</text>
-  <text x="{margin['left']}" y="62" font-size="13" fill="#4b5563">{escape(subtitle)}</text>
+  <text x="{margin['left']}" y="{SVG_TITLE_Y}" font-size="{CHART_TITLE_FONT_SIZE}" font-weight="700" fill="#111827">{escape(title)}</text>
+  <text x="{margin['left']}" y="{SVG_SUBTITLE_Y}" font-size="{CHART_SUBTITLE_FONT_SIZE}" fill="#4b5563">{escape(subtitle)}</text>
   {''.join(y_ticks)}
   <line x1="{margin['left']}" x2="{margin['left']}" y1="{margin['top']}" y2="{margin['top'] + plot_height}" stroke="#111827"/>
   <line x1="{margin['left']}" x2="{width - margin['right']}" y1="{margin['top'] + plot_height}" y2="{margin['top'] + plot_height}" stroke="#111827"/>
