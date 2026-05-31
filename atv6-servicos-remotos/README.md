@@ -37,20 +37,20 @@ REST:
 
 - Implementado com HTTP minimalista nas duas linguagens: `http.server` em Python e `node:http` em JavaScript.
 - Usa URLs, JSON e métodos HTTP.
-- Porta local: `3000`.
+- Portas locais: `3000` em Python e `3100` em JavaScript.
 
 GraphQL:
 
 - Implementado com `graphql-core` e `http.server` na versão Python; na versão JavaScript, com a biblioteca `graphql` e `node:http`.
 - Usa schema tipado e permite consultar exatamente os campos desejados.
-- Porta local: `3001`.
+- Endpoints locais: `http://localhost:3001/graphql` em Python e `http://localhost:3101/graphql` em JavaScript.
 
 SOAP:
 
 - Implementado com HTTP minimalista e XML nas duas linguagens: `http.server` em Python e `node:http` em JavaScript.
 - Expõe endpoint SOAP, WSDL e validações adicionais de envelope, namespace, operação e campos.
 - O custo extra de processamento XML pode ser ajustado com `SOAP_COMPLEXITY_PASSES`.
-- Porta local: `3002`.
+- Endpoints locais: `http://localhost:3002/soap` em Python e `http://localhost:3102/soap` em JavaScript.
 
 gRPC:
 
@@ -299,6 +299,7 @@ A estrutura segue boas práticas para um projeto acadêmico de comparação: ser
 |   |-- run_python.ps1
 |   |-- run_javascript.ps1
 |   |-- run_all.ps1
+|   |-- start_services/
 |   |-- run_locust_scenarios.py
 |   `-- generate_charts.py
 `-- results/
@@ -315,6 +316,8 @@ Arquivos importantes:
 - `scripts/run_python.ps1`: executa apenas a implementação Python.
 - `scripts/run_javascript.ps1`: executa apenas a implementação JavaScript.
 - `scripts/run_all.ps1`: executa Python e JavaScript no mesmo comando.
+- `scripts/start_services/`: scripts para subir uma API isolada, sem executar Locust.
+- `scripts/start_services/README.md`: guia de endpoints CRUD e exemplos de requisições para REST, GraphQL, SOAP e gRPC.
 - `scripts/run_locust_scenarios.py`: executa a bateria com 50, 250 e 500 usuários.
 - `scripts/generate_charts.py`: gera gráficos PNG, resumo agregado e comparativo Python x JavaScript. Quando executado sem `LOCUST_RESULTS_DIR`, detecta automaticamente `results/python` e `results/javascript`, se existirem.
 
@@ -354,6 +357,22 @@ Subir uma API e deixá-la disponível para acesso posterior, sem executar Locust
 .\scripts\run_python.ps1 -Api rest -StartOnly
 .\scripts\run_javascript.ps1 -Api graphql -StartOnly
 ```
+
+Também é possível usar os scripts específicos de `scripts/start_services/` para subir apenas um serviço:
+
+```powershell
+.\scripts\start_services\python_rest.ps1
+.\scripts\start_services\python_graphql.ps1
+.\scripts\start_services\python_soap.ps1
+.\scripts\start_services\python_grpc.ps1
+
+.\scripts\start_services\javascript_rest.ps1
+.\scripts\start_services\javascript_graphql.ps1
+.\scripts\start_services\javascript_soap.ps1
+.\scripts\start_services\javascript_grpc.ps1
+```
+
+O guia completo de endpoints CRUD e exemplos de requisição está em `scripts/start_services/README.md`.
 
 Para subir, testar e manter os containers ligados ao final:
 
@@ -396,7 +415,7 @@ Os testes usam três cargas:
 | `carga-media` |               250 |
 | `carga-alta`  |               500 |
 
-O `spawn-rate` é único para os três cenários. O padrão é `100` usuários por segundo.
+O `spawn-rate` é único para os três cenários. Nos scripts PowerShell, o padrão é `10` usuários por segundo; ao executar o serviço do Locust diretamente pelo Docker Compose sem definir variável de ambiente, o Compose usa `100`.
 
 O script `run_all.ps1` já roda a bateria completa. Caso queira executar manualmente pelo Docker Compose:
 
