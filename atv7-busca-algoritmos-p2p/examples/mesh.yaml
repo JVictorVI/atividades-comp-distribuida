@@ -1,0 +1,27 @@
+num_nodes: 8
+min_neighbors: 2
+max_neighbors: 4
+
+resources:
+  n1: r1, image-a
+  n2: r2, image-b
+  n3: r3, image-c
+  n4: r4, image-d
+  n5: r5, image-e
+  n6: r6, image-f
+  n7: r7, image-g
+  n8: r8, image-h
+
+edges:
+  - n1, n2
+  - n1, n3
+  - n1, n8
+  - n2, n3
+  - n2, n4
+  - n3, n5
+  - n4, n5
+  - n4, n6
+  - n5, n7
+  - n6, n7
+  - n6, n8
+  - n7, n8

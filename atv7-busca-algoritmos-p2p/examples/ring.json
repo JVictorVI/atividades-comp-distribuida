@@ -1,0 +1,21 @@
+{
+  "num_nodes": 6,
+  "min_neighbors": 2,
+  "max_neighbors": 2,
+  "resources": {
+    "n1": ["r1", "doc-a"],
+    "n2": ["r2", "doc-b"],
+    "n3": ["r3", "doc-c"],
+    "n4": ["r4", "doc-d"],
+    "n5": ["r5", "doc-e"],
+    "n6": ["r6", "doc-f"]
+  },
+  "edges": [
+    ["n1", "n2"],
+    ["n2", "n3"],
+    ["n3", "n4"],
+    ["n4", "n5"],
+    ["n5", "n6"],
+    ["n6", "n1"]
+  ]
+}
