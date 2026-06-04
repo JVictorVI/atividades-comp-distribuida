@@ -22,8 +22,18 @@ Com isso, é possível comparar o custo de cada algoritmo em termos de mensagens
 ```text
 .
 ├── p2p_search.py
+├── p2p
+│   ├── __init__.py
+│   ├── cli.py
+│   ├── config.py
+│   ├── models.py
+│   ├── network.py
+│   ├── output.py
+│   └── visualization.py
 ├── README.md
 ├── examples
+│   ├── complex.yaml
+│   ├── complex_queries.json
 │   ├── mesh.yaml
 │   ├── queries.json
 │   └── ring.json
@@ -32,16 +42,25 @@ Com isso, é possível comparar o custo de cada algoritmo em termos de mensagens
 
 Descrição dos principais arquivos:
 
-- `p2p_search.py`: implementação principal do simulador, parser de configuração, validações, algoritmos de busca, comandos de terminal e geração da visualização HTML.
+- `p2p_search.py`: arquivo principal de execução. Nele fica o objeto `BUSCA`, que pode ser alterado diretamente para rodar uma busca sem montar comandos longos.
+- `p2p/models.py`: constantes dos algoritmos, classes de erro e estruturas de dados, como `MessageEvent` e `SearchResult`.
+- `p2p/config.py`: leitura de JSON, YAML simples e formato textual do enunciado.
+- `p2p/network.py`: classe `P2PNetwork`, validação da rede, cache e algoritmos de busca.
+- `p2p/output.py`: formatação dos resultados, rastros textuais, tabelas e estatísticas.
+- `p2p/visualization.py`: geração dos arquivos HTML, CSS e JavaScript com o grafo e a animação da busca.
+- `p2p/cli.py`: comandos de terminal, modo direto com argumentos, execução em lote e integração com o objeto `BUSCA`.
 - `examples/ring.json`: exemplo de rede em anel com 6 nós.
 - `examples/mesh.yaml`: exemplo de rede mais conectada em YAML.
+- `examples/complex.yaml`: exemplo maior, com caches iniciais e topologia mais rica para demonstração.
 - `examples/queries.json`: lista de buscas para execução em lote.
-- `visualization.html`: arquivo gerado pelo comando `visualize` quando uma animação é criada.
+- `visualization.html`, `visualization.css` e `visualization.js`: arquivos gerados quando uma animação é criada.
 - `results.csv`: arquivo gerado opcionalmente pelo comando `batch`.
 
 ## Como foi feito
 
 O projeto foi implementado em Python puro, sem dependências externas, para facilitar a execução durante a apresentação.
+
+O código foi separado em módulos para deixar cada parte mais fácil de entender e alterar. O arquivo `p2p_search.py` continua pequeno e focado na execução; a lógica principal fica dentro da pasta `p2p`.
 
 A rede P2P é modelada pela classe `P2PNetwork`. Internamente, ela mantém:
 
@@ -147,7 +166,7 @@ A busca por inundação envia a requisição para todos os vizinhos ao mesmo tem
 
 Como os envios de uma mesma rodada acontecem em paralelo, dois ramos podem enviar mensagens para o mesmo nó na mesma rodada. Essas mensagens contam no tráfego da rede, mesmo que o nó processe apenas a primeira por causa do `search_id`.
 
-Ramificações que já foram disparadas continuam aparecendo no rastro mesmo quando uma delas encontra o recurso.
+Mensagens que já foram disparadas na mesma rodada continuam aparecendo no rastro mesmo quando uma delas encontra o recurso. Depois que a resposta é enviada ao nó inicial, o algoritmo não inicia novas rodadas de propagação.
 
 Quando o recurso é encontrado, o nó que possui o recurso envia uma resposta direta para o nó que iniciou a busca. Essa resposta direta representa a otimização discutida em aula: como a mensagem carrega o identificador do solicitante, o nó encontrado já sabe para quem avisar.
 
@@ -158,6 +177,8 @@ O `search_id` impede que um nó processe a mesma busca mais de uma vez e evita c
 Funciona como o `flooding`, mas os nós alcançados pela busca consultam seus caches locais antes de continuar propagando a mensagem. Quando a mensagem chega em um nó intermediário que tem cache para o recurso procurado, esse nó avisa diretamente o nó solicitante onde o recurso está. Em seguida, o solicitante cria uma conexão direta com o nó final, representada no rastro como uma mensagem `direct`.
 
 O nó inicial não usa o próprio cache como resposta instantânea no começo da busca. Ele descobre a localização pelo processo de busca: ou chegando ao nó que possui o recurso, ou recebendo a informação de algum nó intermediário que já sabia onde o recurso estava.
+
+Quando uma resposta já foi enviada ao nó inicial, o `informed_flooding` também não executa novas rodadas de propagação. As mensagens da rodada atual ainda aparecem, pois já foram disparadas em paralelo, mas a busca para antes de continuar para os próximos níveis.
 
 Como a rede pode ser mutável, é possível ignorar o cache usando `--ignore-cache`.
 
@@ -195,16 +216,16 @@ Ele já vem assim:
 
 ```python
 BUSCA = {
-    "config": "examples/ring.json",
+    "config": "examples/mesh.yaml",
     "node_id": "n1",
-    "resource_id": "r4",
-    "ttl": 3,
-    "algo": "flooding",
+    "resource_id": "r5",
+    "ttl": 5,
+    "algo": "informed_flooding",
     "seed": None,
     "ignore_cache": False,
     "trace": True,
     "json": False,
-    "visualize": None,
+    "visualize": "visualization.html",
 }
 ```
 
@@ -285,6 +306,8 @@ Exemplo com visualização pelo terminal:
 python .\p2p_search.py .\examples\ring.json n1 r4 --visualize .\visualization.html
 ```
 
+Quando a visualização é gerada, o programa cria três arquivos com o mesmo nome base: `visualization.html`, `visualization.css` e `visualization.js`.
+
 ### Comandos auxiliares
 
 Além do modo simples, o programa mantém alguns comandos auxiliares.
@@ -296,6 +319,8 @@ Valida apenas o arquivo de configuração da rede, sem executar busca.
 ```powershell
 python .\p2p_search.py validate .\examples\ring.json
 ```
+
+A saída também mostra `cache_entries`, que indica quantas entradas de cache foram carregadas do arquivo.
 
 #### `compare`
 
@@ -398,7 +423,7 @@ Os comandos `compare` e `batch` também imprimem estatísticas agregadas por alg
 
 ## Visualização do grafo
 
-O comando `visualize` gera um arquivo HTML autocontido. Ele não depende de bibliotecas externas e pode ser aberto diretamente no navegador.
+O comando `visualize` gera três arquivos: um HTML, um CSS e um JavaScript. Eles não dependem de bibliotecas externas; basta abrir o arquivo `.html` no navegador, mantendo o `.css` e o `.js` na mesma pasta.
 
 A visualização mostra:
 
@@ -427,10 +452,11 @@ O arquivo de testes automatizados foi removido da entrega. Para conferir o funci
 
 ```powershell
 python .\p2p_search.py validate .\examples\mesh.yaml
+python .\p2p_search.py .\examples\mesh.yaml n1 r5 --ttl 5 --algo informed_flooding --trace --visualize .\visualization.html
 python .\p2p_search.py .\examples\complex.yaml n2 r13 --ttl 5 --algo informed_flooding --trace --visualize .\visualization.html
 ```
 
-Essas execuções validam a rede, executam uma busca com cache intermediário, mostram o rastro textual e geram a visualização HTML.
+Essas execuções validam a rede, executam buscas com cache intermediário, mostram o rastro textual e geram a visualização em HTML, CSS e JavaScript.
 
 ## Observações
 
@@ -439,4 +465,4 @@ Essas execuções validam a rede, executam uma busca com cache intermediário, m
 - O `random_walk` aceita `--seed` para tornar os testes e demonstrações reprodutíveis.
 - Recursos não são replicados: cada `resource_id` pertence a um único nó.
 - As buscas informadas usam cache por padrão, mas podem ser executadas com `--ignore-cache`.
-- O projeto ignora arquivos gerados, como `results.csv`, `visualization.html`, `visualization.htm` e `__pycache__`.
+- O projeto ignora arquivos gerados, como `results.csv`, `visualization.html`, `visualization.htm`, `visualization.css`, `visualization.js` e `__pycache__`.

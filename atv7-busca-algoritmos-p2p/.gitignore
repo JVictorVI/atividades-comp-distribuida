@@ -17,6 +17,12 @@ env/
 results.csv
 visualization.html
 visualization.htm
+visualization.css
+visualization.js
+
+# JSONs de teste/consultas em lote
+examples/queries.json
+examples/complex_queries.json
 
 # Arquivos temporários do sistema/editor
 .DS_Store
