@@ -1,5 +1,28 @@
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+
+# Ambientes locais
+.venv/
+venv/
+env/
+
+# Cache de ferramentas
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Arquivos gerados pelo simulador
 results.csv
 visualization.html
 visualization.htm
+
+# Arquivos temporários do sistema/editor
+.DS_Store
+Thumbs.db
+*.tmp
+*.log
+
+# Arquivos de teste usados apenas no desenvolvimento
+tests/
