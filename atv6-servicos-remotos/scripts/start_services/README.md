@@ -4,6 +4,14 @@ Execute os comandos a partir da raiz do projeto.
 
 ## Python
 
+Para subir todas as APIs Python de uma vez:
+
+```powershell
+.\scripts\start_services\python_all.ps1
+```
+
+Ou suba uma API especifica:
+
 ```powershell
 .\scripts\start_services\python_rest.ps1
 .\scripts\start_services\python_graphql.ps1
@@ -19,6 +27,14 @@ Endpoints:
 - gRPC: `localhost:50051`
 
 ## JavaScript
+
+Para subir todas as APIs JavaScript de uma vez:
+
+```powershell
+.\scripts\start_services\javascript_all.ps1
+```
+
+Ou suba uma API especifica:
 
 ```powershell
 .\scripts\start_services\javascript_rest.ps1
@@ -358,7 +374,8 @@ Para testar JavaScript, troque `50051` por `55051`.
 Para pular o build quando a imagem já estiver atualizada:
 
 ```powershell
-.\scripts\start_services\python_rest.ps1 -NoBuild
+.\scripts\start_services\python_all.ps1 -NoBuild
+.\scripts\start_services\javascript_all.ps1 -NoBuild
 ```
 
 Para parar tudo:
