@@ -76,7 +76,7 @@ gRPC:
 - O JavaScript usa `@grpc/proto-loader` para carregar o contrato `.proto` e delegar a serialização para a biblioteca gRPC.
 - Portas locais: `50051` em Python e `55051` em JavaScript.
 
-## Origem, Características, Vantagens e Desvantagens
+## Características de cada API
 
 O projeto tem implementações em Python e JavaScript. Os exemplos conceituais abaixo usam Python por simplicidade, e a versão JavaScript fica organizada em `services/javascript/`.
 
@@ -257,7 +257,7 @@ finally:
 
 No gRPC, o contrato em `proto/music.proto` é a fonte principal das mensagens e operações. A versão Python usa módulos gerados a partir desse contrato, enquanto a versão JavaScript carrega o mesmo arquivo `.proto` com a biblioteca oficial de gRPC para Node.js. Assim, a serialização Protocol Buffers fica sob responsabilidade das bibliotecas, não de código manual do projeto.
 
-## Como Foi Feito
+## Metodologia
 
 O domínio compartilhado fica em:
 
@@ -390,37 +390,6 @@ Também é possível usar os scripts específicos de `scripts/start_services/` p
 
 O guia completo de endpoints CRUD e exemplos de requisição está em `scripts/start_services/README.md`.
 
-Para subir, testar e manter os containers ligados ao final:
-
-```powershell
-.\scripts\run_python.ps1 -Api soap -KeepServices
-.\scripts\run_javascript.ps1 -Api grpc -KeepServices
-```
-
-Rodar as duas implementações:
-
-```powershell
-.\scripts\run_all.ps1
-```
-
-Parâmetros úteis:
-
-```powershell
-.\scripts\run_all.ps1 -SpawnRate 50 -Duration 2m
-```
-
-Para manter os servidores ligados depois dos testes:
-
-```powershell
-.\scripts\run_all.ps1 -KeepServices
-```
-
-Para reutilizar imagens já construídas:
-
-```powershell
-.\scripts\run_all.ps1 -NoBuild
-```
-
 ## Bateria de Testes
 
 Os testes usam três cargas:
@@ -441,20 +410,6 @@ docker compose --profile python-scenarios run --rm locust-python
 ```
 
 Para filtrar a bateria para uma tecnologia ao executar o runner diretamente, use `LOCUST_TECHNOLOGIES` com `rest`, `graphql`, `soap` ou `grpc`.
-
-Controlar o `spawn-rate`:
-
-```powershell
-$env:LOCUST_SPAWN_RATE="50"
-docker compose --profile python-scenarios run --rm locust-python
-```
-
-Controlar a duração de cada teste:
-
-```powershell
-$env:LOCUST_DURATION="2m"
-docker compose --profile python-scenarios run --rm locust-python
-```
 
 Os resultados são salvos em:
 
@@ -489,21 +444,6 @@ As principais métricas são:
 
 ## Gráficos
 
-Após executar a bateria, gere os gráficos:
-
-```powershell
-docker compose --profile python-charts run --rm charts-python
-docker compose --profile js-charts run --rm charts-js
-```
-
-Se preferir executar o gerador diretamente no host, sem `LOCUST_RESULTS_DIR`, ele procura CSVs em `results/python` e `results/javascript` e gera os dois conjuntos:
-
-```powershell
-& .\services\python\.venv\Scripts\python.exe scripts/generate_charts.py
-```
-
-Quando `LOCUST_RESULTS_DIR` estiver definido, o script gera apenas para o diretório informado. Esse é o comportamento usado pelos serviços `charts-python` e `charts-js` no Docker Compose.
-
 Todos os arquivos PNG são gravados diretamente em uma única pasta:
 
 ```text
@@ -523,34 +463,6 @@ Os outros dois gráficos mantêm a visão detalhada por cenário de leitura, com
 - latência p95 por tecnologia e cenário de leitura.
 
 Quando os resultados das duas linguagens existem, também são gerados quatro gráficos comparativos por carga. Dois usam as mesmas médias e barras verticais agrupadas por tecnologia, comparando pares como `REST Python` x `REST JavaScript`. Os outros dois detalham os cenários de leitura.
-
-Arquivos esperados:
-
-```text
-results/charts/python-locust-throughput-carga-leve-u50.png
-results/charts/python-locust-p95-latency-carga-leve-u50.png
-results/charts/python-locust-throughput-por-cenario-carga-leve-u50.png
-results/charts/python-locust-p95-latency-por-cenario-carga-leve-u50.png
-results/charts/javascript-locust-throughput-carga-leve-u50.png
-results/charts/javascript-locust-p95-latency-carga-leve-u50.png
-results/charts/javascript-locust-throughput-por-cenario-carga-leve-u50.png
-results/charts/javascript-locust-p95-latency-por-cenario-carga-leve-u50.png
-results/charts/comparativo-locust-throughput-carga-leve-u50.png
-results/charts/comparativo-locust-p95-latency-carga-leve-u50.png
-results/charts/comparativo-locust-throughput-por-cenario-carga-leve-u50.png
-results/charts/comparativo-locust-p95-latency-por-cenario-carga-leve-u50.png
-```
-
-Também são gerados:
-
-```text
-results/python/locust-summary.csv
-results/python/locust-summary.json
-results/javascript/locust-summary.csv
-results/javascript/locust-summary.json
-results/locust-combined-summary.csv
-results/locust-combined-summary.json
-```
 
 ## Análise e Discussão dos Resultados
 

@@ -22,5 +22,30 @@
     "resource_id": "r6",
     "ttl": 4,
     "algo": "informed_random_walk"
+  },
+  {
+    "node_id": "n3",
+    "resource_id": "r1",
+    "ttl": 2,
+    "algo": "flooding"
+  },
+  {
+    "node_id": "n3",
+    "resource_id": "r1",
+    "ttl": 2,
+    "algo": "informed_flooding"
+  },
+  {
+    "node_id": "n4",
+    "resource_id": "r6",
+    "ttl": 1,
+    "algo": "random_walk"
+  },
+  {
+    "node_id": "n4",
+    "resource_id": "r6",
+    "ttl": 1,
+    "algo": "informed_random_walk",
+    "ignore_cache": true
   }
 ]
