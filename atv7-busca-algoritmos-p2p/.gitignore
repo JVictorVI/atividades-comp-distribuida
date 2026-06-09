@@ -16,8 +16,6 @@ env/
 # Arquivos gerados pelo simulador
 results.csv
 
-
-
 # JSONs de teste/consultas em lote
 examples/queries.json
 examples/complex_queries.json

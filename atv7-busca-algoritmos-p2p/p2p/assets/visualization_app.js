@@ -19,6 +19,7 @@ const appTitle = document.getElementById("appTitle");
 const editorStatus = document.getElementById("editorStatus");
 const errorPanel = document.getElementById("errorPanel");
 const resourceOptions = document.getElementById("resourceOptions");
+const nodeOptions = document.getElementById("nodeOptions");
 
 const controls = {
   form: document.getElementById("searchForm"),
@@ -86,7 +87,9 @@ function compareResources(a, b) {
 }
 
 function sortedUnique(values, sorter = undefined) {
-  return Array.from(new Set(values.map(cleanToken).filter(Boolean))).sort(sorter);
+  return Array.from(new Set(values.map(cleanToken).filter(Boolean))).sort(
+    sorter,
+  );
 }
 
 function mapToObject(map) {
@@ -109,7 +112,8 @@ function parseResourcesText(text) {
     const node = cleanToken(line.slice(0, separatorIndex));
     const values = splitList(line.slice(separatorIndex + 1));
     if (!node) throw new Error("Nó vazio na lista de recursos");
-    if (values.length === 0) throw new Error(`${node} precisa ter ao menos um recurso`);
+    if (values.length === 0)
+      throw new Error(`${node} precisa ter ao menos um recurso`);
     resourcesByNode.set(node, sortedUnique(values, compareResources));
   }
   if (resourcesByNode.size === 0) {
@@ -137,11 +141,17 @@ function parseCacheEntry(entry) {
   const text = cleanToken(entry);
   const arrowIndex = text.indexOf("->");
   if (arrowIndex >= 0) {
-    return [cleanToken(text.slice(0, arrowIndex)), cleanToken(text.slice(arrowIndex + 2))];
+    return [
+      cleanToken(text.slice(0, arrowIndex)),
+      cleanToken(text.slice(arrowIndex + 2)),
+    ];
   }
   const equalIndex = text.indexOf("=");
   if (equalIndex >= 0) {
-    return [cleanToken(text.slice(0, equalIndex)), cleanToken(text.slice(equalIndex + 1))];
+    return [
+      cleanToken(text.slice(0, equalIndex)),
+      cleanToken(text.slice(equalIndex + 1)),
+    ];
   }
   throw new Error(`Cache inválido: ${entry}`);
 }
@@ -161,7 +171,8 @@ function parseCachesText(text) {
     const cacheMap = configuredCaches.get(node) || new Map();
     for (const entry of entries) {
       const [resource, holder] = parseCacheEntry(entry);
-      if (!resource || !holder) throw new Error(`Cache incompleto em ${node}: ${entry}`);
+      if (!resource || !holder)
+        throw new Error(`Cache incompleto em ${node}: ${entry}`);
       cacheMap.set(resource, holder);
     }
     configuredCaches.set(node, cacheMap);
@@ -180,8 +191,14 @@ function parseRequiredInteger(value, name) {
 function parseEditorNetwork() {
   return normalizeNetwork({
     numNodes: parseRequiredInteger(controls.meshNumNodes.value, "num_nodes"),
-    minNeighbors: parseRequiredInteger(controls.meshMinNeighbors.value, "min_neighbors"),
-    maxNeighbors: parseRequiredInteger(controls.meshMaxNeighbors.value, "max_neighbors"),
+    minNeighbors: parseRequiredInteger(
+      controls.meshMinNeighbors.value,
+      "min_neighbors",
+    ),
+    maxNeighbors: parseRequiredInteger(
+      controls.meshMaxNeighbors.value,
+      "max_neighbors",
+    ),
     resourcesByNode: parseResourcesText(controls.meshResources.value),
     edges: parseEdgesText(controls.meshEdges.value),
     configuredCaches: parseCachesText(controls.meshCaches.value),
@@ -191,8 +208,11 @@ function parseEditorNetwork() {
 function parseConfigFileText(text, filename = "") {
   const content = String(text || "").trim();
   if (!content) throw new Error("O arquivo está vazio");
-  if (!filename.toLowerCase().endsWith(".yaml") && !filename.toLowerCase().endsWith(".yml")) {
-    throw new Error("Mesh deve estar em YAML (.yaml ou .yml)");
+  if (
+    !filename.toLowerCase().endsWith(".yaml") &&
+    !filename.toLowerCase().endsWith(".yml")
+  ) {
+    throw new Error("Topologia da rede deve estar em YAML (.yaml ou .yml)");
   }
 
   return normalizeNetwork(configToNetworkInput(parseSimpleYamlConfig(content)));
@@ -216,7 +236,8 @@ function parseSimpleYamlConfig(text) {
       if (["resources", "caches", "edges"].includes(key)) {
         section = key;
         config[key] = key === "edges" ? [] : {};
-        if (value) throw new Error(`A seção ${key} deve ficar em linhas separadas`);
+        if (value)
+          throw new Error(`A seção ${key} deve ficar em linhas separadas`);
       } else {
         section = null;
         config[key] = value;
@@ -233,7 +254,8 @@ function parseSimpleYamlConfig(text) {
     }
 
     const separatorIndex = line.indexOf(":");
-    if (separatorIndex < 0) throw new Error(`Linha YAML inválida em ${section}: ${line}`);
+    if (separatorIndex < 0)
+      throw new Error(`Linha YAML inválida em ${section}: ${line}`);
     const node = cleanToken(line.slice(0, separatorIndex));
     const value = cleanToken(line.slice(separatorIndex + 1));
     config[section][node] = value;
@@ -257,7 +279,11 @@ function configToNetworkInput(config) {
 }
 
 function resourcesFromConfig(rawResources) {
-  if (!rawResources || typeof rawResources !== "object" || Array.isArray(rawResources)) {
+  if (
+    !rawResources ||
+    typeof rawResources !== "object" ||
+    Array.isArray(rawResources)
+  ) {
     throw new Error("O arquivo precisa conter a seção resources");
   }
   const resourcesByNode = new Map();
@@ -265,7 +291,10 @@ function resourcesFromConfig(rawResources) {
     const values = Array.isArray(rawValues)
       ? rawValues.map(cleanToken).filter(Boolean)
       : splitList(rawValues);
-    resourcesByNode.set(cleanToken(node), sortedUnique(values, compareResources));
+    resourcesByNode.set(
+      cleanToken(node),
+      sortedUnique(values, compareResources),
+    );
   }
   return resourcesByNode;
 }
@@ -279,20 +308,23 @@ function parseEdgeValue(rawEdge) {
   }
   if (Array.isArray(rawEdge)) {
     const parts = rawEdge.map(cleanToken).filter(Boolean);
-    if (parts.length !== 2) throw new Error(`Aresta inválida: ${JSON.stringify(rawEdge)}`);
+    if (parts.length !== 2)
+      throw new Error(`Aresta inválida: ${JSON.stringify(rawEdge)}`);
     return { source: parts[0], target: parts[1] };
   }
   if (rawEdge && typeof rawEdge === "object") {
     const source = cleanToken(rawEdge.from || rawEdge.source || rawEdge.a);
     const target = cleanToken(rawEdge.to || rawEdge.target || rawEdge.b);
-    if (!source || !target) throw new Error(`Aresta inválida: ${JSON.stringify(rawEdge)}`);
+    if (!source || !target)
+      throw new Error(`Aresta inválida: ${JSON.stringify(rawEdge)}`);
     return { source, target };
   }
   throw new Error(`Aresta inválida: ${String(rawEdge)}`);
 }
 
 function edgesFromConfig(rawEdges) {
-  if (!Array.isArray(rawEdges)) throw new Error("A seção edges precisa ser uma lista");
+  if (!Array.isArray(rawEdges))
+    throw new Error("A seção edges precisa ser uma lista");
   return rawEdges.map(parseEdgeValue);
 }
 
@@ -326,12 +358,26 @@ function cachesFromConfig(rawCaches) {
   return configuredCaches;
 }
 
-function normalizeNetwork({ numNodes, minNeighbors, maxNeighbors, resourcesByNode, edges, configuredCaches }) {
+function normalizeNetwork({
+  numNodes,
+  minNeighbors,
+  maxNeighbors,
+  resourcesByNode,
+  edges,
+  configuredCaches,
+}) {
   const normalizedNumNodes = parseRequiredInteger(numNodes, "num_nodes");
-  const normalizedMinNeighbors = parseRequiredInteger(minNeighbors, "min_neighbors");
-  const normalizedMaxNeighbors = parseRequiredInteger(maxNeighbors, "max_neighbors");
+  const normalizedMinNeighbors = parseRequiredInteger(
+    minNeighbors,
+    "min_neighbors",
+  );
+  const normalizedMaxNeighbors = parseRequiredInteger(
+    maxNeighbors,
+    "max_neighbors",
+  );
 
-  if (normalizedNumNodes <= 0) throw new Error("num_nodes deve ser maior que zero");
+  if (normalizedNumNodes <= 0)
+    throw new Error("num_nodes deve ser maior que zero");
   if (normalizedMinNeighbors < 0 || normalizedMaxNeighbors < 0) {
     throw new Error("min_neighbors e max_neighbors não podem ser negativos");
   }
@@ -342,22 +388,32 @@ function normalizeNetwork({ numNodes, minNeighbors, maxNeighbors, resourcesByNod
     throw new Error("max_neighbors não pode exceder num_nodes - 1");
   }
 
-  const nodes = Array.from({ length: normalizedNumNodes }, (_, index) => `n${index + 1}`);
+  const nodes = Array.from(
+    { length: normalizedNumNodes },
+    (_, index) => `n${index + 1}`,
+  );
   const nodeSet = new Set(nodes);
   const normalizedResources = new Map();
   const resourceOwners = new Map();
 
   for (const node of resourcesByNode.keys()) {
-    if (!nodeSet.has(node)) throw new Error(`resources contém nó desconhecido: ${node}`);
+    if (!nodeSet.has(node))
+      throw new Error(`resources contém nó desconhecido: ${node}`);
   }
 
   for (const node of nodes) {
-    const values = sortedUnique(resourcesByNode.get(node) || [], compareResources);
-    if (values.length === 0) throw new Error(`${node} precisa ter ao menos um recurso`);
+    const values = sortedUnique(
+      resourcesByNode.get(node) || [],
+      compareResources,
+    );
+    if (values.length === 0)
+      throw new Error(`${node} precisa ter ao menos um recurso`);
     normalizedResources.set(node, values);
     for (const resource of values) {
       if (resourceOwners.has(resource)) {
-        throw new Error(`Recurso replicado: ${resource} em ${resourceOwners.get(resource)} e ${node}`);
+        throw new Error(
+          `Recurso replicado: ${resource} em ${resourceOwners.get(resource)} e ${node}`,
+        );
       }
       resourceOwners.set(resource, node);
     }
@@ -372,7 +428,8 @@ function normalizeNetwork({ numNodes, minNeighbors, maxNeighbors, resourcesByNod
     if (!nodeSet.has(source) || !nodeSet.has(target)) {
       throw new Error(`Aresta com nó desconhecido: ${source}, ${target}`);
     }
-    if (source === target) throw new Error(`Aresta de ${source} para ele mesmo`);
+    if (source === target)
+      throw new Error(`Aresta de ${source} para ele mesmo`);
     const [left, right] = [source, target].sort(compareNodeIds);
     const key = `${left}|${right}`;
     if (edgeKeys.has(key)) continue;
@@ -381,21 +438,31 @@ function normalizeNetwork({ numNodes, minNeighbors, maxNeighbors, resourcesByNod
     adjacency.get(left).add(right);
     adjacency.get(right).add(left);
   }
-  normalizedEdges.sort((a, b) => compareNodeIds(a.source, b.source) || compareNodeIds(a.target, b.target));
+  normalizedEdges.sort(
+    (a, b) =>
+      compareNodeIds(a.source, b.source) || compareNodeIds(a.target, b.target),
+  );
 
   if (nodes.length > 1) {
     const isolated = nodes.filter((node) => adjacency.get(node).size === 0);
-    if (isolated.length > 0) throw new Error(`Nós sem vizinhos: ${isolated.join(", ")}`);
-    if (!isConnected(nodes, adjacency)) throw new Error("A rede está particionada");
+    if (isolated.length > 0)
+      throw new Error(`Nós sem vizinhos: ${isolated.join(", ")}`);
+    if (!isConnected(nodes, adjacency))
+      throw new Error("A rede está particionada");
   }
 
   const invalidDegrees = nodes
     .map((node) => [node, adjacency.get(node).size])
-    .filter(([, degree]) => degree < normalizedMinNeighbors || degree > normalizedMaxNeighbors);
+    .filter(
+      ([, degree]) =>
+        degree < normalizedMinNeighbors || degree > normalizedMaxNeighbors,
+    );
   if (invalidDegrees.length > 0) {
-    const details = invalidDegrees.map(([node, degree]) => `${node}=${degree}`).join(", ");
+    const details = invalidDegrees
+      .map(([node, degree]) => `${node}=${degree}`)
+      .join(", ");
     throw new Error(
-      `Quantidade de vizinhos fora dos limites [${normalizedMinNeighbors}, ${normalizedMaxNeighbors}]: ${details}`
+      `Quantidade de vizinhos fora dos limites [${normalizedMinNeighbors}, ${normalizedMaxNeighbors}]: ${details}`,
     );
   }
 
@@ -406,12 +473,17 @@ function normalizeNetwork({ numNodes, minNeighbors, maxNeighbors, resourcesByNod
 
   const normalizedCaches = new Map(nodes.map((node) => [node, new Map()]));
   for (const [node, entries] of (configuredCaches || new Map()).entries()) {
-    if (!nodeSet.has(node)) throw new Error(`Cache em nó desconhecido: ${node}`);
+    if (!nodeSet.has(node))
+      throw new Error(`Cache em nó desconhecido: ${node}`);
     for (const [resource, holder] of entries.entries()) {
-      if (!resourceLocations.has(resource)) throw new Error(`Cache referência recurso desconhecido: ${resource}`);
-      if (!nodeSet.has(holder)) throw new Error(`Cache referência nó desconhecido: ${holder}`);
+      if (!resourceLocations.has(resource))
+        throw new Error(`Cache referência recurso desconhecido: ${resource}`);
+      if (!nodeSet.has(holder))
+        throw new Error(`Cache referência nó desconhecido: ${holder}`);
       if (!normalizedResources.get(holder).includes(resource)) {
-        throw new Error(`Cache aponta ${resource} para ${holder}, mas esse nó não possui o recurso`);
+        throw new Error(
+          `Cache aponta ${resource} para ${holder}, mas esse nó não possui o recurso`,
+        );
       }
       normalizedCaches.get(node).set(resource, holder);
     }
@@ -466,7 +538,8 @@ function networkFromPayload(payload) {
   return normalizeNetwork({
     numNodes: config.num_nodes ?? (payload.nodes || []).length,
     minNeighbors: config.min_neighbors ?? 0,
-    maxNeighbors: config.max_neighbors ?? Math.max(0, (payload.nodes || []).length - 1),
+    maxNeighbors:
+      config.max_neighbors ?? Math.max(0, (payload.nodes || []).length - 1),
     resourcesByNode,
     edges: payload.edges || [],
     configuredCaches,
@@ -480,13 +553,17 @@ function serializeResources(network) {
 }
 
 function serializeEdges(network) {
-  return network.edges.map((edge) => `${edge.source}, ${edge.target}`).join("\n");
+  return network.edges
+    .map((edge) => `${edge.source}, ${edge.target}`)
+    .join("\n");
 }
 
 function serializeCaches(network) {
   const lines = [];
   for (const node of network.nodes) {
-    const entries = Array.from((network.configuredCaches.get(node) || new Map()).entries())
+    const entries = Array.from(
+      (network.configuredCaches.get(node) || new Map()).entries(),
+    )
       .sort((a, b) => compareResources(a[0], b[0]))
       .map(([resource, holder]) => `${resource}=${holder}`);
     if (entries.length) lines.push(`${node}: ${entries.join(", ")}`);
@@ -501,7 +578,9 @@ function buildInitialCaches(network) {
     for (const resource of network.resources.get(node) || []) {
       entries.set(resource, node);
     }
-    for (const [resource, holder] of (network.configuredCaches.get(node) || new Map()).entries()) {
+    for (const [resource, holder] of (
+      network.configuredCaches.get(node) || new Map()
+    ).entries()) {
       entries.set(resource, holder);
     }
     cacheMap.set(node, entries);
@@ -530,7 +609,16 @@ function lookup(network, cachesMap, node, resourceId, useCache) {
   return { holder: null, foundVia: null };
 }
 
-function addEvent(events, searchId, round, kind, source, target, resourceId, ttl) {
+function addEvent(
+  events,
+  searchId,
+  round,
+  kind,
+  source,
+  target,
+  resourceId,
+  ttl,
+) {
   events.push({
     step: events.length + 1,
     search_id: searchId,
@@ -543,13 +631,38 @@ function addEvent(events, searchId, round, kind, source, target, resourceId, ttl
   });
 }
 
-function addDirectReplyIfNeeded(events, searchId, round, start, informedBy, resourceId, messages) {
+function addDirectReplyIfNeeded(
+  events,
+  searchId,
+  round,
+  start,
+  informedBy,
+  resourceId,
+  messages,
+) {
   if (start === informedBy) return messages;
-  addEvent(events, searchId, round, "reply", informedBy, start, resourceId, null);
+  addEvent(
+    events,
+    searchId,
+    round,
+    "reply",
+    informedBy,
+    start,
+    resourceId,
+    null,
+  );
   return messages + 1;
 }
 
-function addDirectConnectionIfNeeded(events, searchId, round, start, holder, resourceId, messages) {
+function addDirectConnectionIfNeeded(
+  events,
+  searchId,
+  round,
+  start,
+  holder,
+  resourceId,
+  messages,
+) {
   if (start === holder) return messages;
   addEvent(events, searchId, round, "direct", start, holder, resourceId, null);
   return messages + 1;
@@ -630,10 +743,19 @@ function runSearch(network, options) {
   const ttl = Number(options.ttl);
   const algorithm = cleanToken(options.algorithm);
 
-  if (!network.nodes.includes(start)) throw new Error(`Nó inicial desconhecido: ${start}`);
+  if (!network.nodes.includes(start))
+    throw new Error(`Nó inicial desconhecido: ${start}`);
   if (!resourceId) throw new Error("Informe o recurso da busca");
-  if (!Number.isInteger(ttl) || ttl < 0) throw new Error("TTL deve ser inteiro maior ou igual a zero");
-  if (!["flooding", "informed_flooding", "random_walk", "informed_random_walk"].includes(algorithm)) {
+  if (!Number.isInteger(ttl) || ttl < 0)
+    throw new Error("TTL deve ser inteiro maior ou igual a zero");
+  if (
+    ![
+      "flooding",
+      "informed_flooding",
+      "random_walk",
+      "informed_random_walk",
+    ].includes(algorithm)
+  ) {
     throw new Error(`Algoritmo inválido: ${algorithm}`);
   }
 
@@ -665,8 +787,15 @@ function runSearch(network, options) {
 }
 
 function searchFlooding(network, cachesMap, cacheSnapshot, options) {
-  const useCache = options.algorithm === "informed_flooding" && !options.ignoreCache;
-  const initialLookup = lookup(network, cachesMap, options.start, options.resourceId, false);
+  const useCache =
+    options.algorithm === "informed_flooding" && !options.ignoreCache;
+  const initialLookup = lookup(
+    network,
+    cachesMap,
+    options.start,
+    options.resourceId,
+    false,
+  );
   const involved = new Set([options.start]);
   let messages = 0;
   const events = [];
@@ -692,7 +821,13 @@ function searchFlooding(network, cachesMap, cacheSnapshot, options) {
   }
 
   const processed = new Set([options.start]);
-  let frontier = [{ current: options.start, remainingTtl: options.ttl, path: [options.start] }];
+  let frontier = [
+    {
+      current: options.start,
+      remainingTtl: options.ttl,
+      path: [options.start],
+    },
+  ];
   let firstSuccess = null;
   let replySent = false;
   let roundNumber = 0;
@@ -705,7 +840,9 @@ function searchFlooding(network, cachesMap, cacheSnapshot, options) {
     for (const item of frontier) {
       if (item.remainingTtl <= 0) continue;
 
-      const neighbors = Array.from(network.adjacency.get(item.current) || []).sort(compareNodeIds);
+      const neighbors = Array.from(
+        network.adjacency.get(item.current) || [],
+      ).sort(compareNodeIds);
       for (const neighbor of neighbors) {
         if (item.path.includes(neighbor)) continue;
 
@@ -713,12 +850,27 @@ function searchFlooding(network, cachesMap, cacheSnapshot, options) {
         const nextPath = [...item.path, neighbor];
         involved.add(neighbor);
         messages += 1;
-        addEvent(events, options.searchId, roundNumber, "request", item.current, neighbor, options.resourceId, nextTtl);
+        addEvent(
+          events,
+          options.searchId,
+          roundNumber,
+          "request",
+          item.current,
+          neighbor,
+          options.resourceId,
+          nextTtl,
+        );
 
         if (processed.has(neighbor) || nextFrontier.has(neighbor)) continue;
 
         processed.add(neighbor);
-        const found = lookup(network, cachesMap, neighbor, options.resourceId, useCache);
+        const found = lookup(
+          network,
+          cachesMap,
+          neighbor,
+          options.resourceId,
+          useCache,
+        );
         if (found.holder !== null) {
           if (firstSuccess === null) {
             firstSuccess = {
@@ -732,7 +884,11 @@ function searchFlooding(network, cachesMap, cacheSnapshot, options) {
         }
 
         if (nextTtl > 0) {
-          nextFrontier.set(neighbor, { current: neighbor, remainingTtl: nextTtl, path: nextPath });
+          nextFrontier.set(neighbor, {
+            current: neighbor,
+            remainingTtl: nextTtl,
+            path: nextPath,
+          });
         }
       }
     }
@@ -769,7 +925,10 @@ function searchFlooding(network, cachesMap, cacheSnapshot, options) {
 
   if (firstSuccess !== null) {
     const path = [...firstSuccess.path];
-    if (firstSuccess.foundVia === "cache" && firstSuccess.holder !== firstSuccess.informedBy) {
+    if (
+      firstSuccess.foundVia === "cache" &&
+      firstSuccess.holder !== firstSuccess.informedBy
+    ) {
       path.push(firstSuccess.holder);
     }
     return makeSuccess({
@@ -807,7 +966,8 @@ function searchFlooding(network, cachesMap, cacheSnapshot, options) {
 }
 
 function searchRandomWalk(network, cachesMap, cacheSnapshot, options) {
-  const useCache = options.algorithm === "informed_random_walk" && !options.ignoreCache;
+  const useCache =
+    options.algorithm === "informed_random_walk" && !options.ignoreCache;
   const rng = makeRng(options.seed);
   let current = options.start;
   const path = [options.start];
@@ -818,7 +978,13 @@ function searchRandomWalk(network, cachesMap, cacheSnapshot, options) {
   const events = [];
 
   while (true) {
-    const found = lookup(network, cachesMap, current, options.resourceId, useCache && current !== options.start);
+    const found = lookup(
+      network,
+      cachesMap,
+      current,
+      options.resourceId,
+      useCache && current !== options.start,
+    );
     if (found.holder !== null) {
       const roundNumber = Math.max(0, path.length - 1);
       messages = addDirectReplyIfNeeded(
@@ -906,7 +1072,16 @@ function searchRandomWalk(network, cachesMap, cacheSnapshot, options) {
     involved.add(current);
     visited.add(current);
     messages += 1;
-    addEvent(events, options.searchId, path.length - 1, "request", previous, current, options.resourceId, remainingTtl - 1);
+    addEvent(
+      events,
+      options.searchId,
+      path.length - 1,
+      "request",
+      previous,
+      current,
+      options.resourceId,
+      remainingTtl - 1,
+    );
     remainingTtl -= 1;
   }
 }
@@ -916,7 +1091,7 @@ function makeRng(seed) {
   if (!Number.isFinite(numericSeed)) return Math.random;
   let value = numericSeed >>> 0;
   return function rng() {
-    value += 0x6D2B79F5;
+    value += 0x6d2b79f5;
     let t = value;
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
@@ -951,11 +1126,15 @@ function topologyLayout(nodes, edges, width = 1080, height = 700) {
   const padding = 90;
   const usableWidth = Math.max(1, width - 2 * padding);
   const usableHeight = Math.max(1, height - 2 * padding);
-  const idealDistance = Math.sqrt((usableWidth * usableHeight) / orderedNodes.length);
+  const idealDistance = Math.sqrt(
+    (usableWidth * usableHeight) / orderedNodes.length,
+  );
   let temperature = Math.min(width, height) * 0.12;
 
   for (let iteration = 0; iteration < 180; iteration += 1) {
-    const displacement = new Map(orderedNodes.map((node) => [node, { x: 0, y: 0 }]));
+    const displacement = new Map(
+      orderedNodes.map((node) => [node, { x: 0, y: 0 }]),
+    );
 
     for (let i = 0; i < orderedNodes.length; i += 1) {
       for (let j = i + 1; j < orderedNodes.length; j += 1) {
@@ -992,8 +1171,14 @@ function topologyLayout(nodes, edges, width = 1080, height = 700) {
       const delta = displacement.get(node);
       const distance = Math.max(Math.hypot(delta.x, delta.y), 0.01);
       const step = Math.min(distance, temperature);
-      pos.x = Math.min(width - padding, Math.max(padding, pos.x + (delta.x / distance) * step));
-      pos.y = Math.min(height - padding, Math.max(padding, pos.y + (delta.y / distance) * step));
+      pos.x = Math.min(
+        width - padding,
+        Math.max(padding, pos.x + (delta.x / distance) * step),
+      );
+      pos.y = Math.min(
+        height - padding,
+        Math.max(padding, pos.y + (delta.y / distance) * step),
+      );
     }
 
     temperature *= 0.96;
@@ -1010,11 +1195,21 @@ function topologyLayout(nodes, edges, width = 1080, height = 700) {
 function buildPayload(network, result) {
   const layoutWidth = 1080;
   const layoutHeight = 700;
-  const positions = topologyLayout(network.nodes, network.edges, layoutWidth, layoutHeight);
-  const resourceHolders = network.resourceLocations.get(result.resource_id) || [];
+  const positions = topologyLayout(
+    network.nodes,
+    network.edges,
+    layoutWidth,
+    layoutHeight,
+  );
+  const resourceHolders =
+    network.resourceLocations.get(result.resource_id) || [];
   const resourceHolder = resourceHolders[0] || null;
-  const algorithmUsesCache = ["informed_flooding", "informed_random_walk"].includes(result.algorithm);
-  const cacheSnapshot = result.cache_snapshot || mapToObject(buildInitialCaches(network));
+  const algorithmUsesCache = [
+    "informed_flooding",
+    "informed_random_walk",
+  ].includes(result.algorithm);
+  const cacheSnapshot =
+    result.cache_snapshot || mapToObject(buildInitialCaches(network));
 
   function cacheFor(node) {
     return cacheSnapshot[node] || {};
@@ -1022,12 +1217,14 @@ function buildPayload(network, result) {
 
   function cacheIsRelevant(node) {
     const cachedHolder = cacheFor(node)[result.resource_id];
-    return Boolean(node !== result.start_node && cachedHolder && cachedHolder !== node);
+    return Boolean(
+      node !== result.start_node && cachedHolder && cachedHolder !== node,
+    );
   }
 
   const hasRelevantCache = network.nodes.some((node) => cacheIsRelevant(node));
   const hasConfiguredCache = network.nodes.some((node) =>
-    Object.values(cacheFor(node)).some((holder) => holder !== node)
+    Object.values(cacheFor(node)).some((holder) => holder !== node),
   );
 
   return {
@@ -1037,11 +1234,13 @@ function buildPayload(network, result) {
       min_neighbors: network.minNeighbors,
       max_neighbors: network.maxNeighbors,
     },
-    uses_cache: hasRelevantCache,
-    has_configured_cache: hasConfiguredCache,
+    uses_cache: algorithmUsesCache && hasRelevantCache,
+    has_configured_cache: algorithmUsesCache && hasConfiguredCache,
     nodes: network.nodes.map((node) => ({
       id: node,
-      resources: [...(network.resources.get(node) || [])].sort(compareResources),
+      resources: [...(network.resources.get(node) || [])].sort(
+        compareResources,
+      ),
       cache: Object.entries(cacheFor(node))
         .sort((a, b) => compareResources(a[0], b[0]))
         .map(([resource, holder]) => ({
@@ -1049,13 +1248,19 @@ function buildPayload(network, result) {
           holder,
           local: holder === node,
           searched: resource === result.resource_id,
-      })),
-      cache_relevant: cacheIsRelevant(node),
-      cache_used: algorithmUsesCache && result.found_via === "cache" && result.informed_by === node,
+        })),
+      cache_relevant: algorithmUsesCache && cacheIsRelevant(node),
+      cache_used:
+        algorithmUsesCache &&
+        result.found_via === "cache" &&
+        result.informed_by === node,
       x: positions.get(node).x,
       y: positions.get(node).y,
     })),
-    edges: network.edges.map((edge) => ({ source: edge.source, target: edge.target })),
+    edges: network.edges.map((edge) => ({
+      source: edge.source,
+      target: edge.target,
+    })),
     events: result.events || [],
     resource_holder: resourceHolder,
     result,
@@ -1166,7 +1371,10 @@ function renderGraph() {
   for (const node of graph.nodes) {
     const classes = ["node"];
     if (data.uses_cache && node.cache_relevant) classes.push("cache");
-    const group = makeSvg("g", { class: classes.join(" "), transform: `translate(${node.x}, ${node.y})` });
+    const group = makeSvg("g", {
+      class: classes.join(" "),
+      transform: `translate(${node.x}, ${node.y})`,
+    });
     group.dataset.node = node.id;
     group.addEventListener("click", () => {
       controls.startNode.value = node.id;
@@ -1174,8 +1382,12 @@ function renderGraph() {
     });
 
     const title = makeSvg("title");
-    const searchedCache = (node.cache || []).find((entry) => entry.resource === data.result.resource_id);
-    const cacheText = searchedCache ? ` - cache: ${searchedCache.resource} -> ${searchedCache.holder}` : "";
+    const searchedCache = (node.cache || []).find(
+      (entry) => entry.resource === data.result.resource_id,
+    );
+    const cacheText = searchedCache
+      ? ` - cache: ${searchedCache.resource} -> ${searchedCache.holder}`
+      : "";
     title.textContent = `${node.id}: ${(resourceByNode.get(node.id) || []).join(", ")}${cacheText}`;
     group.append(title);
     if (data.uses_cache && node.cache_relevant) {
@@ -1207,14 +1419,17 @@ function renderCacheList() {
   }
 
   for (const node of relevantNodes) {
-    const entry = node.cache.find((cacheEntry) => cacheEntry.resource === data.result.resource_id);
+    const entry = node.cache.find(
+      (cacheEntry) => cacheEntry.resource === data.result.resource_id,
+    );
     if (!entry) continue;
     const item = document.createElement("li");
     item.dataset.node = node.id;
     const origin = entry.local ? "local" : "aprendido";
     const label = `${node.id}: ${entry.resource} -> ${entry.holder} (${origin})`;
     item.textContent = label;
-    if (node.cache_used) item.dataset.usedLabel = `${label} - usado nesta busca`;
+    if (node.cache_used)
+      item.dataset.usedLabel = `${label} - usado nesta busca`;
     caches.append(item);
   }
 }
@@ -1259,7 +1474,9 @@ function renderDynamicSections() {
   document.title = `P2P Search - ${data.result.algorithm}`;
   resourceByNode = new Map(data.nodes.map((node) => [node.id, node.resources]));
   frames = buildFrames(data.events || []);
-  statusLabel.dataset.finalStatus = data.result.found ? "ENCONTRADO" : "NÃO ENCONTRADO";
+  statusLabel.dataset.finalStatus = data.result.found
+    ? "ENCONTRADO"
+    : "NÃO ENCONTRADO";
   statusLabel.dataset.finalClass = data.result.found ? "found" : "not-found";
   renderSearchStats();
   renderCacheList();
@@ -1339,7 +1556,8 @@ function markCacheAccessed(nodeId) {
   const cacheItem = caches.querySelector(`[data-node="${nodeId}"]`);
   if (cacheItem) {
     cacheItem.classList.add("used");
-    cacheItem.textContent = cacheItem.dataset.usedLabel || cacheItem.textContent;
+    cacheItem.textContent =
+      cacheItem.dataset.usedLabel || cacheItem.textContent;
   }
 }
 
@@ -1350,7 +1568,12 @@ function setStepLabel() {
   }
   const frame = frames[currentFrame];
   const round = frame.round < 0 ? "-" : frame.round;
-  const phase = frame.phase === 1 ? "resposta" : frame.phase === 2 ? "conexão direta" : "requisições";
+  const phase =
+    frame.phase === 1
+      ? "resposta"
+      : frame.phase === 2
+        ? "conexão direta"
+        : "requisições";
   stepLabel.textContent = `Quadro ${currentFrame + 1} / ${frames.length} - rodada ${round} - ${phase}`;
 }
 
@@ -1378,7 +1601,12 @@ function animateSingleEvent(event) {
   const edge = edgeElements.get(endpoint.edgeId);
   const sourceNode = nodeElements.get(endpoint.source);
   const targetNode = nodeElements.get(endpoint.target);
-  const activeClass = event.kind === "reply" ? "active-reply" : event.kind === "direct" ? "active-direct" : "active-request";
+  const activeClass =
+    event.kind === "reply"
+      ? "active-reply"
+      : event.kind === "direct"
+        ? "active-direct"
+        : "active-request";
   if (edge) edge.classList.add(activeClass);
   if (sourceNode) sourceNode.classList.add("active", "involved");
   if (targetNode) targetNode.classList.add("active", "involved");
@@ -1397,21 +1625,21 @@ function animateSingleEvent(event) {
     attributeName: "cx",
     from: source.x,
     to: target.x,
-    dur: "0.52s",
+    dur: "1s",
     fill: "freeze",
   });
   const moveY = makeSvg("animate", {
     attributeName: "cy",
     from: source.y,
     to: target.y,
-    dur: "0.52s",
+    dur: "1s",
     fill: "freeze",
   });
   message.append(moveX, moveY);
   svg.append(message);
   moveX.beginElement();
   moveY.beginElement();
-  setTimeout(() => message.remove(), 680);
+  setTimeout(() => message.remove(), 1150);
 }
 
 function animateFrame(frame) {
@@ -1448,7 +1676,7 @@ function play() {
   playButton.textContent = "Pausar";
   step();
   if (currentFrame + 1 < frames.length) {
-    timer = setInterval(step, 820);
+    timer = setInterval(step, 1250);
   } else {
     playButton.textContent = "Reproduzir";
   }
@@ -1463,9 +1691,9 @@ function stop() {
 }
 
 function setEditorStatus(message, type = "") {
-  editorStatus.textContent = message;
+  editorStatus.textContent = type === "error" ? "" : message;
   editorStatus.classList.remove("error", "ok");
-  if (type) editorStatus.classList.add(type);
+  if (type && type !== "error") editorStatus.classList.add(type);
   if (type === "error") {
     errorPanel.textContent = message;
     errorPanel.classList.remove("hidden");
@@ -1476,23 +1704,29 @@ function setEditorStatus(message, type = "") {
 }
 
 function reportUnexpectedError(error) {
-  const message = error && error.message ? error.message : String(error || "erro desconhecido");
+  const message =
+    error && error.message
+      ? error.message
+      : String(error || "erro desconhecido");
   stop();
   setEditorStatus(`Erro inesperado: ${message}`, "error");
 }
 
 function updateQueryOptions(network) {
   const selectedStart = controls.startNode.value || data.result.start_node;
-  controls.startNode.innerHTML = "";
+  nodeOptions.innerHTML = "";
   for (const node of network.nodes) {
     const option = document.createElement("option");
     option.value = node;
-    option.textContent = node;
-    controls.startNode.append(option);
+    nodeOptions.append(option);
   }
-  controls.startNode.value = network.nodes.includes(selectedStart) ? selectedStart : network.nodes[0];
+  controls.startNode.value = network.nodes.includes(selectedStart)
+    ? selectedStart
+    : network.nodes[0];
 
-  const resourcesList = Array.from(network.resourceLocations.keys()).sort(compareResources);
+  const resourcesList = Array.from(network.resourceLocations.keys()).sort(
+    compareResources,
+  );
   resourceOptions.innerHTML = "";
   for (const resource of resourcesList) {
     const option = document.createElement("option");
@@ -1515,7 +1749,9 @@ function fillEditorFromNetwork(network) {
 
 function normalizeCurrentQueryForNetwork(network) {
   updateQueryOptions(network);
-  const resourcesList = Array.from(network.resourceLocations.keys()).sort(compareResources);
+  const resourcesList = Array.from(network.resourceLocations.keys()).sort(
+    compareResources,
+  );
   if (!resourcesList.includes(controls.resourceId.value)) {
     controls.resourceId.value = resourcesList[0] || "";
   }
@@ -1526,7 +1762,7 @@ function populateConfigSelect() {
 
   const placeholder = document.createElement("option");
   placeholder.value = "";
-  placeholder.textContent = "Selecionar mesh";
+  placeholder.textContent = "Selecionar rede predefinida";
   controls.configSelect.append(placeholder);
 
   for (const config of availableConfigFiles) {
@@ -1535,6 +1771,10 @@ function populateConfigSelect() {
     option.textContent = config.name;
     controls.configSelect.append(option);
   }
+  const defaultConfig = availableConfigFiles.find(
+    (config) => config.name === "mesh.yaml",
+  );
+  if (defaultConfig) controls.configSelect.value = defaultConfig.path;
 }
 
 function hydrateControls() {
@@ -1593,9 +1833,11 @@ function executeFromInterface(successMessage = "Busca executada.") {
 function loadSelectedConfig() {
   const selectedPath = controls.configSelect.value;
   if (!selectedPath) return;
-  const config = availableConfigFiles.find((item) => item.path === selectedPath);
+  const config = availableConfigFiles.find(
+    (item) => item.path === selectedPath,
+  );
   if (!config) {
-    setEditorStatus("Mesh não encontrado na lista.", "error");
+    setEditorStatus("Rede não encontrada na lista.", "error");
     return;
   }
 
@@ -1604,7 +1846,7 @@ function loadSelectedConfig() {
     fillEditorFromNetwork(network);
     activeNetwork = network;
     normalizeCurrentQueryForNetwork(activeNetwork);
-    executeFromInterface(`Mesh ${config.name} carregado.`);
+    executeFromInterface(`Rede ${config.name} carregada.`);
   } catch (error) {
     stop();
     setEditorStatus(error.message, "error");
@@ -1620,7 +1862,9 @@ controls.form.addEventListener("submit", (event) => {
   executeFromInterface();
 });
 controls.applyMesh.addEventListener("click", () => executeFromInterface());
-controls.randomExample.addEventListener("click", () => executeFromInterface("Novo exemplo random gerado."));
+controls.randomExample.addEventListener("click", () =>
+  executeFromInterface("Novo exemplo random gerado."),
+);
 controls.algorithm.addEventListener("change", updateAlgorithmControls);
 controls.configSelect.addEventListener("change", loadSelectedConfig);
 

@@ -161,8 +161,8 @@ def build_visualization_payload(network: P2PNetwork, result: SearchResult) -> Di
             "min_neighbors": network.min_neighbors,
             "max_neighbors": network.max_neighbors,
         },
-        "uses_cache": has_relevant_cache,
-        "has_configured_cache": has_configured_cache,
+        "uses_cache": algorithm_uses_cache and has_relevant_cache,
+        "has_configured_cache": algorithm_uses_cache and has_configured_cache,
         "nodes": [
             {
                 "id": node,
@@ -176,7 +176,7 @@ def build_visualization_payload(network: P2PNetwork, result: SearchResult) -> Di
                     }
                     for resource, holder in sorted(cache_for(node).items())
                 ],
-                "cache_relevant": cache_is_relevant(node),
+                "cache_relevant": algorithm_uses_cache and cache_is_relevant(node),
                 "cache_used": (
                     algorithm_uses_cache
                     and result.found_via == "cache"
@@ -227,7 +227,8 @@ def build_visualization_html(
         </select>
       </label>
       <label>Nó inicial
-        <select id="startNode" name="startNode"></select>
+        <input id="startNode" name="startNode" list="nodeOptions" autocomplete="off">
+        <datalist id="nodeOptions"></datalist>
       </label>
       <label>Recurso
         <input id="resourceId" name="resourceId" list="resourceOptions" autocomplete="off">
@@ -236,7 +237,7 @@ def build_visualization_html(
       <label>TTL
         <input id="ttl" name="ttl" type="number" min="0" step="1">
       </label>
-      <label>Mesh
+      <label>Rede
         <select id="configSelect" name="configSelect"></select>
       </label>
       <label class="check-field">
@@ -244,7 +245,7 @@ def build_visualization_html(
         Ignorar cache
       </label>
       <div class="form-actions">
-        <button type="submit" class="primary">Executar</button>
+        <button type="submit" class="primary">Aplicar alterações</button>
         <button type="button" id="randomExample">Novo exemplo random</button>
       </div>
     </form>
@@ -287,15 +288,15 @@ def build_visualization_html(
       <section class="tutorial-panel" aria-label="Tutorial de uso">
         <h2>Tutorial</h2>
         <ol>
-          <li>Escolha um mesh no seletor superior ou edite os campos do mesh manualmente.</li>
+          <li>Escolha um um arquivo de topologia no seletor superior ou edite os campos da topologia manualmente.</li>
           <li>Escolha o algoritmo, o nó inicial, o recurso procurado e o TTL.</li>
           <li>Clique em Executar para recalcular a busca.</li>
           <li>Use Reproduzir, Avançar e Reiniciar para controlar a animação.</li>
           <li>Em random walk, use Novo exemplo random para sortear outra execução.</li>
         </ol>
       </section>
-      <section class="mesh-editor" aria-label="Editor do mesh">
-        <h2>Mesh</h2>
+      <section class="mesh-editor" aria-label="Editor da rede">
+        <h2>Arquivo da topologia da Rede</h2>
         <div class="editor-grid">
           <div class="mesh-numbers">
             <label>Nós
@@ -318,7 +319,7 @@ def build_visualization_html(
             <textarea id="meshCaches" spellcheck="false"></textarea>
           </label>
           <div class="editor-actions">
-            <button type="button" id="applyMesh">Aplicar mesh</button>
+            <button type="button" id="applyMesh">Aplicar alterações</button>
           </div>
         </div>
       </section>

@@ -22,7 +22,8 @@
         </select>
       </label>
       <label>Nó inicial
-        <select id="startNode" name="startNode"></select>
+        <input id="startNode" name="startNode" list="nodeOptions" autocomplete="off">
+        <datalist id="nodeOptions"></datalist>
       </label>
       <label>Recurso
         <input id="resourceId" name="resourceId" list="resourceOptions" autocomplete="off">
@@ -31,7 +32,7 @@
       <label>TTL
         <input id="ttl" name="ttl" type="number" min="0" step="1">
       </label>
-      <label>Mesh
+      <label>Rede
         <select id="configSelect" name="configSelect"></select>
       </label>
       <label class="check-field">
@@ -39,7 +40,7 @@
         Ignorar cache
       </label>
       <div class="form-actions">
-        <button type="submit" class="primary">Executar</button>
+        <button type="submit" class="primary">Aplicar alterações</button>
         <button type="button" id="randomExample">Novo exemplo random</button>
       </div>
     </form>
@@ -82,15 +83,15 @@
       <section class="tutorial-panel" aria-label="Tutorial de uso">
         <h2>Tutorial</h2>
         <ol>
-          <li>Escolha um mesh no seletor superior ou edite os campos do mesh manualmente.</li>
+          <li>Escolha um um arquivo de topologia no seletor superior ou edite os campos da topologia manualmente.</li>
           <li>Escolha o algoritmo, o nó inicial, o recurso procurado e o TTL.</li>
           <li>Clique em Executar para recalcular a busca.</li>
           <li>Use Reproduzir, Avançar e Reiniciar para controlar a animação.</li>
           <li>Em random walk, use Novo exemplo random para sortear outra execução.</li>
         </ol>
       </section>
-      <section class="mesh-editor" aria-label="Editor do mesh">
-        <h2>Mesh</h2>
+      <section class="mesh-editor" aria-label="Editor da rede">
+        <h2>Arquivo da topologia da Rede</h2>
         <div class="editor-grid">
           <div class="mesh-numbers">
             <label>Nós
@@ -113,7 +114,7 @@
             <textarea id="meshCaches" spellcheck="false"></textarea>
           </label>
           <div class="editor-actions">
-            <button type="button" id="applyMesh">Aplicar mesh</button>
+            <button type="button" id="applyMesh">Aplicar alterações</button>
           </div>
         </div>
       </section>
