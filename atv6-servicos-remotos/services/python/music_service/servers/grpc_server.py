@@ -1,3 +1,4 @@
+import os
 from concurrent import futures
 
 import grpc
@@ -8,6 +9,8 @@ from music_service.generated import music_pb2, music_pb2_grpc
 
 
 store = MusicStore()
+GRPC_MAX_WORKERS = int(os.getenv("GRPC_MAX_WORKERS", "512"))
+GRPC_MAX_CONCURRENT_STREAMS = int(os.getenv("GRPC_MAX_CONCURRENT_STREAMS", "2048"))
 
 
 def user_message(user):
@@ -35,6 +38,24 @@ def playlist_message(playlist):
 
 def mutation_result(result):
     return music_pb2.MutationResult(ok=bool(result.get("ok")))
+
+
+def users_response(users):
+    response = music_pb2.UsersResponse()
+    response.users.extend(user_message(user) for user in users)
+    return response
+
+
+def songs_response(songs):
+    response = music_pb2.SongsResponse()
+    response.songs.extend(song_message(song) for song in songs)
+    return response
+
+
+def playlists_response(playlists):
+    response = music_pb2.PlaylistsResponse()
+    response.playlists.extend(playlist_message(playlist) for playlist in playlists)
+    return response
 
 
 def compact(data):
@@ -105,7 +126,7 @@ class MusicStreamingService(music_pb2_grpc.MusicStreamingServicer):
 
     def ListUsers(self, request, context):
         try:
-            return music_pb2.UsersResponse(users=[user_message(user) for user in store.list_users()])
+            return users_response(store.list_users())
         except Exception as error:
             grpc_error(error, context)
             return music_pb2.UsersResponse()
@@ -140,7 +161,7 @@ class MusicStreamingService(music_pb2_grpc.MusicStreamingServicer):
 
     def ListSongs(self, request, context):
         try:
-            return music_pb2.SongsResponse(songs=[song_message(song) for song in store.list_songs()])
+            return songs_response(store.list_songs())
         except Exception as error:
             grpc_error(error, context)
             return music_pb2.SongsResponse()
@@ -176,9 +197,7 @@ class MusicStreamingService(music_pb2_grpc.MusicStreamingServicer):
     def ListPlaylists(self, request, context):
         try:
             filters = compact({"userId": request.userId, "songId": request.songId})
-            return music_pb2.PlaylistsResponse(
-                playlists=[playlist_message(playlist) for playlist in store.list_playlists(filters)]
-            )
+            return playlists_response(store.list_playlists(filters))
         except Exception as error:
             grpc_error(error, context)
             return music_pb2.PlaylistsResponse()
@@ -213,34 +232,34 @@ class MusicStreamingService(music_pb2_grpc.MusicStreamingServicer):
 
     def ListUserPlaylists(self, request, context):
         try:
-            return music_pb2.PlaylistsResponse(
-                playlists=[playlist_message(playlist) for playlist in store.list_user_playlists(request.userId)]
-            )
+            return playlists_response(store.list_user_playlists(request.userId))
         except Exception as error:
             grpc_error(error, context)
             return music_pb2.PlaylistsResponse()
 
     def ListPlaylistSongs(self, request, context):
         try:
-            return music_pb2.SongsResponse(
-                songs=[song_message(song) for song in store.list_playlist_songs(request.playlistId)]
-            )
+            return songs_response(store.list_playlist_songs(request.playlistId))
         except Exception as error:
             grpc_error(error, context)
             return music_pb2.SongsResponse()
 
     def ListSongPlaylists(self, request, context):
         try:
-            return music_pb2.PlaylistsResponse(
-                playlists=[playlist_message(playlist) for playlist in store.list_song_playlists(request.songId)]
-            )
+            return playlists_response(store.list_song_playlists(request.songId))
         except Exception as error:
             grpc_error(error, context)
             return music_pb2.PlaylistsResponse()
 
 
 def create_server():
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=64))
+    server = grpc.server(
+        futures.ThreadPoolExecutor(max_workers=GRPC_MAX_WORKERS),
+        options=[
+            ("grpc.max_concurrent_streams", GRPC_MAX_CONCURRENT_STREAMS),
+            ("grpc.so_reuseport", 1),
+        ],
+    )
     music_pb2_grpc.add_MusicStreamingServicer_to_server(MusicStreamingService(), server)
     bound_port = server.add_insecure_port(f"0.0.0.0:{GRPC_PORT}")
     if bound_port == 0:
@@ -251,7 +270,7 @@ def create_server():
 def main():
     server = create_server()
     server.start()
-    print(f"gRPC ouvindo em 0.0.0.0:{GRPC_PORT}", flush=True)
+    print(f"gRPC ouvindo em 0.0.0.0:{GRPC_PORT} | workers={GRPC_MAX_WORKERS} | max_streams={GRPC_MAX_CONCURRENT_STREAMS}", flush=True)
     server.wait_for_termination()
 
 

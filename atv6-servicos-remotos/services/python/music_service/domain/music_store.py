@@ -274,13 +274,16 @@ class MusicStore:
             raise DomainError(404, "NOT_FOUND", f"{item_type} {item_id} nao encontrado")
 
     def list_users(self):
+        # Snapshot curto protegido por lock; a clonagem ocorre fora do lock para reduzir contenção em leituras.
         with self._lock:
-            return self._list_values(self.users)
+            users = list(self.users.values())
+        return [_clone(user) for user in users]
 
     def get_user(self, user_id: str):
         with self._lock:
             self._assert_exists(self.users, user_id, "Usuario")
-            return _clone(self.users[user_id])
+            user = self.users[user_id]
+        return _clone(user)
 
     def create_user(self, data):
         with self._lock:
@@ -317,12 +320,14 @@ class MusicStore:
 
     def list_songs(self):
         with self._lock:
-            return self._list_values(self.songs)
+            songs = list(self.songs.values())
+        return [_clone(song) for song in songs]
 
     def get_song(self, song_id: str):
         with self._lock:
             self._assert_exists(self.songs, song_id, "Musica")
-            return _clone(self.songs[song_id])
+            song = self.songs[song_id]
+        return _clone(song)
 
     def create_song(self, data):
         with self._lock:
@@ -362,27 +367,29 @@ class MusicStore:
             return {"ok": True}
 
     def list_playlists(self, filters=None):
-        with self._lock:
-            filters = filters or {}
-            user_id = filters.get("userId") or None
-            song_id = filters.get("songId") or None
+        filters = filters or {}
+        user_id = filters.get("userId") or None
+        song_id = filters.get("songId") or None
 
+        with self._lock:
             if user_id:
                 self._assert_exists(self.users, user_id, "Usuario")
             if song_id:
                 self._assert_exists(self.songs, song_id, "Musica")
-
-            return [
-                _clone(playlist)
+            playlists = [
+                playlist
                 for playlist in self.playlists.values()
                 if (not user_id or playlist["userId"] == user_id)
                 and (not song_id or song_id in playlist["songIds"])
             ]
 
+        return [_clone(playlist) for playlist in playlists]
+
     def get_playlist(self, playlist_id: str):
         with self._lock:
             self._assert_exists(self.playlists, playlist_id, "Playlist")
-            return _clone(self.playlists[playlist_id])
+            playlist = self.playlists[playlist_id]
+        return _clone(playlist)
 
     def create_playlist(self, data):
         with self._lock:
@@ -432,29 +439,32 @@ class MusicStore:
     def list_user_playlists(self, user_id: str):
         with self._lock:
             self._assert_exists(self.users, user_id, "Usuario")
-            return [
-                _clone(playlist)
+            playlists = [
+                playlist
                 for playlist in self.playlists.values()
                 if playlist["userId"] == user_id
             ]
+        return [_clone(playlist) for playlist in playlists]
 
     def list_playlist_songs(self, playlist_id: str):
         with self._lock:
             self._assert_exists(self.playlists, playlist_id, "Playlist")
-            return [
-                _clone(self.songs[song_id])
+            songs = [
+                self.songs[song_id]
                 for song_id in self.playlists[playlist_id]["songIds"]
                 if song_id in self.songs
             ]
+        return [_clone(song) for song in songs]
 
     def list_song_playlists(self, song_id: str):
         with self._lock:
             self._assert_exists(self.songs, song_id, "Musica")
-            return [
-                _clone(playlist)
+            playlists = [
+                playlist
                 for playlist in self.playlists.values()
                 if song_id in playlist["songIds"]
             ]
+        return [_clone(playlist) for playlist in playlists]
 
 
 def plain_error(error: Exception):

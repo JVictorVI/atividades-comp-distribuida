@@ -203,11 +203,16 @@ class GrpcMusicUser(User):
         except Exception as exc:
             exception = exc
 
-        response_length = response.ByteSize() if response is not None else 0
+        elapsed = (time.perf_counter() - started) * 1000
+
+        response_length = 0
+        if response is not None:
+            response_length = len(response.SerializeToString())
+
         self.environment.events.request.fire(
             request_type="gRPC",
             name=name,
-            response_time=(time.perf_counter() - started) * 1000,
+            response_time=elapsed,
             response_length=response_length,
             response=response,
             context={},
