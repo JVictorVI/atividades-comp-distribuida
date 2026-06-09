@@ -13,10 +13,37 @@ from .network import P2PNetwork
 
 
 ASSET_DIR = Path(__file__).resolve().parent / "assets"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 def _read_asset(filename: str) -> str:
     return (ASSET_DIR / filename).read_text(encoding="utf-8")
+
+
+def _looks_like_network_config(text: str) -> bool:
+    return "resources" in text and "edges" in text
+
+
+def list_visualization_configs() -> Sequence[Dict[str, str]]:
+    examples_dir = PROJECT_ROOT / "examples"
+    if not examples_dir.exists():
+        return []
+
+    configs = []
+    for path in sorted(examples_dir.iterdir()):
+        if path.suffix.lower() not in {".yaml", ".yml"}:
+            continue
+        content = path.read_text(encoding="utf-8")
+        if not _looks_like_network_config(content):
+            continue
+        configs.append(
+            {
+                "name": path.name,
+                "path": str(path.relative_to(PROJECT_ROOT)).replace("\\", "/"),
+                "content": content,
+            }
+        )
+    return configs
 
 
 def circular_layout(nodes: Sequence[str], width: int = 960, height: int = 620) -> Dict[str, Dict[str, float]]:
@@ -129,6 +156,11 @@ def build_visualization_payload(network: P2PNetwork, result: SearchResult) -> Di
 
     return {
         "layout": {"width": layout_width, "height": layout_height},
+        "config": {
+            "num_nodes": network.num_nodes,
+            "min_neighbors": network.min_neighbors,
+            "max_neighbors": network.max_neighbors,
+        },
         "uses_cache": has_relevant_cache,
         "has_configured_cache": has_configured_cache,
         "nodes": [
@@ -204,8 +236,8 @@ def build_visualization_html(
       <label>TTL
         <input id="ttl" name="ttl" type="number" min="0" step="1">
       </label>
-      <label>Arquivo YAML/JSON
-        <input id="configFile" name="configFile" type="file" accept=".yaml,.yml,.json">
+      <label>Mesh
+        <select id="configSelect" name="configSelect"></select>
       </label>
       <label class="check-field">
         <input id="ignoreCache" name="ignoreCache" type="checkbox">
@@ -216,6 +248,7 @@ def build_visualization_html(
         <button type="button" id="randomExample">Novo exemplo random</button>
       </div>
     </form>
+    <div class="error-panel hidden" id="errorPanel" role="alert"></div>
     <div class="editor-status" id="editorStatus" aria-live="polite"></div>
   </section>
 
@@ -251,9 +284,30 @@ def build_visualization_html(
       </ul>
       <h2 class="section-gap">Recursos</h2>
       <ul class="resources" id="resources"></ul>
+      <section class="tutorial-panel" aria-label="Tutorial de uso">
+        <h2>Tutorial</h2>
+        <ol>
+          <li>Escolha um mesh no seletor superior ou edite os campos do mesh manualmente.</li>
+          <li>Escolha o algoritmo, o nó inicial, o recurso procurado e o TTL.</li>
+          <li>Clique em Executar para recalcular a busca.</li>
+          <li>Use Reproduzir, Avançar e Reiniciar para controlar a animação.</li>
+          <li>Em random walk, use Novo exemplo random para sortear outra execução.</li>
+        </ol>
+      </section>
       <section class="mesh-editor" aria-label="Editor do mesh">
         <h2>Mesh</h2>
         <div class="editor-grid">
+          <div class="mesh-numbers">
+            <label>Nós
+              <input id="meshNumNodes" type="number" min="1" step="1">
+            </label>
+            <label>Mín. vizinhos
+              <input id="meshMinNeighbors" type="number" min="0" step="1">
+            </label>
+            <label>Máx. vizinhos
+              <input id="meshMaxNeighbors" type="number" min="0" step="1">
+            </label>
+          </div>
           <label>Recursos
             <textarea id="meshResources" spellcheck="false"></textarea>
           </label>
@@ -283,7 +337,12 @@ def build_visualization_css() -> str:
 def build_visualization_js(network: P2PNetwork, result: SearchResult) -> str:
     payload = build_visualization_payload(network, result)
     data_json = json.dumps(payload, ensure_ascii=False).replace("</", "<\\/")
-    return f"window.P2P_INITIAL_DATA = {data_json};\n" + _read_asset("visualization_app.js")
+    configs_json = json.dumps(list_visualization_configs(), ensure_ascii=False).replace("</", "<\\/")
+    return (
+        f"window.P2P_INITIAL_DATA = {data_json};\n"
+        f"window.P2P_CONFIG_FILES = {configs_json};\n"
+        + _read_asset("visualization_app.js")
+    )
 
 
 def visualization_asset_paths(output: Path) -> Dict[str, Path]:

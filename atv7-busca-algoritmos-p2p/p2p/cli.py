@@ -74,7 +74,7 @@ def build_direct_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "Executa uma busca P2P diretamente. Exemplo: "
-            "python p2p_search.py examples/ring.json n1 r4 --ttl 3 --algo flooding"
+            "python p2p_search.py examples/ring.yaml n1 r4 --ttl 3 --algo flooding"
         )
     )
     parser.add_argument("config", type=Path, help="arquivo de configuração da rede")
@@ -165,7 +165,7 @@ def resolve_project_path(value: Any) -> Path:
 
 
 def command_configured_search(search_message: Dict[str, Any]) -> int:
-    config = resolve_project_path(search_message.get("config", "examples/ring.json"))
+    config = resolve_project_path(search_message.get("config", "examples/ring.yaml"))
     node_id = search_message.get("node_id") or search_message.get("node")
     resource_id = search_message.get("resource_id") or search_message.get("resource")
     if not node_id:
@@ -374,7 +374,7 @@ def main(search_message: Optional[Dict[str, Any]] = None, argv: Optional[Sequenc
     if not argv:
         try:
             if search_message is None:
-                raise SearchError("BUSCA n?o foi informada")
+                raise SearchError("BUSCA não foi informada")
             return command_configured_search(search_message)
         except (ConfigError, SearchError, KeyError, json.JSONDecodeError) as exc:
             print(f"Erro: {exc}", file=sys.stderr)

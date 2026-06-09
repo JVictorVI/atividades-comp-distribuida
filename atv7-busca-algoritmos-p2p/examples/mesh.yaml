@@ -3,14 +3,14 @@ min_neighbors: 2
 max_neighbors: 4
 
 resources:
-  n1: r1, image-a
-  n2: r2, image-b
-  n3: r3, image-c
-  n4: r4, image-d
-  n5: r5, image-e
-  n6: r6, image-f
-  n7: r7, image-g
-  n8: r8, image-h
+  n1: r1
+  n2: r2
+  n3: r3
+  n4: r4
+  n5: r5
+  n6: r6
+  n7: r7
+  n8: r8
 
 caches:
   n3: r5=n5

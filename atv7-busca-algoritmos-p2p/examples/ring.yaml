@@ -1,0 +1,23 @@
+num_nodes: 6
+min_neighbors: 2
+max_neighbors: 2
+
+resources:
+  n1: r1
+  n2: r2
+  n3: r3
+  n4: r4
+  n5: r5
+  n6: r6
+
+caches:
+  n2: r5=n5
+  n4: r1=n1
+
+edges:
+  - n1, n2
+  - n2, n3
+  - n3, n4
+  - n4, n5
+  - n5, n6
+  - n6, n1

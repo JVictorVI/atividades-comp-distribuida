@@ -15,10 +15,8 @@ env/
 
 # Arquivos gerados pelo simulador
 results.csv
-visualization.html
-visualization.htm
-visualization.css
-visualization.js
+
+
 
 # JSONs de teste/consultas em lote
 examples/queries.json

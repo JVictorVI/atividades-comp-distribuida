@@ -1,8 +1,7 @@
-"""Leitura e parsing dos arquivos de configura??o da rede."""
+"""Leitura e parsing dos arquivos YAML de configuração da rede."""
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -10,11 +9,9 @@ from .models import ConfigError
 
 
 def load_config(path: Path) -> Dict[str, Any]:
-    text = path.read_text(encoding="utf-8")
-    stripped = text.lstrip()
-    if path.suffix.lower() == ".json" or stripped.startswith("{"):
-        return json.loads(text)
-    return parse_simple_yaml(text)
+    if path.suffix.lower() not in {".yaml", ".yml"}:
+        raise ConfigError("Configuração da rede deve estar em YAML (.yaml ou .yml)")
+    return parse_simple_yaml(path.read_text(encoding="utf-8"))
 
 
 def parse_simple_yaml(text: str) -> Dict[str, Any]:

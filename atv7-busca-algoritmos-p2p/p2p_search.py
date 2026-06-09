@@ -1,7 +1,7 @@
-"""Entrada principal do simulador de busca em redes P2P n?o estruturadas.
+"""Entrada principal do simulador de busca em redes P2P não estruturadas.
 
 Altere o objeto BUSCA abaixo e execute `python .\\p2p_search.py` para rodar
-uma busca sem precisar montar os par?metros pelo terminal.
+uma busca sem precisar montar os parâmetros pelo terminal.
 """
 
 from __future__ import annotations
@@ -38,8 +38,8 @@ from p2p import (
 from p2p.cli import main as _run_cli
 
 
-# Altere este objeto para montar a mensagem de busca que ser? executada quando
-# voc? rodar apenas: python .\p2p_search.py
+# Altere este objeto para montar a mensagem de busca que será executada quando
+# você rodar apenas: python .\p2p_search.py
 BUSCA = {
     "config": "examples/complex.yaml",
     "node_id": "n1",

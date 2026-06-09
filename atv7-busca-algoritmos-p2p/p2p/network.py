@@ -326,7 +326,6 @@ class P2PNetwork:
                         if first_success is None:
                             first_success = (holder, neighbor, found_via, next_path)
                             reply_node = neighbor
-                        continue
 
                     if next_ttl > 0:
                         next_frontier[neighbor] = (neighbor, next_ttl, next_path)
@@ -355,7 +354,6 @@ class P2PNetwork:
                         messages,
                     )
                 reply_sent = True
-                break
 
             frontier = list(next_frontier.values())
 
