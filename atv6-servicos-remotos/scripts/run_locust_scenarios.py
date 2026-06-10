@@ -9,6 +9,7 @@ LOCUST_FILE = ROOT / "locustfile.py"
 RESULTS_DIR = Path(os.getenv("LOCUST_RESULTS_DIR", ROOT / "results"))
 DURATION = os.getenv("LOCUST_DURATION", "1m")
 SPAWN_RATE = int(os.getenv("LOCUST_SPAWN_RATE", "100"))
+EXIT_CODE_ON_ERROR = int(os.getenv("LOCUST_EXIT_CODE_ON_ERROR", "0"))
 USER_COUNTS = [
     int(value.strip())
     for value in os.getenv("LOCUST_USER_COUNTS", "50,250,500").split(",")
@@ -40,6 +41,8 @@ def scenario_name(users):
 def run():
     if SPAWN_RATE <= 0:
         raise SystemExit("LOCUST_SPAWN_RATE deve ser maior que zero")
+    if EXIT_CODE_ON_ERROR < 0:
+        raise SystemExit("LOCUST_EXIT_CODE_ON_ERROR deve ser maior ou igual a zero")
 
     selected_classes = {
         class_name: technology
@@ -75,6 +78,8 @@ def run():
                 str(prefix),
                 "--csv-full-history",
                 "--only-summary",
+                "--exit-code-on-error",
+                str(EXIT_CODE_ON_ERROR),
             ]
 
             print(
