@@ -69,6 +69,7 @@ class RestApiUser(MusicHttpUser):
             [
                 ("/users", "REST/listar-usuarios"),
                 ("/songs", "REST/listar-musicas"),
+                ("/playlists", "REST/listar-playlists"),
                 (f"/users/{USER_ID}/playlists", "REST/listar-playlists-usuario"),
                 (f"/playlists/{PLAYLIST_ID}/songs", "REST/listar-musicas-playlist"),
                 (f"/songs/{SONG_ID}/playlists", "REST/listar-playlists-musica"),
@@ -80,6 +81,7 @@ class RestApiUser(MusicHttpUser):
 GRAPHQL_QUERIES = {
     "users": ("query { users { id name email } }", "GraphQL/listar-usuarios"),
     "songs": ("query { songs { id title artist album durationSeconds } }", "GraphQL/listar-musicas"),
+    "playlists": ("query { playlists { id userId name songIds } }", "GraphQL/listar-playlists"),
     "user_playlists": (
         f'query {{ userPlaylists(userId: "{USER_ID}") {{ id userId name songIds }} }}',
         "GraphQL/listar-playlists-usuario",
@@ -115,6 +117,7 @@ class GraphqlApiUser(MusicHttpUser):
             [
                 GRAPHQL_QUERIES["users"],
                 GRAPHQL_QUERIES["songs"],
+                GRAPHQL_QUERIES["playlists"],
                 GRAPHQL_QUERIES["user_playlists"],
                 GRAPHQL_QUERIES["playlist_songs"],
                 GRAPHQL_QUERIES["song_playlists"],
@@ -176,6 +179,7 @@ class SoapApiUser(MusicHttpUser):
             [
                 ("ListUsers", "SOAP/listar-usuarios", None),
                 ("ListSongs", "SOAP/listar-musicas", None),
+                ("ListPlaylists", "SOAP/listar-playlists", None),
                 ("ListUserPlaylists", "SOAP/listar-playlists-usuario", {"userId": USER_ID}),
                 ("ListPlaylistSongs", "SOAP/listar-musicas-playlist", {"playlistId": PLAYLIST_ID}),
                 ("ListSongPlaylists", "SOAP/listar-playlists-musica", {"songId": SONG_ID}),
@@ -227,6 +231,7 @@ class GrpcMusicUser(User):
             [
                 (self.stub.ListUsers, "gRPC/listar-usuarios", music_pb2.Empty()),
                 (self.stub.ListSongs, "gRPC/listar-musicas", music_pb2.Empty()),
+                (self.stub.ListPlaylists, "gRPC/listar-playlists", music_pb2.PlaylistFilter()),
                 (
                     self.stub.ListUserPlaylists,
                     "gRPC/listar-playlists-usuario",

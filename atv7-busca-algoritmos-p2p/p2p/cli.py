@@ -1,4 +1,4 @@
-"""Interface de linha de comando do simulador P2P."""
+"""Interface de linha de comando enxuta do simulador P2P."""
 
 from __future__ import annotations
 
@@ -11,19 +11,16 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from .models import ALGORITHM_CHOICES, ALGORITHM_ORDER, ConfigError, SearchError, SearchResult
 from .network import P2PNetwork
-from .output import format_result, format_trace, print_statistics, print_table, summarize_results
+from .output import format_result, format_trace, print_statistics, print_table
 from .visualization import write_visualization_files
 
 
-COMMAND_NAMES = {"validate", "search", "compare", "batch", "dot", "visualize"}
+COMMAND_NAMES = {"search", "compare", "batch", "visualize"}
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Simulador de busca em redes P2P não estruturadas")
+    parser = argparse.ArgumentParser(description="Simulador de busca em redes P2P nao estruturadas")
     subparsers = parser.add_subparsers(dest="command", required=True)
-
-    validate_parser = subparsers.add_parser("validate", help="valida o arquivo de configuração")
-    validate_parser.add_argument("config", type=Path)
 
     search_parser = subparsers.add_parser("search", help="executa uma busca")
     search_parser.add_argument("config", type=Path)
@@ -34,7 +31,6 @@ def build_parser() -> argparse.ArgumentParser:
     search_parser.add_argument("--seed", type=int, default=None)
     search_parser.add_argument("--ignore-cache", action="store_true", help="ignora caches locais nesta busca")
     search_parser.add_argument("--trace", action="store_true", help="imprime o rastro textual das mensagens")
-    search_parser.add_argument("--json", action="store_true", dest="json_output")
 
     compare_parser = subparsers.add_parser("compare", help="compara os quatro algoritmos para a mesma busca")
     compare_parser.add_argument("config", type=Path)
@@ -43,7 +39,6 @@ def build_parser() -> argparse.ArgumentParser:
     compare_parser.add_argument("--ttl", type=int, required=True)
     compare_parser.add_argument("--seed", type=int, default=None)
     compare_parser.add_argument("--ignore-cache", action="store_true", help="ignora caches locais nas buscas informadas")
-    compare_parser.add_argument("--json", action="store_true", dest="json_output")
 
     batch_parser = subparsers.add_parser("batch", help="executa uma lista de buscas em JSON")
     batch_parser.add_argument("config", type=Path)
@@ -52,12 +47,8 @@ def build_parser() -> argparse.ArgumentParser:
     batch_parser.add_argument("--csv", type=Path, default=None)
     batch_parser.add_argument("--ignore-cache", action="store_true", help="ignora caches locais em todas as buscas")
     batch_parser.add_argument("--trace", action="store_true", help="imprime rastros textuais de todas as buscas")
-    batch_parser.add_argument("--json", action="store_true", dest="json_output")
 
-    dot_parser = subparsers.add_parser("dot", help="imprime a rede em formato Graphviz DOT")
-    dot_parser.add_argument("config", type=Path)
-
-    visualize_parser = subparsers.add_parser("visualize", help="gera HTML com grafo e animação da busca")
+    visualize_parser = subparsers.add_parser("visualize", help="gera HTML com grafo e animacao da busca")
     visualize_parser.add_argument("config", type=Path)
     visualize_parser.add_argument("--node", "--node-id", dest="node_id", required=True)
     visualize_parser.add_argument("--resource", "--resource-id", dest="resource_id", required=True)
@@ -77,23 +68,22 @@ def build_direct_parser() -> argparse.ArgumentParser:
             "python p2p_search.py examples/ring.yaml n1 r4 --ttl 3 --algo flooding"
         )
     )
-    parser.add_argument("config", type=Path, help="arquivo de configuração da rede")
-    parser.add_argument("node_id_arg", nargs="?", help="nó que inicia a busca")
+    parser.add_argument("config", type=Path, help="arquivo de configuracao da rede")
+    parser.add_argument("node_id_arg", nargs="?", help="no que inicia a busca")
     parser.add_argument("resource_id_arg", nargs="?", help="recurso procurado")
-    parser.add_argument("--node", "--node-id", dest="node_id", help="nó que inicia a busca")
+    parser.add_argument("--node", "--node-id", dest="node_id", help="no que inicia a busca")
     parser.add_argument("--resource", "--resource-id", dest="resource_id", help="recurso procurado")
-    parser.add_argument("--ttl", type=int, default=3, help="níveis de propagação da busca (padrão: 3)")
+    parser.add_argument("--ttl", type=int, default=3, help="niveis de propagacao da busca")
     parser.add_argument("--algo", choices=ALGORITHM_CHOICES, default="flooding", help="algoritmo de busca")
     parser.add_argument("--seed", type=int, default=None, help="semente para random_walk")
     parser.add_argument("--ignore-cache", action="store_true", help="ignora caches locais nesta busca")
     parser.add_argument("--trace", action="store_true", help="imprime o rastro textual das mensagens")
-    parser.add_argument("--json", action="store_true", dest="json_output", help="imprime o resultado em JSON")
     parser.add_argument(
         "--visualize",
         nargs="?",
         const="visualization.html",
         default=None,
-        help="gera HTML da animação; opcionalmente informe o caminho do arquivo",
+        help="gera HTML da animacao; opcionalmente informe o caminho do arquivo",
     )
     return parser
 
@@ -111,16 +101,23 @@ def resolve_direct_message(args: argparse.Namespace, parser: argparse.ArgumentPa
     node_id = args.node_id or args.node_id_arg
     resource_id = args.resource_id or args.resource_id_arg
     if not node_id:
-        parser.error("informe o nó inicial por posição ou com --node")
+        parser.error("informe o no inicial por posicao ou com --node")
     if not resource_id:
-        parser.error("informe o recurso por posição ou com --resource")
+        parser.error("informe o recurso por posicao ou com --resource")
     return node_id, resource_id
 
 
 def print_visualization_paths(paths: Dict[str, Path]) -> None:
-    print(f"\nVisualização gravada em: {paths['html'].resolve()}")
+    print(f"\nVisualizacao gravada em: {paths['html'].resolve()}")
     print(f"CSS gravado em: {paths['css'].resolve()}")
     print(f"JS gravado em: {paths['js'].resolve()}")
+
+
+def print_search_result(result: SearchResult, trace: bool = False) -> None:
+    print(format_result(result))
+    if trace:
+        print()
+        print(format_trace(result))
 
 
 def command_direct(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
@@ -137,23 +134,11 @@ def command_direct(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
 
     visualization_paths: Optional[Dict[str, Path]] = None
     if args.visualize:
-        output = Path(args.visualize)
-        visualization_paths = write_visualization_files(output, network, result)
+        visualization_paths = write_visualization_files(Path(args.visualize), network, result)
 
-    if args.json_output:
-        payload = result.as_dict(include_events=args.trace)
-        if visualization_paths is not None:
-            payload["visualization"] = str(visualization_paths["html"].resolve())
-            payload["visualization_css"] = str(visualization_paths["css"].resolve())
-            payload["visualization_js"] = str(visualization_paths["js"].resolve())
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
-    else:
-        print(format_result(result))
-        if args.trace:
-            print()
-            print(format_trace(result))
-        if visualization_paths is not None:
-            print_visualization_paths(visualization_paths)
+    print_search_result(result, args.trace)
+    if visualization_paths is not None:
+        print_visualization_paths(visualization_paths)
     return 0
 
 
@@ -178,7 +163,6 @@ def command_configured_search(search_message: Dict[str, Any]) -> int:
     seed = search_message.get("seed")
     ignore_cache = bool(search_message.get("ignore_cache", False))
     trace = bool(search_message.get("trace", False))
-    json_output = bool(search_message.get("json", False))
     visualize = search_message.get("visualize")
 
     network = P2PNetwork.from_file(config)
@@ -191,38 +175,14 @@ def command_configured_search(search_message: Dict[str, Any]) -> int:
         ignore_cache=ignore_cache,
     )
 
-    visualization_path: Optional[Path] = None
     visualization_paths: Optional[Dict[str, Path]] = None
     if visualize:
-        visualization_path = resolve_project_path(visualize)
-        visualization_paths = write_visualization_files(visualization_path, network, result)
+        visualization_paths = write_visualization_files(resolve_project_path(visualize), network, result)
 
-    if json_output:
-        payload = result.as_dict(include_events=trace)
-        if visualization_paths is not None:
-            payload["visualization"] = str(visualization_paths["html"].resolve())
-            payload["visualization_css"] = str(visualization_paths["css"].resolve())
-            payload["visualization_js"] = str(visualization_paths["js"].resolve())
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
-    else:
-        print("Executando busca configurada no objeto BUSCA\n")
-        print(format_result(result))
-        if trace:
-            print()
-            print(format_trace(result))
-        if visualization_paths is not None:
-            print_visualization_paths(visualization_paths)
-    return 0
-
-
-def command_validate(args: argparse.Namespace) -> int:
-    network = P2PNetwork.from_file(args.config)
-    cache_entries = sum(len(entries) for entries in network.configured_caches.values())
-    print("Configuração válida")
-    print(f"nodes: {len(network.nodes)}")
-    print(f"edges: {len(network.edges)}")
-    print(f"resource_types: {len(network.resource_locations)}")
-    print(f"cache_entries: {cache_entries}")
+    print("Executando busca configurada no objeto BUSCA\n")
+    print_search_result(result, trace)
+    if visualization_paths is not None:
+        print_visualization_paths(visualization_paths)
     return 0
 
 
@@ -236,13 +196,7 @@ def command_search(args: argparse.Namespace) -> int:
         seed=args.seed,
         ignore_cache=args.ignore_cache,
     )
-    if args.json_output:
-        print(json.dumps(result.as_dict(include_events=args.trace), ensure_ascii=False, indent=2))
-    else:
-        print(format_result(result))
-        if args.trace:
-            print()
-            print(format_trace(result))
+    print_search_result(result, args.trace)
     return 0
 
 
@@ -260,20 +214,9 @@ def command_compare(args: argparse.Namespace) -> int:
                 ignore_cache=args.ignore_cache,
             )
         )
-    if args.json_output:
-        print(
-            json.dumps(
-                {
-                    "results": [result.as_dict() for result in results],
-                    "statistics": summarize_results(results),
-                },
-                ensure_ascii=False,
-                indent=2,
-            )
-        )
-    else:
-        print_table(results)
-        print_statistics(results)
+
+    print_table(results)
+    print_statistics(results)
     return 0
 
 
@@ -297,33 +240,15 @@ def command_batch(args: argparse.Namespace) -> int:
     if args.csv:
         write_csv(args.csv, results)
 
-    if args.json_output:
-        print(
-            json.dumps(
-                {
-                    "results": [result.as_dict(include_events=args.trace) for result in results],
-                    "statistics": summarize_results(results),
-                },
-                ensure_ascii=False,
-                indent=2,
-            )
-        )
-    else:
-        print_table(results)
-        print_statistics(results)
-        if args.trace:
-            for result in results:
-                print()
-                print(f"{result.search_id} / {result.algorithm}")
-                print(format_trace(result))
-        if args.csv:
-            print(f"\nCSV gravado em: {args.csv}")
-    return 0
-
-
-def command_dot(args: argparse.Namespace) -> int:
-    network = P2PNetwork.from_file(args.config)
-    print(network.to_dot())
+    print_table(results)
+    print_statistics(results)
+    if args.trace:
+        for result in results:
+            print()
+            print(f"{result.search_id} / {result.algorithm}")
+            print(format_trace(result))
+    if args.csv:
+        print(f"\nCSV gravado em: {args.csv}")
     return 0
 
 
@@ -338,7 +263,7 @@ def command_visualize(args: argparse.Namespace) -> int:
         ignore_cache=args.ignore_cache,
     )
     visualization_paths = write_visualization_files(args.output, network, result)
-    print(format_result(result))
+    print_search_result(result)
     print_visualization_paths(visualization_paths)
     return 0
 
@@ -369,12 +294,13 @@ def write_csv(path: Path, results: Sequence[SearchResult]) -> None:
         for result in results:
             writer.writerow(result.as_dict())
 
+
 def main(search_message: Optional[Dict[str, Any]] = None, argv: Optional[Sequence[str]] = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if not argv:
         try:
             if search_message is None:
-                raise SearchError("BUSCA não foi informada")
+                raise SearchError("BUSCA nao foi informada")
             return command_configured_search(search_message)
         except (ConfigError, SearchError, KeyError, json.JSONDecodeError) as exc:
             print(f"Erro: {exc}", file=sys.stderr)
@@ -392,11 +318,9 @@ def main(search_message: Optional[Dict[str, Any]] = None, argv: Optional[Sequenc
     parser = build_parser()
     args = parser.parse_args(argv)
     commands = {
-        "validate": command_validate,
         "search": command_search,
         "compare": command_compare,
         "batch": command_batch,
-        "dot": command_dot,
         "visualize": command_visualize,
     }
     try:
@@ -404,4 +328,3 @@ def main(search_message: Optional[Dict[str, Any]] = None, argv: Optional[Sequenc
     except (ConfigError, SearchError, KeyError, json.JSONDecodeError) as exc:
         print(f"Erro: {exc}", file=sys.stderr)
         return 1
-

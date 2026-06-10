@@ -10,13 +10,14 @@ from typing import Any, Deque, Dict, Iterable, List, Optional, Sequence, Set, Tu
 from .config import clean_token, load_config, parse_list
 from .models import ALGORITHMS, ConfigError, MessageEvent, SearchError, SearchResult
 
-
 class P2PNetwork:
     def __init__(self, config: Dict[str, Any]) -> None:
+        # Campos obrigatórios
         self.num_nodes = self._required_int(config, "num_nodes")
         self.min_neighbors = self._required_int(config, "min_neighbors")
         self.max_neighbors = self._required_int(config, "max_neighbors")
 
+        # Validações iniciais
         if self.num_nodes <= 0:
             raise ConfigError("num_nodes deve ser maior que zero")
         if self.min_neighbors < 0 or self.max_neighbors < 0:
@@ -26,6 +27,7 @@ class P2PNetwork:
         if self.max_neighbors > self.num_nodes - 1:
             raise ConfigError("max_neighbors não pode exceder num_nodes - 1")
 
+        # Campos opcionais e normalizações
         self.nodes = [f"n{i}" for i in range(1, self.num_nodes + 1)]
         self.node_set = set(self.nodes)
         self.resources = self._normalize_resources(config.get("resources", {}))
@@ -49,10 +51,12 @@ class P2PNetwork:
         except (TypeError, ValueError) as exc:
             raise ConfigError(f"{key} deve ser inteiro") from exc
 
+    # Normalização e validação de recursos, arestas e caches
     def _normalize_resources(self, raw_resources: Any) -> Dict[str, Set[str]]:
         if not isinstance(raw_resources, dict):
             raise ConfigError("resources deve ser um mapa nó -> lista de recursos")
 
+        # Inicializa com conjuntos vazios para garantir que todos os nós tenham uma entrada
         resources: Dict[str, Set[str]] = {node: set() for node in self.nodes}
         for node, raw_values in raw_resources.items():
             node = clean_token(node)
@@ -284,26 +288,34 @@ class P2PNetwork:
             )
 
         processed = {start}
+        # Cada item é (nó atual, TTL restante, caminho até aqui)
         frontier: List[Tuple[str, int, List[str]]] = [(start, ttl, [start])]
+        # Guarda a primeira resposta bem-sucedida para otimizar a resposta direta
         first_success: Optional[Tuple[str, str, Optional[str], List[str]]] = None
         reply_sent = False
         round_number = 0
 
+        # O loop principal do flooding, processando cada "onda" de mensagens
         while frontier:
             round_number += 1
+            # O próximo frontier é construído a partir do frontier atual, expandindo para os vizinhos dos nós atuais, respeitando o TTL e evitando ciclos. Durante essa expansão, verificamos se encontramos o recurso e registramos os eventos de mensagem. Se encontrarmos o recurso, preparamos a resposta direta e otimizamos as conexões se necessário.
+            # O uso de um dicionário para o próximo frontier permite evitar duplicatas e garantir que cada nó seja processado apenas uma vez por rodada, mesmo que seja alcançado por múltiplos caminhos. Isso é importante para manter a eficiência do flooding e evitar explosões combinatórias de mensagens.
             next_frontier: Dict[str, Tuple[str, int, List[str]]] = {}
             reply_node: Optional[str] = None
 
             for current, remaining_ttl, path in frontier:
                 if remaining_ttl <= 0:
                     continue
-
+                # O processamento dos vizinhos é feito em ordem alfabética para garantir determinismo, o que é importante para testes e análises. Para cada vizinho, verificamos se ele já está no caminho atual para evitar ciclos, e se não estiver, preparamos a mensagem de busca para esse vizinho, registramos o evento e verificamos se encontramos o recurso. Se encontrarmos o recurso, preparamos a resposta direta e otimizamos as conexões se necessário. Se o TTL permitir, adicionamos o vizinho ao próximo frontier para ser processado na próxima rodada.
                 for neighbor in sorted(self.adjacency[current]):
+                    # Evita ciclos verificando se o vizinho já está no caminho atual. Isso é crucial para evitar que a busca fique presa em loops infinitos, especialmente em grafos com ciclos. Mesmo que um nó seja alcançado por múltiplos caminhos, ele só deve ser processado uma vez por rodada, e essa verificação ajuda a garantir isso.
                     if neighbor in path:
                         continue
 
                     next_ttl = remaining_ttl - 1
+                    # O caminho para o vizinho é construído a partir do caminho atual, adicionando o vizinho ao final. Isso permite que, se encontrarmos o recurso no vizinho, possamos reconstruir o caminho completo desde o início até o detentor do recurso, o que é útil para análise e para otimizar as conexões futuras.
                     next_path = path + [neighbor]
+                    # O vizinho é considerado envolvido na busca, mesmo que já tenha sido processado antes, pois ele participa do processo de busca e pode ser um ponto de contato importante para encontrar o recurso. Isso é importante para a análise do número de nós envolvidos na busca, especialmente em casos onde o recurso é encontrado por múltiplos caminhos ou quando o TTL é alto.
                     involved.add(neighbor)
                     messages += 1
                     self._add_event(
@@ -317,19 +329,25 @@ class P2PNetwork:
                         next_ttl,
                     )
 
+                    # Evita processar o mesmo vizinho múltiplas vezes na mesma rodada, mesmo que seja alcançado por múltiplos caminhos. Isso é importante para manter a eficiência do flooding e evitar explosões combinatórias de mensagens, especialmente em grafos densos ou com muitos ciclos. O vizinho ainda é considerado envolvido na busca, mas só será processado uma vez por rodada.
                     if neighbor in processed or neighbor in next_frontier:
                         continue
 
+                    # Verifica se o recurso está no vizinho ou em seu cache (se permitido) e registra a primeira resposta bem-sucedida para otimizar a resposta direta. Se encontrarmos o recurso, preparamos a resposta direta e otimizamos as conexões se necessário. Se o TTL permitir, adicionamos o vizinho ao próximo frontier para ser processado na próxima rodada.
                     processed.add(neighbor)
+
+                    # A busca é feita no vizinho, verificando se o recurso está disponível localmente ou via cache (se permitido). Se encontrado, preparamos a resposta direta e otimizamos as conexões se necessário. O uso do cache é controlado pelo algoritmo escolhido e pela flag ignore_cache, permitindo comparar o desempenho com e sem cache.
                     holder, found_via = self._lookup(neighbor, resource_id, use_cache)
                     if holder is not None:
                         if first_success is None:
                             first_success = (holder, neighbor, found_via, next_path)
                             reply_node = neighbor
 
+                    # Se o recurso não for encontrado, mas o TTL permitir, adicionamos o vizinho ao próximo frontier para ser processado na próxima rodada. O uso de um dicionário para o próximo frontier permite evitar duplicatas e garantir que cada nó seja processado apenas uma vez por rodada, mesmo que seja alcançado por múltiplos caminhos. Isso é importante para manter a eficiência do flooding e evitar explosões combinatórias de mensagens.
                     if next_ttl > 0:
                         next_frontier[neighbor] = (neighbor, next_ttl, next_path)
 
+            # Após processar todos os nós do frontier atual, verificamos se encontramos o recurso e preparamos a resposta direta se necessário. Se encontrarmos o recurso, preparamos a resposta direta e otimizamos as conexões se necessário. O uso do cache é controlado pelo algoritmo escolhido e pela flag ignore_cache, permitindo comparar o desempenho com e sem cache. O loop continua até que o recurso seja encontrado ou que não haja mais nós para processar.
             if reply_node is not None and not reply_sent:
                 cache_holder = first_success[0] if first_success is not None else reply_node
                 found_via = first_success[2] if first_success is not None else None
@@ -357,7 +375,9 @@ class P2PNetwork:
 
             frontier = list(next_frontier.values())
 
+        # Após o loop de flooding, verificamos se encontramos o recurso e preparamos a resposta direta se necessário. Se encontrarmos o recurso, preparamos a resposta direta e otimizamos as conexões se necessário. O uso do cache é controlado pelo algoritmo escolhido e pela flag ignore_cache, permitindo comparar o desempenho com e sem cache. Se não encontrarmos o recurso, retornamos um resultado de falha com os detalhes da busca.
         if first_success is not None:
+            # Se o recurso foi encontrado, preparamos a resposta direta e otimizamos as conexões se necessário. O uso do cache é controlado pelo algoritmo escolhido e pela flag ignore_cache, permitindo comparar o desempenho com e sem cache. O caminho final inclui o caminho percorrido até o nó que respondeu, e se a resposta veio do cache, também inclui o detentor real do recurso para refletir a otimização de conexão direta.
             holder, informed_by, found_via, path = first_success
             if found_via == "cache" and holder != informed_by:
                 path = path + [holder]
@@ -413,12 +433,15 @@ class P2PNetwork:
         events: List[MessageEvent] = []
 
         while True:
+            # Verifica se o recurso está no nó atual ou no cache (se permitido)
             holder, found_via = self._lookup(current, resource_id, use_cache and current != start)
+            # Se encontrado, prepara a resposta e termina a busca
             if holder is not None:
                 round_number = max(0, len(path) - 1)
                 messages = self._add_direct_reply_if_needed(
                     events, search_id, round_number, start, current, resource_id, messages
                 )
+                # Se encontrado via cache, adiciona conexão direta e inclui o detentor real como envolvido
                 if found_via == "cache":
                     involved.add(holder)
                     messages = self._add_direct_connection_if_needed(
@@ -441,7 +464,7 @@ class P2PNetwork:
                     events,
                     cache_snapshot,
                 )
-
+            # Se não encontrado e o TTL acabou, termina com falha
             if remaining_ttl == 0:
                 return self._failure(
                     search_id,
@@ -457,7 +480,10 @@ class P2PNetwork:
                     cache_snapshot,
                 )
 
+            # Seleciona aleatoriamente um vizinho não visitado para o próximo passo
             neighbors = [neighbor for neighbor in sorted(self.adjacency[current]) if neighbor not in visited]
+            
+            # Se não houver vizinhos disponíveis, termina com falha
             if not neighbors:
                 return self._failure(
                     search_id,
@@ -473,13 +499,21 @@ class P2PNetwork:
                     cache_snapshot,
                 )
 
+            # Move para o próximo nó
             previous = current
+            # A escolha aleatória é feita entre os vizinhos não visitados para evitar ciclos desnecessários
             current = rng.choice(neighbors)
+            # Atualiza o caminho, os envolvidos, os visitados e os eventos de mensagem
             path.append(current)
+            # O nó atual é considerado envolvido mesmo que já tenha sido visitado antes, pois ele participa da busca
             involved.add(current)
+            # O nó atual só é marcado como visitado na primeira vez que é alcançado, permitindo que ele seja escolhido novamente se for necessário voltar a ele por outro caminho
             visited.add(current)
+            # Cada movimento para um vizinho conta como uma mensagem, mesmo que seja para um nó já visitado, pois representa uma tentativa de busca naquele nó
             messages += 1
+            # O número da rodada é baseado no comprimento do caminho, representando quantos saltos foram dados desde o início. Isso é útil para análise posterior dos eventos.
             round_number = len(path) - 1
+            # Cada movimento é registrado como um evento de mensagem, incluindo o nó de origem, o nó de destino, o recurso buscado e o TTL restante. Isso permite uma análise detalhada do comportamento da busca.
             self._add_event(
                 events,
                 search_id,
@@ -492,6 +526,7 @@ class P2PNetwork:
             )
             remaining_ttl -= 1
 
+    # Verifica se o recurso está disponível no nó ou em seu cache (se permitido) e retorna o detentor real e a origem da informação
     def _lookup(self, node: str, resource_id: str, use_cache: bool) -> Tuple[Optional[str], Optional[str]]:
         if resource_id in self.resources[node]:
             return node, "local"
@@ -500,6 +535,8 @@ class P2PNetwork:
         return None, None
 
     @staticmethod
+    # Adiciona um evento de mensagem à lista de eventos, atribuindo um número de passo sequencial e incluindo detalhes como tipo, origem, destino, recurso e TTL restante. Isso é usado para registrar o histórico da busca para análise posterior.
+    # Eventos são registrados para cada mensagem enviada, permitindo uma reconstrução detalhada do processo de busca, incluindo quais nós foram contatados, em que ordem, e como o recurso foi encontrado (se foi encontrado). O número da rodada é útil para entender a dinâmica temporal da busca, especialmente no caso do flooding onde múltiplas mensagens são enviadas em paralelo. O TTL registrado em cada evento ajuda a analisar a eficiência da busca e quantos saltos foram necessários para encontrar o recurso ou esgotar o TTL.
     def _add_event(
         events: List[MessageEvent],
         search_id: str,
@@ -523,6 +560,7 @@ class P2PNetwork:
             )
         )
 
+    # Adiciona um evento de resposta direta se o nó de início for diferente do nó que respondeu, e retorna o número atualizado de mensagens. Isso é usado para registrar a resposta direta do detentor do recurso ao nó inicial, otimizando a análise do processo de busca.
     def _add_direct_reply_if_needed(
         self,
         events: List[MessageEvent],
@@ -538,6 +576,7 @@ class P2PNetwork:
         self._add_event(events, search_id, round_number, "reply", informed_by, start, resource_id, None)
         return messages + 1
 
+    # Adiciona um evento de conexão direta se o nó de início for diferente do detentor do recurso, e retorna o número atualizado de mensagens. Isso é usado para registrar a otimização onde o nó inicial estabelece uma conexão direta com o detentor do recurso após descobrir sua localização via cache, otimizando a análise do processo de busca.
     def _add_direct_connection_if_needed(
         self,
         events: List[MessageEvent],
@@ -553,9 +592,11 @@ class P2PNetwork:
         self._add_event(events, search_id, round_number, "direct", start, holder, resource_id, None)
         return messages + 1
 
+    # Cria uma cópia profunda dos caches atuais para incluir no resultado da busca, permitindo uma análise do estado dos caches em cada nó no momento da busca. Isso é útil para entender como os caches influenciaram o processo de busca e para verificar se as informações nos caches estavam corretas.
     def _snapshot_caches(self) -> Dict[str, Dict[str, str]]:
         return {node: dict(entries) for node, entries in self.caches.items()}
 
+    # Preenche os caches dos nós no caminho com a informação do detentor do recurso encontrado, e retorna um SearchResult indicando o sucesso da busca, incluindo detalhes como o algoritmo usado, o caminho percorrido, os eventos de mensagem e o estado dos caches. Isso é usado para registrar o resultado bem-sucedido da busca, incluindo as otimizações de cache aprendidas durante o processo.
     def _success(
         self,
         search_id: str,
@@ -593,6 +634,7 @@ class P2PNetwork:
         )
 
     @staticmethod
+    # Cria um SearchResult indicando o fracasso da busca, incluindo detalhes como o algoritmo usado, o caminho percorrido, os eventos de mensagem e o estado dos caches. Isso é usado para registrar o resultado de uma busca que não conseguiu encontrar o recurso dentro do TTL ou devido a outros fatores, permitindo uma análise detalhada do processo de busca mesmo em casos de falha.
     def _failure(
         search_id: str,
         algorithm: str,
@@ -623,7 +665,7 @@ class P2PNetwork:
             events=events,
             cache_snapshot=cache_snapshot,
         )
-
+    # Preenche os caches dos nós no caminho com a informação do detentor do recurso encontrado. Isso é usado para otimizar buscas futuras, permitindo que os nós aprendam a localização do recurso e possam responder mais rapidamente em buscas subsequentes.
     def _learn(self, path: Iterable[str], resource_id: str, holder: str) -> None:
         for node in path:
             self.caches[node][resource_id] = holder

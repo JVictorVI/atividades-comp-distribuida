@@ -11,18 +11,14 @@ from typing import Dict, Iterable, Sequence, Tuple
 from .models import SearchResult
 from .network import P2PNetwork
 
-
 ASSET_DIR = Path(__file__).resolve().parent / "assets"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-
 
 def _read_asset(filename: str) -> str:
     return (ASSET_DIR / filename).read_text(encoding="utf-8")
 
-
 def _looks_like_network_config(text: str) -> bool:
     return "resources" in text and "edges" in text
-
 
 def list_visualization_configs() -> Sequence[Dict[str, str]]:
     examples_dir = PROJECT_ROOT / "examples"
@@ -45,7 +41,7 @@ def list_visualization_configs() -> Sequence[Dict[str, str]]:
         )
     return configs
 
-
+# Gera uma representação textual do resultado de uma busca, incluindo detalhes como o caminho percorrido, os nós envolvidos e as mensagens trocadas.
 def circular_layout(nodes: Sequence[str], width: int = 960, height: int = 620) -> Dict[str, Dict[str, float]]:
     center_x = width / 2
     center_y = height / 2
@@ -62,7 +58,7 @@ def circular_layout(nodes: Sequence[str], width: int = 960, height: int = 620) -
         }
     return positions
 
-
+# Calcula um layout fixo usando apenas a topologia da rede, aplicando um algoritmo de força dirigida para posicionar os nós de forma visualmente agradável.
 def topology_layout(
     nodes: Sequence[str],
     edges: Iterable[Tuple[str, str]],
@@ -130,7 +126,7 @@ def topology_layout(
         for node, position in positions.items()
     }
 
-
+# Gera o payload de dados necessário para a visualização, incluindo a topologia da rede, os eventos da busca e o estado dos caches dos nós.
 def build_visualization_payload(network: P2PNetwork, result: SearchResult) -> Dict[str, object]:
     layout_width = 1080
     layout_height = 700
@@ -193,7 +189,7 @@ def build_visualization_payload(network: P2PNetwork, result: SearchResult) -> Di
         "result": result.as_dict(),
     }
 
-
+# Gera o conteúdo HTML para a visualização, incorporando os links para os arquivos CSS e JS necessários e estruturando a página com seções para a visualização do grafo, os logs de mensagens e os detalhes da busca.
 def build_visualization_html(
     network: P2PNetwork,
     result: SearchResult,
@@ -246,7 +242,6 @@ def build_visualization_html(
       </label>
       <div class="form-actions">
         <button type="submit" class="primary">Aplicar alterações</button>
-        <button type="button" id="randomExample">Novo exemplo random</button>
       </div>
     </form>
     <div class="error-panel hidden" id="errorPanel" role="alert"></div>
@@ -258,9 +253,10 @@ def build_visualization_html(
       <div class="status pending" id="statusLabel" data-final-status="ENCONTRADO" data-final-class="found">EXPLORANDO</div>
       <svg id="network" viewBox="0 0 1080 700" role="img" aria-label="Grafo da rede P2P e mensagens da busca"></svg>
       <div class="controls">
-        <button type="button" id="play">Reproduzir</button>
-        <button type="button" id="step">Avançar</button>
-        <button type="button" id="reset">Reiniciar</button>
+        <button type="button" id="play">Reproduzir animação completa</button>
+        <button type="button" id="step">Avançar rodada</button>
+        <button type="button" id="reset">Reiniciar animação</button>
+        <button type="button" id="randomExample">Novo exemplo random</button>
         <span class="step-label" id="stepLabel">Quadro 0 / 0</span>
       </div>
     </section>
@@ -291,7 +287,7 @@ def build_visualization_html(
           <li>Escolha um um arquivo de topologia no seletor superior ou edite os campos da topologia manualmente.</li>
           <li>Escolha o algoritmo, o nó inicial, o recurso procurado e o TTL.</li>
           <li>Clique em Executar para recalcular a busca.</li>
-          <li>Use Reproduzir, Avançar e Reiniciar para controlar a animação.</li>
+          <li>Use os botões da barra inferior para controlar a animação.</li>
           <li>Em random walk, use Novo exemplo random para sortear outra execução.</li>
         </ol>
       </section>

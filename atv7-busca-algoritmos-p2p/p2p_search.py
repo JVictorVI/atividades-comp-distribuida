@@ -49,7 +49,6 @@ BUSCA = {
     "seed": None,
     "ignore_cache": False,
     "trace": True,
-    "json": False,
     "visualize": "visualization.html",
 }
 

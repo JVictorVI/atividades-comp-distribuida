@@ -7,13 +7,12 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .models import ConfigError
 
-
 def load_config(path: Path) -> Dict[str, Any]:
     if path.suffix.lower() not in {".yaml", ".yml"}:
         raise ConfigError("Configuração da rede deve estar em YAML (.yaml ou .yml)")
     return parse_simple_yaml(path.read_text(encoding="utf-8"))
 
-
+# Parser simples para o formato YAML usado no enunciado, que suporta apenas os tipos e estruturas necessários para a configuração da rede.
 def parse_simple_yaml(text: str) -> Dict[str, Any]:
     """Parser pequeno para o formato YAML simples usado no enunciado.
 
@@ -66,7 +65,7 @@ def parse_simple_yaml(text: str) -> Dict[str, Any]:
 
     return data
 
-
+# Permite tanto uma lista YAML tradicional (com colchetes) quanto uma string separada por vírgulas, limpando os espaços e aspas extras.
 def parse_list(value: Any) -> List[str]:
     if isinstance(value, (list, tuple, set)):
         return [clean_token(item) for item in value if clean_token(item)]
@@ -76,6 +75,7 @@ def parse_list(value: Any) -> List[str]:
     return [token for token in (clean_token(part) for part in value.split(",")) if token]
 
 
+# Permite tanto o formato `- n1, n2` quanto `- [n1, n2]` para definir as arestas, removendo o hífen e os colchetes conforme necessário.
 def parse_edge_line(line: str, line_number: int) -> Tuple[str, str]:
     if line.startswith("-"):
         line = line[1:].strip()
@@ -83,7 +83,6 @@ def parse_edge_line(line: str, line_number: int) -> Tuple[str, str]:
     if len(parts) != 2:
         raise ConfigError(f"Linha {line_number}: aresta deve ter exatamente dois nós")
     return parts[0], parts[1]
-
 
 def clean_token(value: Any) -> str:
     return str(value).strip().strip("\"'")

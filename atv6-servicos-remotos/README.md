@@ -43,6 +43,7 @@ Operações cobertas:
 - Criar, consultar, alterar e remover usuários.
 - Criar, consultar, alterar e remover músicas.
 - Criar, consultar, alterar e remover playlists.
+- Listar todas as playlists.
 - Listar playlists de um usuário.
 - Listar músicas de uma playlist.
 - Listar playlists que contêm uma música.
@@ -426,11 +427,12 @@ Cada tecnologia executa os mesmos cenários de leitura geral:
 
 - `listar-usuarios`: lista os dados de todos os usuários do serviço.
 - `listar-musicas`: lista os dados de todas as músicas mantidas pelo serviço.
+- `listar-playlists`: lista os dados de todas as playlists mantidas pelo serviço.
 - `listar-playlists-usuario`: lista os dados de todas as playlists de um determinado usuário.
 - `listar-musicas-playlist`: lista os dados de todas as músicas de uma determinada playlist.
 - `listar-playlists-musica`: lista os dados de todas as playlists que contêm uma determinada música.
 
-O CRUD completo continua disponível nas APIs para uso manual, mas a bateria do Locust usa apenas essas consultas de leitura para forçar respostas maiores com a massa em memória.
+O CRUD completo continua disponível nas APIs para uso manual, mas a bateria do Locust usa apenas essas consultas de leitura para forçar respostas maiores com a massa em memória. A massa também foi ajustada para que os cenários filtrados não sejam pequenos demais: o usuário `u1` possui 300 playlists, a playlist `p1` possui 300 músicas e a música `s1` aparece em 300 playlists.
 
 O `locustfile.py` não define pausas artificiais entre tarefas. Os usuários virtuais executam chamadas continuamente durante o tempo do teste.
 
@@ -440,7 +442,8 @@ As principais métricas são:
 
 - vazão em requisições por segundo;
 - latência média;
-- latência p95.
+- latência p95;
+- tamanho médio da resposta.
 
 ## Gráficos
 
@@ -452,21 +455,35 @@ results/charts/
 
 Os nomes dos arquivos indicam a linguagem e a carga, por exemplo `python-locust-throughput-carga-leve-u50.png`, `javascript-locust-p95-latency-carga-alta-u500.png` e `comparativo-locust-throughput-carga-media-u250.png`.
 
-São gerados quatro gráficos para cada carga. Dois gráficos agregam os cinco cenários de leitura e mostram a média por tecnologia:
+São gerados quatro gráficos para cada carga. Dois gráficos agregam os seis cenários de leitura e mostram a média por tecnologia:
 
 - vazão média;
 - latência p95 média.
 
-Os outros dois gráficos mantêm a visão detalhada por cenário de leitura, como usuários, músicas, playlists do usuário, músicas da playlist e playlists que contêm uma música:
+Os outros dois gráficos mantêm a visão detalhada por cenário de leitura, como usuários, músicas, playlists, playlists do usuário, músicas da playlist e playlists que contêm uma música:
 
 - vazão por tecnologia e cenário de leitura;
 - latência p95 por tecnologia e cenário de leitura.
 
 Quando os resultados das duas linguagens existem, também são gerados quatro gráficos comparativos por carga. Dois usam as mesmas médias e barras verticais agrupadas por tecnologia, comparando pares como `REST Python` x `REST JavaScript`. Os outros dois detalham os cenários de leitura.
 
+Como o tamanho da resposta depende do endpoint e da tecnologia, mas não do número de usuários virtuais, essa métrica é mostrada em um gráfico próprio, consolidado entre as cargas disponíveis:
+
+- tamanho médio geral por endpoint e API.
+
 ## Análise e Discussão dos Resultados
 
-A análise abaixo usa os gráficos comparativos gerados em `results/charts/`. Em todos os casos, a vazão está em requisições por segundo, então valores maiores são melhores; a latência usa p95 em milissegundos, então valores menores são melhores. Os números apresentados são a média dos cinco cenários de leitura do Locust: listar usuários, listar músicas, listar playlists do usuário, listar músicas da playlist e listar playlists que contêm uma música.
+A análise abaixo usa os gráficos comparativos gerados em `results/charts/`. Em todos os casos, a vazão está em requisições por segundo, então valores maiores são melhores; a latência usa p95 em milissegundos, então valores menores são melhores; e o tamanho médio da resposta está em KB por requisição. Os números de vazão e latência apresentados são a média dos seis cenários de leitura do Locust: listar usuários, listar músicas, listar playlists, listar playlists do usuário, listar músicas da playlist e listar playlists que contêm uma música.
+
+### Tamanho médio por endpoint
+
+O gráfico abaixo consolida as cargas de 50, 250 e 500 usuários e também consolida as duas linguagens, porque o volume retornado por cada endpoint não muda quando há mais usuários simultâneos. Ele serve para comparar quanto cada API retorna em cada cenário de leitura.
+
+![Tamanho médio geral por endpoint e API](results/charts/locust-content-size-geral.png)
+
+O resultado mostra que `listar-musicas`, `listar-playlists` e `listar-usuarios` tendem a retornar os maiores volumes porque entregam coleções completas da base em memória. Os cenários filtrados de playlist também foram aumentados para ficarem na casa das centenas: `listar-playlists-usuario` retorna 300 playlists do usuário `u1`, `listar-musicas-playlist` retorna 300 músicas da playlist `p1` e `listar-playlists-musica` retorna 300 playlists que contêm a música `s1`. Assim, eles passam a pesar de forma mais justa nas médias finais de latência e vazão.
+
+As diferenças entre APIs vêm principalmente do formato de serialização. REST e GraphQL usam JSON textual, então carregam nomes de campos repetidos em cada objeto; GraphQL ainda envolve a resposta dentro de uma estrutura de resultado da consulta. SOAP tende a ser o maior porque adiciona envelope XML, namespaces e tags de abertura e fechamento, o que aumenta bastante o texto trafegado, principalmente nas respostas grandes. gRPC fica menor porque usa Protocol Buffers em formato binário, sem repetir nomes de campos textuais em cada item da lista. Por isso, mesmo quando o gRPC Python teve latência alta por custo de implementação e concorrência, o tamanho retornado por ele continua menor na comparação de payload.
 
 ### Carga leve: 50 usuários virtuais
 
@@ -508,7 +525,7 @@ No Python, REST subiu para 399,97 req/s, mas já com p95 de 68 ms. Esse aumento 
 
 GraphQL Python praticamente não aumentou a vazão: foi de 67,17 req/s para 66,80 req/s. A latência, porém, subiu de 232 ms para 858 ms. Esse é um sinal clássico de saturação: o servidor atinge sua capacidade de processamento por segundo, e as requisições excedentes passam a esperar mais tempo na fila. O mesmo padrão aparece no SOAP Python, que caiu para 50,48 req/s e teve p95 de 1.560 ms. Ou seja, aumentar usuários não gerou mais trabalho concluído por segundo; gerou espera.
 
-O gRPC Python ficou em 310,57 req/s e p95 de 202 ms. Ele mantém boa vazão frente a GraphQL e SOAP, mas se distancia muito do JavaScript. Um fator específico da implementação é o `ThreadPoolExecutor(max_workers=64)` do servidor Python: quando muitos usuários concorrem, as chamadas que excedem a capacidade dos workers aguardam. Além disso, a conversão manual dos dicionários do domínio para mensagens protobuf cria muitos objetos por resposta, o que pressiona CPU, memória e coletor de lixo.
+O gRPC Python ficou em 310,57 req/s e p95 de 202 ms. Ele mantém boa vazão frente a GraphQL e SOAP, mas se distancia muito do JavaScript. Um fator específico da implementação é o uso de um pool de workers no servidor Python: quando muitos usuários concorrem, as chamadas que excedem a capacidade momentânea desse pool aguardam. Além disso, a conversão manual dos dicionários do domínio para mensagens protobuf cria muitos objetos por resposta, o que pressiona CPU, memória e coletor de lixo.
 
 ### Carga alta: 500 usuários virtuais
 
@@ -526,6 +543,16 @@ O gRPC Python ficou em 310,57 req/s e p95 de 202 ms. Ele mantém boa vazão fren
 Com 500 usuários, os limites ficam bem nítidos. JavaScript gRPC continuou como melhor opção, com 1.029,02 req/s e p95 de 110 ms. Mesmo com aumento de latência em relação à carga média, ele sustentou a vazão. O REST JavaScript também se manteve estável, com 479,13 req/s e p95 de 46 ms. GraphQL JavaScript caiu pouco em vazão, para 346,08 req/s, e manteve p95 de 83 ms, valor muito menor que o GraphQL Python.
 
 No Python, REST ficou praticamente no mesmo patamar da carga média: 402,28 req/s e p95 de 70 ms. Esse é um resultado importante, porque mostra que REST foi a opção Python mais equilibrada para esse conjunto de consultas: simples, previsível e com latência controlada. O gRPC Python manteve cerca de 309,05 req/s, mas a latência p95 subiu para 394 ms. A vazão estável com latência crescente sugere que a pilha consegue processar uma quantidade parecida de chamadas por segundo, mas com mais tempo de espera sob concorrência.
+
+#### Por que REST superou gRPC no Python?
+
+Embora gRPC normalmente seja associado a maior eficiência por usar HTTP/2 e Protocol Buffers, esse ganho não aparece automaticamente em qualquer implementação. Nesta versão Python, o REST percorre um caminho muito curto: a rota chama o domínio, recebe listas de dicionários e usa `json.dumps` para enviar a resposta. Como os dados já estão em estruturas nativas do Python, há pouca adaptação entre a regra de negócio e a resposta HTTP.
+
+No gRPC Python, o caminho é mais trabalhoso. Depois que o domínio retorna os mesmos dicionários, o servidor precisa construir explicitamente mensagens protobuf para cada item retornado, como `User`, `Song` e `Playlist`. Em chamadas que retornam coleções grandes, como listagem de músicas e usuários, isso cria muitos objetos Python antes da serialização binária acontecer. Ou seja, mesmo que o payload final seja menor e mais eficiente na rede, existe um custo local de montagem das mensagens que pesa bastante neste cenário.
+
+Outro fator é a concorrência. O servidor gRPC Python usa um pool de workers para executar chamadas simultâneas. Quando o número de usuários virtuais cresce, as chamadas que excedem a capacidade momentânea desse pool ficam aguardando, e a latência p95 aumenta mesmo quando a vazão permanece quase constante. Esse comportamento indica saturação: o sistema continua concluindo uma quantidade parecida de requisições por segundo, mas cada requisição passa mais tempo esperando sua vez.
+
+Assim, o resultado não contradiz a vantagem teórica do gRPC. Ele mostra que, neste projeto, o REST Python teve uma implementação mais direta e barata para consultas em memória, enquanto o gRPC Python pagou mais custo de adaptação, alocação de objetos e concorrência. A própria versão JavaScript confirma essa leitura: nela, gRPC ficou muito acima do REST, porque a pilha `@grpc/grpc-js` e o runtime Node.js lidaram melhor com chamadas concorrentes e serialização nesse formato.
 
 GraphQL Python chegou ao pior descolamento entre linguagens: 64,57 req/s e p95 de 1.620 ms, contra 346,08 req/s e 83 ms no JavaScript. Isso reforça que o custo não vem apenas do protocolo GraphQL em si, mas da combinação entre biblioteca, runtime, modelo de concorrência e volume de objetos processados por consulta. As consultas retornam coleções relativamente grandes da base em memória, e o GraphQL precisa percorrer o schema e resolver campos para cada item retornado. Em Python, esse trabalho envolve muitas chamadas pequenas e alocações; em JavaScript, a execução síncrona também existe, mas o V8 e o servidor HTTP do Node lidaram melhor com esse tipo de carga.
 

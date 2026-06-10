@@ -55,6 +55,7 @@ SCENARIOS = configured_scenarios()
 WORKLOAD_ORDER = [
     "listar-usuarios",
     "listar-musicas",
+    "listar-playlists",
     "listar-playlists-usuario",
     "listar-musicas-playlist",
     "listar-playlists-musica",
@@ -63,6 +64,7 @@ WORKLOAD_ORDER = [
 WORKLOAD_LABELS = {
     "listar-usuarios": ("Usuários",),
     "listar-musicas": ("Músicas",),
+    "listar-playlists": ("Playlists",),
     "listar-playlists-usuario": ("Playlists", "do usuário"),
     "listar-musicas-playlist": ("Músicas", "da playlist"),
     "listar-playlists-musica": ("Playlists", "com música"),
@@ -174,11 +176,15 @@ def read_locust_stats(results_dir, scenario, technology):
                     "requestCount": 0,
                     "throughputRps": 0.0,
                     "p95LatencyMs": 0.0,
+                    "contentSizeTotalBytes": 0.0,
+                    "avgContentSizeKb": 0.0,
                 },
             )
-            current["requestCount"] += int(number(row.get("Request Count")))
+            request_count = int(number(row.get("Request Count")))
+            current["requestCount"] += request_count
             current["throughputRps"] += number(row.get("Requests/s"))
             current["p95LatencyMs"] = max(current["p95LatencyMs"], number(row.get("95%")))
+            current["contentSizeTotalBytes"] += number(row.get("Average Content Size")) * request_count
 
     return grouped
 
@@ -191,6 +197,11 @@ def collect_rows(results_dir):
             for row in stats.values():
                 row["throughputRps"] = round(row["throughputRps"], 2)
                 row["p95LatencyMs"] = round(row["p95LatencyMs"], 2)
+                row["avgContentSizeKb"] = round(
+                    row["contentSizeTotalBytes"] / max(1, row["requestCount"]) / 1024,
+                    2,
+                )
+                row.pop("contentSizeTotalBytes", None)
                 rows.append(row)
     return rows
 
@@ -206,6 +217,50 @@ def collect_language_rows(results_root=DEFAULT_RESULTS_DIR):
             row["languageSlug"] = language["slug"]
             rows.append(row)
     return rows
+
+
+def content_size_scenario():
+    users = [str(scenario["users"]) for scenario in SCENARIOS]
+    if len(users) > 1:
+        users_label = f"{', '.join(users[:-1])} e {users[-1]}"
+    else:
+        users_label = users[0] if users else "todas as cargas"
+    return {
+        "label": "Todos os níveis de carga",
+        "slug": "tamanho-resposta",
+        "users": users_label,
+    }
+
+
+def aggregate_overall_content_size_rows(rows):
+    scenario = content_size_scenario()
+    grouped = {}
+    for row in rows:
+        key = (row["technology"], row["workload"])
+        current = grouped.setdefault(
+            key,
+            {
+                "scenario": scenario["slug"],
+                "scenarioLabel": scenario["label"],
+                "users": scenario["users"],
+                "technology": row["technology"],
+                "workload": row["workload"],
+                "requestCount": 0,
+                "throughputRps": 0.0,
+                "p95LatencyMs": 0.0,
+                "contentSizeTotalKbRequests": 0.0,
+            },
+        )
+        current["requestCount"] += row["requestCount"]
+        current["contentSizeTotalKbRequests"] += row["avgContentSizeKb"] * row["requestCount"]
+
+    for current in grouped.values():
+        current["avgContentSizeKb"] = average_metric(
+            current["contentSizeTotalKbRequests"],
+            current["requestCount"],
+        )
+
+    return list(grouped.values()), scenario
 
 
 def average_metric(total, count):
@@ -225,18 +280,21 @@ def aggregate_technology_rows(rows, scenario):
                 "requestCount": 0,
                 "throughputTotal": 0.0,
                 "p95Total": 0.0,
+                "contentSizeTotalKbRequests": 0.0,
                 "workloadCount": 0,
             },
         )
         current["requestCount"] += row["requestCount"]
         current["throughputTotal"] += row["throughputRps"]
         current["p95Total"] += row["p95LatencyMs"]
+        current["contentSizeTotalKbRequests"] += row["avgContentSizeKb"] * row["requestCount"]
         current["workloadCount"] += 1
 
     for current in grouped.values():
         count = current["workloadCount"]
         current["throughputRps"] = average_metric(current["throughputTotal"], count)
         current["p95LatencyMs"] = average_metric(current["p95Total"], count)
+        current["avgContentSizeKb"] = average_metric(current["contentSizeTotalKbRequests"], current["requestCount"])
 
     return grouped
 
@@ -267,18 +325,21 @@ def aggregate_comparison_rows(rows, scenario):
                 "requestCount": 0,
                 "throughputTotal": 0.0,
                 "p95Total": 0.0,
+                "contentSizeTotalKbRequests": 0.0,
                 "workloadCount": 0,
             },
         )
         current["requestCount"] += row["requestCount"]
         current["throughputTotal"] += row["throughputRps"]
         current["p95Total"] += row["p95LatencyMs"]
+        current["contentSizeTotalKbRequests"] += row["avgContentSizeKb"] * row["requestCount"]
         current["workloadCount"] += 1
 
     for current in grouped.values():
         count = current["workloadCount"]
         current["throughputRps"] = average_metric(current["throughputTotal"], count)
         current["p95LatencyMs"] = average_metric(current["p95Total"], count)
+        current["avgContentSizeKb"] = average_metric(current["contentSizeTotalKbRequests"], current["requestCount"])
 
     return grouped
 
@@ -286,10 +347,14 @@ def aggregate_comparison_rows(rows, scenario):
 def format_value(metric, value):
     if metric == "throughputRps":
         return f"{value:.1f}"
+    if metric == "avgContentSizeKb":
+        return f"{value:.1f}"
     return str(round(value))
 
 
 def format_axis_tick(metric, value):
+    if metric == "avgContentSizeKb":
+        return f"{value:.1f}"
     return str(round(value))
 
 
@@ -971,6 +1036,7 @@ def write_summary(results_dir, rows):
         "requestCount",
         "throughputRps",
         "p95LatencyMs",
+        "avgContentSizeKb",
     ]
     with (results_dir / "locust-summary.csv").open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=headers)
@@ -993,6 +1059,7 @@ def write_combined_summary(results_root, rows):
         "requestCount",
         "throughputRps",
         "p95LatencyMs",
+        "avgContentSizeKb",
     ]
     csv_rows = [{key: row[key] for key in headers} for row in rows]
     with (results_root / "locust-combined-summary.csv").open("w", encoding="utf-8", newline="") as handle:
@@ -1155,6 +1222,21 @@ def generate_combined_charts(results_root=DEFAULT_RESULTS_DIR, charts_dir=None):
         for path, metric, title, unit in detailed_outputs:
             save_png(path, make_detailed_comparison_chart_image(scenario, rows, metric, title, unit))
             generated.append(path)
+
+    overall_content_rows, overall_content_scenario = aggregate_overall_content_size_rows(rows)
+    if overall_content_rows:
+        path = charts_dir / "locust-content-size-geral.png"
+        save_png(
+            path,
+            make_detailed_chart_image(
+                overall_content_scenario,
+                overall_content_rows,
+                "avgContentSizeKb",
+                "Tamanho médio de resposta por endpoint e API",
+                "KB",
+            ),
+        )
+        generated.append(path)
 
     if generated:
         print("Graficos comparativos Python x JavaScript:")

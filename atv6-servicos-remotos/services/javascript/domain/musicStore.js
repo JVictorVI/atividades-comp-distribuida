@@ -10,6 +10,9 @@ export class DomainError extends Error {
 const INITIAL_USER_COUNT = 300;
 const INITIAL_SONG_COUNT = 500;
 const INITIAL_PLAYLIST_COUNT = 400;
+const FEATURED_PLAYLIST_SONG_COUNT = 300;
+const TARGET_USER_PLAYLIST_COUNT = 300;
+const TARGET_SONG_PLAYLIST_COUNT = 300;
 
 const BASE_DATA = {
   users: [
@@ -55,7 +58,12 @@ const BASE_DATA = {
     }
   ],
   playlists: [
-    { id: "p1", userId: "u1", name: "Manha leve", songIds: ["s1", "s3", "s4"] },
+    {
+      id: "p1",
+      userId: "u1",
+      name: "Manha leve",
+      songIds: Array.from({ length: FEATURED_PLAYLIST_SONG_COUNT }, (_item, index) => `s${index + 1}`)
+    },
     { id: "p2", userId: "u1", name: "Foco", songIds: ["s2", "s5"] },
     { id: "p3", userId: "u2", name: "Viagem", songIds: ["s1", "s2", "s4"] }
   ]
@@ -165,12 +173,43 @@ function generatedPlaylists() {
     "Viagem"
   ];
   const playlists = [];
+  const featuredUserBaseCount = BASE_DATA.playlists.filter((playlist) => playlist.userId === "u1").length;
+  const featuredSongBaseCount = BASE_DATA.playlists.filter((playlist) => playlist.songIds.includes("s1")).length;
+  const featuredGeneratedCount = Math.min(
+    Math.max(0, TARGET_USER_PLAYLIST_COUNT - featuredUserBaseCount),
+    Math.max(0, TARGET_SONG_PLAYLIST_COUNT - featuredSongBaseCount),
+    INITIAL_PLAYLIST_COUNT - BASE_DATA.playlists.length
+  );
+  const featuredGeneratedEnd = BASE_DATA.playlists.length + featuredGeneratedCount;
   for (let index = BASE_DATA.playlists.length + 1; index <= INITIAL_PLAYLIST_COUNT; index += 1) {
-    const userId = `u${1 + ((index * 5) % INITIAL_USER_COUNT)}`;
-    const songIds = Array.from(
-      { length: 5 },
-      (_item, offset) => `s${1 + (((index * 7) + offset * 17) % INITIAL_SONG_COUNT)}`
-    );
+    let userId;
+    let songIds;
+    if (index <= featuredGeneratedEnd) {
+      userId = "u1";
+      songIds = ["s1"];
+      let offset = 0;
+      while (songIds.length < 5) {
+        const songId = `s${1 + (((index * 7) + offset * 17) % INITIAL_SONG_COUNT)}`;
+        if (!songIds.includes(songId)) {
+          songIds.push(songId);
+        }
+        offset += 1;
+      }
+    } else {
+      userId = `u${1 + ((index * 5) % INITIAL_USER_COUNT)}`;
+      if (userId === "u1") {
+        userId = "u2";
+      }
+      songIds = [];
+      let offset = 0;
+      while (songIds.length < 5) {
+        const songId = `s${1 + (((index * 7) + offset * 17) % INITIAL_SONG_COUNT)}`;
+        if (songId !== "s1" && !songIds.includes(songId)) {
+          songIds.push(songId);
+        }
+        offset += 1;
+      }
+    }
     playlists.push({
       id: `p${index}`,
       userId,

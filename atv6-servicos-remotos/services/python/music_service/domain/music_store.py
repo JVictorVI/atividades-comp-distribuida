@@ -14,6 +14,9 @@ class DomainError(Exception):
 INITIAL_USER_COUNT = 300
 INITIAL_SONG_COUNT = 500
 INITIAL_PLAYLIST_COUNT = 400
+FEATURED_PLAYLIST_SONG_COUNT = 300
+TARGET_USER_PLAYLIST_COUNT = 300
+TARGET_SONG_PLAYLIST_COUNT = 300
 
 
 BASE_DATA = {
@@ -60,7 +63,12 @@ BASE_DATA = {
         },
     ],
     "playlists": [
-        {"id": "p1", "userId": "u1", "name": "Manha leve", "songIds": ["s1", "s3", "s4"]},
+        {
+            "id": "p1",
+            "userId": "u1",
+            "name": "Manha leve",
+            "songIds": [f"s{index}" for index in range(1, FEATURED_PLAYLIST_SONG_COUNT + 1)],
+        },
         {"id": "p2", "userId": "u1", "name": "Foco", "songIds": ["s2", "s5"]},
         {"id": "p3", "userId": "u2", "name": "Viagem", "songIds": ["s1", "s2", "s4"]},
     ],
@@ -171,13 +179,36 @@ def _generated_playlists():
         "Viagem",
     ]
     start = len(BASE_DATA["playlists"]) + 1
+    featured_user_base_count = sum(1 for playlist in BASE_DATA["playlists"] if playlist["userId"] == "u1")
+    featured_song_base_count = sum(1 for playlist in BASE_DATA["playlists"] if "s1" in playlist["songIds"])
+    featured_generated_count = min(
+        max(0, TARGET_USER_PLAYLIST_COUNT - featured_user_base_count),
+        max(0, TARGET_SONG_PLAYLIST_COUNT - featured_song_base_count),
+        INITIAL_PLAYLIST_COUNT - len(BASE_DATA["playlists"]),
+    )
+    featured_generated_end = start + featured_generated_count - 1
     playlists = []
     for index in range(start, INITIAL_PLAYLIST_COUNT + 1):
-        user_id = f"u{1 + ((index * 5) % INITIAL_USER_COUNT)}"
-        song_ids = [
-            f"s{1 + (((index * 7) + offset * 17) % INITIAL_SONG_COUNT)}"
-            for offset in range(5)
-        ]
+        if index <= featured_generated_end:
+            user_id = "u1"
+            song_ids = ["s1"]
+            offset = 0
+            while len(song_ids) < 5:
+                song_id = f"s{1 + (((index * 7) + offset * 17) % INITIAL_SONG_COUNT)}"
+                if song_id not in song_ids:
+                    song_ids.append(song_id)
+                offset += 1
+        else:
+            user_id = f"u{1 + ((index * 5) % INITIAL_USER_COUNT)}"
+            if user_id == "u1":
+                user_id = "u2"
+            song_ids = []
+            offset = 0
+            while len(song_ids) < 5:
+                song_id = f"s{1 + (((index * 7) + offset * 17) % INITIAL_SONG_COUNT)}"
+                if song_id != "s1" and song_id not in song_ids:
+                    song_ids.append(song_id)
+                offset += 1
         playlists.append(
             {
                 "id": f"p{index}",

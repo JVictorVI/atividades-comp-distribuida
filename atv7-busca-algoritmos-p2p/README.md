@@ -150,7 +150,6 @@ BUSCA = {
     "seed": None,
     "ignore_cache": False,
     "trace": True,
-    "json": False,
     "visualize": "visualization.html",
 }
 ```
@@ -180,11 +179,6 @@ Na interface você pode:
 
 A própria interface também contém um tutorial resumido de uso.
 
-### Validação da rede
-
-```powershell
-python .\p2p_search.py validate .\examples\complex.yaml
-```
 
 ### Busca direta
 
@@ -210,11 +204,9 @@ O arquivo JSON nesse caso contém consultas, não a estrutura da rede.
 
 ## Comandos disponíveis
 
-- `validate`: valida uma rede YAML.
 - `search`: executa uma busca.
 - `compare`: executa os quatro algoritmos para a mesma consulta.
 - `batch`: executa várias buscas descritas em JSON.
-- `dot`: imprime a rede em formato Graphviz DOT.
 - `visualize`: gera a interface HTML de visualização.
 
 ## Observações

@@ -1678,7 +1678,7 @@ function play() {
   if (currentFrame + 1 < frames.length) {
     timer = setInterval(step, 1250);
   } else {
-    playButton.textContent = "Reproduzir";
+    playButton.textContent = "Reproduzir animação completa";
   }
 }
 
@@ -1687,7 +1687,7 @@ function stop() {
     clearInterval(timer);
     timer = null;
   }
-  playButton.textContent = "Reproduzir";
+  playButton.textContent = "Reproduzir animação completa";
 }
 
 function setEditorStatus(message, type = "") {

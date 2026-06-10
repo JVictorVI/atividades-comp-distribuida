@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
-
+# Constantes e tipos compartilhados entre os módulos do simulador.
 ALGORITHM_ORDER = [
     "flooding",
     "informed_flooding",
@@ -24,7 +24,8 @@ class ConfigError(ValueError):
 class SearchError(ValueError):
     """Erro encontrado nos parâmetros de uma operação de busca."""
 
-
+# Modelos de dados usados para representar os resultados das buscas e 
+# os eventos de mensagens trocadas entre os nós.
 @dataclass
 class MessageEvent:
     step: int
@@ -39,7 +40,9 @@ class MessageEvent:
     def as_dict(self) -> Dict[str, Any]:
         return asdict(self)
 
-
+# Modelo principal para representar o resultado de uma busca, 
+# incluindo detalhes como o caminho percorrido, os eventos de mensagens e 
+# um snapshot do cache dos nós envolvidos.
 @dataclass
 class SearchResult:
     search_id: str

@@ -41,7 +41,6 @@
       </label>
       <div class="form-actions">
         <button type="submit" class="primary">Aplicar alterações</button>
-        <button type="button" id="randomExample">Novo exemplo random</button>
       </div>
     </form>
     <div class="error-panel hidden" id="errorPanel" role="alert"></div>
@@ -53,9 +52,10 @@
       <div class="status pending" id="statusLabel" data-final-status="ENCONTRADO" data-final-class="found">EXPLORANDO</div>
       <svg id="network" viewBox="0 0 1080 700" role="img" aria-label="Grafo da rede P2P e mensagens da busca"></svg>
       <div class="controls">
-        <button type="button" id="play">Reproduzir</button>
-        <button type="button" id="step">Avançar</button>
-        <button type="button" id="reset">Reiniciar</button>
+        <button type="button" id="play">Reproduzir animação completa</button>
+        <button type="button" id="step">Avançar rodada</button>
+        <button type="button" id="reset">Reiniciar animação</button>
+        <button type="button" id="randomExample">Novo exemplo random</button>
         <span class="step-label" id="stepLabel">Quadro 0 / 0</span>
       </div>
     </section>
@@ -86,7 +86,7 @@
           <li>Escolha um um arquivo de topologia no seletor superior ou edite os campos da topologia manualmente.</li>
           <li>Escolha o algoritmo, o nó inicial, o recurso procurado e o TTL.</li>
           <li>Clique em Executar para recalcular a busca.</li>
-          <li>Use Reproduzir, Avançar e Reiniciar para controlar a animação.</li>
+          <li>Use os botões da barra inferior para controlar a animação.</li>
           <li>Em random walk, use Novo exemplo random para sortear outra execução.</li>
         </ol>
       </section>

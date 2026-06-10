@@ -1,4 +1,4 @@
-"""Formata??o textual e estat?sticas das buscas."""
+"""Formatação textual e estatísticas das buscas."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Sequence
 
 from .models import ALGORITHM_ORDER, SearchResult
 
-
+# Altere o objeto BUSCA abaixo e execute `python .\\p2p_search.py` para rodar
 def format_result(result: SearchResult) -> str:
     lines = [
         f"search_id: {result.search_id}",
@@ -31,8 +31,8 @@ def format_result(result: SearchResult) -> str:
         )
     return "\n".join(lines)
 
-
-def format_trace(result: SearchResult) -> str:
+ # Gera uma representação textual do trace de mensagens trocadas durante a busca.
+def format_trace(result: SearchResult) -> str: 
     if not result.events:
         return "trace: nenhuma mensagem trocada"
 
@@ -49,7 +49,7 @@ def format_trace(result: SearchResult) -> str:
         )
     return "\n".join(lines)
 
-
+# Gera uma tabela formatada com os resultados das buscas, mostrando os principais detalhes de cada execução.
 def print_table(results: Sequence[SearchResult]) -> None:
     rows = [
         [
@@ -72,7 +72,7 @@ def print_table(results: Sequence[SearchResult]) -> None:
     for row in rows:
         print("  ".join(value.ljust(widths[index]) for index, value in enumerate(row)))
 
-
+# Agrupa os resultados por algoritmo e calcula estatísticas como taxa de sucesso, média de mensagens e nós envolvidos.
 def summarize_results(results: Sequence[SearchResult]) -> List[Dict[str, Any]]:
     grouped: Dict[str, List[SearchResult]] = defaultdict(list)
     for result in results:
@@ -101,7 +101,7 @@ def summarize_results(results: Sequence[SearchResult]) -> List[Dict[str, Any]]:
         )
     return summary
 
-
+# Gera e imprime uma tabela de estatísticas resumidas para cada algoritmo testado, incluindo taxa de sucesso e média de mensagens trocadas.
 def print_statistics(results: Sequence[SearchResult]) -> None:
     summary = summarize_results(results)
     if not summary:
