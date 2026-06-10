@@ -17,7 +17,7 @@ Os testes foram executados em uma máquina com as seguintes especificações:
 | ------------------- | ------------------- |
 | Sistema operacional | Windows 11          |
 | Processador         | Intel Core 5 210H   |
-| Memória RAM         | 24 GB DDR5 5600 MHz |
+| Memória RAM         | 24 GB DDR5 5200 MHz |
 | Armazenamento       | SSD de 1 TB         |
 
 ## Objetivo
@@ -289,7 +289,7 @@ As implementações em Python e JavaScript são equivalentes em comportamento pa
 
 Foram mantidos os mesmos dados iniciais, as mesmas regras de validação e as mesmas relações entre usuários, músicas e playlists. Dessa forma, os testes de carga comparam principalmente o mecanismo de comunicação remota, a serialização e o servidor usado em cada linguagem, não diferenças na regra de negócio.
 
-A estrutura segue boas práticas para um projeto acadêmico de comparação: serviços separados por linguagem, execução independente por API, contratos consistentes, dados em memória reiniciáveis e scripts automatizados para testes e gráficos. As APIs HTTP usam servidores minimalistas nas duas linguagens para reduzir diferenças de framework. O SOAP inclui validações e reprocessamento de XML para representar melhor o custo típico desse modelo. O gRPC usa a toolchain de Protocol Buffers em vez de serialização manual.
+As APIs HTTP usam servidores minimalistas nas duas linguagens para reduzir diferenças de framework. O SOAP inclui validações e reprocessamento de XML para representar melhor o custo típico desse modelo. O gRPC usa a toolchain de Protocol Buffers em vez de serialização manual.
 
 ## Estrutura
 
@@ -432,7 +432,7 @@ Cada tecnologia executa os mesmos cenários de leitura geral:
 - `listar-musicas-playlist`: lista os dados de todas as músicas de uma determinada playlist.
 - `listar-playlists-musica`: lista os dados de todas as playlists que contêm uma determinada música.
 
-O CRUD completo continua disponível nas APIs para uso manual, mas a bateria do Locust usa apenas essas consultas de leitura para forçar respostas maiores com a massa em memória. A massa também foi ajustada para que os cenários filtrados não sejam pequenos demais: o usuário `u1` possui 300 playlists, a playlist `p1` possui 300 músicas e a música `s1` aparece em 300 playlists.
+O CRUD completo continua disponível nas APIs para uso manual, mas a bateria do Locust usa apenas essas consultas de leitura para forçar respostas maiores com a massa em memória. Nessa massa, o usuário `u1` possui 300 playlists, a playlist `p1` possui 300 músicas e a música `s1` aparece em 300 playlists.
 
 O `locustfile.py` não define pausas artificiais entre tarefas. Os usuários virtuais executam chamadas continuamente durante o tempo do teste.
 
@@ -481,9 +481,9 @@ O gráfico abaixo consolida as cargas de 50, 250 e 500 usuários e também conso
 
 ![Tamanho médio geral por endpoint e API](results/charts/locust-content-size-geral.png)
 
-O resultado mostra que `listar-musicas`, `listar-playlists` e `listar-usuarios` tendem a retornar os maiores volumes porque entregam coleções completas da base em memória. Os cenários filtrados de playlist também foram aumentados para ficarem na casa das centenas: `listar-playlists-usuario` retorna 300 playlists do usuário `u1`, `listar-musicas-playlist` retorna 300 músicas da playlist `p1` e `listar-playlists-musica` retorna 300 playlists que contêm a música `s1`. Assim, eles passam a pesar de forma mais justa nas médias finais de latência e vazão.
+O resultado mostra que `listar-musicas`, `listar-playlists` e `listar-usuarios` retornam coleções completas da base em memória, enquanto `listar-playlists-usuario`, `listar-musicas-playlist` e `listar-playlists-musica` retornam coleções filtradas com 300 itens. Esses cenários filtrados têm peso relevante nas médias finais de latência e vazão.
 
-As diferenças entre APIs vêm principalmente do formato de serialização. REST e GraphQL usam JSON textual, então carregam nomes de campos repetidos em cada objeto; GraphQL ainda envolve a resposta dentro de uma estrutura de resultado da consulta. SOAP tende a ser o maior porque adiciona envelope XML, namespaces e tags de abertura e fechamento, o que aumenta bastante o texto trafegado, principalmente nas respostas grandes. gRPC fica menor porque usa Protocol Buffers em formato binário, sem repetir nomes de campos textuais em cada item da lista. Por isso, mesmo quando o gRPC Python teve latência alta por custo de implementação e concorrência, o tamanho retornado por ele continua menor na comparação de payload.
+As diferenças entre APIs vêm principalmente do formato de serialização. REST e GraphQL usam JSON textual e ficam muito próximos em tamanho; GraphQL adiciona uma estrutura de resposta própria, mas o peso dominante ainda são os objetos retornados. SOAP é o maior payload por causa do envelope XML, namespaces e tags repetidas. gRPC é o menor porque usa Protocol Buffers em formato binário: por exemplo, na média geral, `listar-musicas` fica em aproximadamente 49,7 KB no REST/GraphQL, 70,0 KB no SOAP e 23,8 KB no gRPC. Essa diferença de tamanho ajuda a explicar o desempenho de latência do gRPC em vários cenários.
 
 ### Carga leve: 50 usuários virtuais
 
@@ -493,18 +493,16 @@ As diferenças entre APIs vêm principalmente do formato de serialização. REST
 
 | Tecnologia | Python req/s | JavaScript req/s | Python p95 | JavaScript p95 |
 | ---------- | -----------: | ---------------: | ---------: | -------------: |
-| REST       |       322,99 |           516,00 |      35 ms |          19 ms |
-| GraphQL    |        67,17 |           366,59 |     232 ms |          32 ms |
-| SOAP       |        53,82 |            66,02 |     384 ms |         222 ms |
-| gRPC       |       305,57 |         1.020,42 |      40 ms |          13 ms |
+| REST       |       206,41 |           405,86 |      99 ms |          24 ms |
+| GraphQL    |        26,64 |           176,15 |     820 ms |          74 ms |
+| SOAP       |        13,93 |            17,57 |   1.400 ms |         498 ms |
+| gRPC       |       150,68 |           453,49 |      62 ms |          23 ms |
 
-Com 50 usuários, a diferença entre as tecnologias já aparece mesmo antes de o sistema entrar em saturação forte. No JavaScript, o gRPC foi o melhor resultado geral, com 1.020,42 req/s e p95 de 13 ms. Isso é coerente com o uso de HTTP/2, chamadas unary e Protocol Buffers, que reduzem payload textual e custo de parsing. O REST JavaScript também ficou forte, com 516,00 req/s e p95 de 19 ms, porque usa `node:http` diretamente e apenas serializa JSON, sem uma camada de framework pesada.
+Com 50 usuários, o JavaScript mostra o comportamento esperado para gRPC em vazão: 453,49 req/s contra 405,86 req/s do REST. A latência p95 também fica praticamente empatada, com pequena vantagem para o gRPC: 23 ms contra 24 ms. Isso indica que, em baixa concorrência, o custo extra da pilha gRPC é compensado pelo payload binário menor e pelo uso de HTTP/2.
 
-No Python, REST e gRPC ficaram próximos em vazão: 322,99 req/s no REST e 305,57 req/s no gRPC. O REST se beneficia de uma rota direta, JSON simples e pouca mediação entre HTTP e domínio. Já o gRPC Python usa `grpcio`, mas cada resposta passa pela construção explícita de objetos protobuf em Python, como listas de `User`, `Song` e `Playlist`; esse custo de alocação aparece mesmo com uma serialização binária eficiente.
+No Python, a leitura é mais sutil. O REST ainda conclui mais requisições por segundo, com 206,41 req/s contra 150,68 req/s do gRPC. Porém, em latência p95, o gRPC é melhor: 62 ms contra 99 ms. Ou seja, o REST Python tem maior vazão média, mas o gRPC entrega uma cauda de latência menor para a maior parte dos endpoints.
 
-O ponto mais chamativo da carga leve é o GraphQL Python: 67,17 req/s e p95 de 232 ms, contra 366,59 req/s e 32 ms no JavaScript. As duas versões usam execução síncrona de GraphQL, mas no Python a biblioteca `graphql-core` faz parsing, validação, execução do schema e resolução de campos em cima de objetos Python a cada requisição. Como esse trabalho é majoritariamente CPU-bound e ocorre dentro de threads do `ThreadingHTTPServer`, o GIL limita o ganho de paralelismo efetivo. No JavaScript, a biblioteca `graphql` roda sobre V8, e o servidor `node:http` mantém muitas conexões concorrentes com menos custo por conexão.
-
-SOAP foi a tecnologia mais custosa nas duas linguagens. Mesmo em 50 usuários, o Python ficou em 53,82 req/s e 384 ms de p95; o JavaScript ficou em 66,02 req/s e 222 ms. Isso reflete a verbosidade do XML e o custo adicional implementado no projeto: o servidor valida envelope, namespace, operação, campos e ainda executa passagens de canonicalização configuradas por `SOAP_COMPLEXITY_PASSES`. A implementação JavaScript usa bastante manipulação de string e expressões regulares, que o V8 costuma otimizar bem; a versão Python usa `ElementTree` e cria árvores XML para requisição e resposta, o que aumenta o custo.
+GraphQL e SOAP já aparecem como os caminhos mais pesados. GraphQL Python fica em apenas 26,64 req/s e p95 de 820 ms, muito distante da versão JavaScript. SOAP é o mais lento nas duas linguagens, principalmente pelo custo de XML e validação.
 
 ### Carga média: 250 usuários virtuais
 
@@ -514,18 +512,16 @@ SOAP foi a tecnologia mais custosa nas duas linguagens. Mesmo em 50 usuários, o
 
 | Tecnologia | Python req/s | JavaScript req/s | Python p95 | JavaScript p95 |
 | ---------- | -----------: | ---------------: | ---------: | -------------: |
-| REST       |       399,97 |           486,57 |      68 ms |          43 ms |
-| GraphQL    |        66,80 |           357,28 |     858 ms |          80 ms |
-| SOAP       |        50,48 |            65,64 |   1.560 ms |         762 ms |
-| gRPC       |       310,57 |         1.028,82 |     202 ms |          58 ms |
+| REST       |       175,69 |           399,37 |   1.003 ms |          49 ms |
+| GraphQL    |        24,86 |           178,93 |   3.350 ms |         278 ms |
+| SOAP       |        12,61 |            17,70 |   6.983 ms |       2.533 ms |
+| gRPC       |       150,73 |           452,71 |     363 ms |         127 ms |
 
-Com 250 usuários, a diferença principal deixa de ser apenas vazão e passa a ser estabilidade sob concorrência. O JavaScript gRPC manteve praticamente o mesmo patamar de vazão, subindo para 1.028,82 req/s, com p95 de 58 ms. Isso indica que, nessa faixa, o servidor ainda não chegou ao mesmo gargalo visto nas versões Python. O REST JavaScript também permaneceu alto, com 486,57 req/s e 43 ms, enquanto o GraphQL JavaScript teve queda moderada para 357,28 req/s e p95 de 80 ms.
+Com 250 usuários, o efeito da concorrência fica claro. No Python, REST ainda tem maior vazão que gRPC, mas a latência p95 sobe para 1.003 ms. O gRPC mantém praticamente a mesma vazão da carga leve, 150,73 req/s, mas com p95 de 363 ms. Assim, mesmo processando menos requisições por segundo que REST, o gRPC Python responde com menor latência de cauda sob carga média.
 
-No Python, REST subiu para 399,97 req/s, mas já com p95 de 68 ms. Esse aumento em relação à carga leve pode ocorrer porque a carga maior mantém o servidor mais ocupado e reduz períodos ociosos, mas o ganho para aí: o teste passa a se aproximar do limite prático do servidor HTTP minimalista e da serialização JSON em Python.
+No JavaScript, o gRPC passa o REST com folga em vazão: 452,71 req/s contra 399,37 req/s. Porém, a latência p95 do gRPC sobe para 127 ms, enquanto o REST fica em 49 ms. Isso mostra que, nessa implementação Node.js, o gRPC prioriza maior volume concluído por segundo, mas acumula mais tempo de espera na cauda quando a concorrência aumenta.
 
-GraphQL Python praticamente não aumentou a vazão: foi de 67,17 req/s para 66,80 req/s. A latência, porém, subiu de 232 ms para 858 ms. Esse é um sinal clássico de saturação: o servidor atinge sua capacidade de processamento por segundo, e as requisições excedentes passam a esperar mais tempo na fila. O mesmo padrão aparece no SOAP Python, que caiu para 50,48 req/s e teve p95 de 1.560 ms. Ou seja, aumentar usuários não gerou mais trabalho concluído por segundo; gerou espera.
-
-O gRPC Python ficou em 310,57 req/s e p95 de 202 ms. Ele mantém boa vazão frente a GraphQL e SOAP, mas se distancia muito do JavaScript. Um fator específico da implementação é o uso de um pool de workers no servidor Python: quando muitos usuários concorrem, as chamadas que excedem a capacidade momentânea desse pool aguardam. Além disso, a conversão manual dos dicionários do domínio para mensagens protobuf cria muitos objetos por resposta, o que pressiona CPU, memória e coletor de lixo.
+GraphQL Python e SOAP Python entram em saturação forte. A vazão quase não cresce com mais usuários, e a latência sobe muito. O mesmo padrão aparece no SOAP JavaScript, que mantém vazão perto de 17 req/s e p95 acima de 2,5 s.
 
 ### Carga alta: 500 usuários virtuais
 
@@ -535,41 +531,33 @@ O gRPC Python ficou em 310,57 req/s e p95 de 202 ms. Ele mantém boa vazão fren
 
 | Tecnologia | Python req/s | JavaScript req/s | Python p95 | JavaScript p95 |
 | ---------- | -----------: | ---------------: | ---------: | -------------: |
-| REST       |       402,28 |           479,13 |      70 ms |          46 ms |
-| GraphQL    |        64,57 |           346,08 |   1.620 ms |          83 ms |
-| SOAP       |        50,59 |            65,66 |   2.180 ms |         814 ms |
-| gRPC       |       309,05 |         1.029,02 |     394 ms |         110 ms |
+| REST       |       171,51 |           384,15 |   1.350 ms |          52 ms |
+| GraphQL    |        23,51 |           176,76 |   3.117 ms |         500 ms |
+| SOAP       |        11,66 |            17,47 |   9.267 ms |       2.650 ms |
+| gRPC       |       149,78 |           465,30 |     720 ms |         210 ms |
 
-Com 500 usuários, os limites ficam bem nítidos. JavaScript gRPC continuou como melhor opção, com 1.029,02 req/s e p95 de 110 ms. Mesmo com aumento de latência em relação à carga média, ele sustentou a vazão. O REST JavaScript também se manteve estável, com 479,13 req/s e p95 de 46 ms. GraphQL JavaScript caiu pouco em vazão, para 346,08 req/s, e manteve p95 de 83 ms, valor muito menor que o GraphQL Python.
+Com 500 usuários, o gRPC se confirma como melhor opção de latência no Python entre REST e gRPC. O REST ainda tem mais vazão, 171,51 req/s contra 149,78 req/s, mas seu p95 chega a 1.350 ms. O gRPC fica em 720 ms, quase metade da latência p95 do REST. Esse resultado combina com a redução de payload e com a serialização binária, que passam a pesar mais quando cada endpoint retorna centenas de objetos.
 
-No Python, REST ficou praticamente no mesmo patamar da carga média: 402,28 req/s e p95 de 70 ms. Esse é um resultado importante, porque mostra que REST foi a opção Python mais equilibrada para esse conjunto de consultas: simples, previsível e com latência controlada. O gRPC Python manteve cerca de 309,05 req/s, mas a latência p95 subiu para 394 ms. A vazão estável com latência crescente sugere que a pilha consegue processar uma quantidade parecida de chamadas por segundo, mas com mais tempo de espera sob concorrência.
+No JavaScript, o gRPC é a melhor tecnologia em vazão: 465,30 req/s, acima do REST com 384,15 req/s. Ainda assim, o REST mantém a menor latência p95 entre as APIs JavaScript principais, com 52 ms contra 210 ms do gRPC. Portanto, em JavaScript, a conclusão depende da métrica: gRPC vence em volume de requisições por segundo, REST vence em latência de cauda na carga alta.
 
-#### Por que REST superou gRPC no Python?
+GraphQL continua intermediário no JavaScript e problemático no Python. SOAP permanece como a tecnologia mais cara em todos os cenários, com p95 muito alto, especialmente no Python, onde chega a 9.267 ms na carga alta.
 
-Embora gRPC normalmente seja associado a maior eficiência por usar HTTP/2 e Protocol Buffers, esse ganho não aparece automaticamente em qualquer implementação. Nesta versão Python, o REST percorre um caminho muito curto: a rota chama o domínio, recebe listas de dicionários e usa `json.dumps` para enviar a resposta. Como os dados já estão em estruturas nativas do Python, há pouca adaptação entre a regra de negócio e a resposta HTTP.
+#### gRPC x REST
 
-No gRPC Python, o caminho é mais trabalhoso. Depois que o domínio retorna os mesmos dicionários, o servidor precisa construir explicitamente mensagens protobuf para cada item retornado, como `User`, `Song` e `Playlist`. Em chamadas que retornam coleções grandes, como listagem de músicas e usuários, isso cria muitos objetos Python antes da serialização binária acontecer. Ou seja, mesmo que o payload final seja menor e mais eficiente na rede, existe um custo local de montagem das mensagens que pesa bastante neste cenário.
+Com os endpoints filtrados retornando 300 itens, o gRPC se destaca principalmente em latência no Python e em vazão no JavaScript.
 
-Outro fator é a concorrência. O servidor gRPC Python usa um pool de workers para executar chamadas simultâneas. Quando o número de usuários virtuais cresce, as chamadas que excedem a capacidade momentânea desse pool ficam aguardando, e a latência p95 aumenta mesmo quando a vazão permanece quase constante. Esse comportamento indica saturação: o sistema continua concluindo uma quantidade parecida de requisições por segundo, mas cada requisição passa mais tempo esperando sua vez.
+No Python, o REST venceu o gRPC em vazão em todos os seis endpoints e nas três cargas. Porém, o gRPC venceu o REST em p95 em 17 das 18 combinações de endpoint e carga; a única exceção foi praticamente um empate em `listar-usuarios` com 50 usuários. Isso significa que o REST Python ainda processa mais requisições por segundo, mas o gRPC Python entrega respostas mais estáveis na cauda quando a carga cresce. Para uma análise de "rapidez" baseada em latência percebida, o gRPC ficou melhor na maior parte dos cenários Python.
 
-Assim, o resultado não contradiz a vantagem teórica do gRPC. Ele mostra que, neste projeto, o REST Python teve uma implementação mais direta e barata para consultas em memória, enquanto o gRPC Python pagou mais custo de adaptação, alocação de objetos e concorrência. A própria versão JavaScript confirma essa leitura: nela, gRPC ficou muito acima do REST, porque a pilha `@grpc/grpc-js` e o runtime Node.js lidaram melhor com chamadas concorrentes e serialização nesse formato.
+No JavaScript, o gRPC venceu o REST em vazão em todas as 18 combinações de endpoint e carga. Em baixa carga, a latência p95 ficou empatada ou levemente melhor para o gRPC. Em 250 e 500 usuários, porém, o REST manteve p95 menor. Assim, no JavaScript, o gRPC é a melhor escolha para throughput, enquanto REST é mais previsível quando o critério principal é p95 sob alta concorrência.
 
-GraphQL Python chegou ao pior descolamento entre linguagens: 64,57 req/s e p95 de 1.620 ms, contra 346,08 req/s e 83 ms no JavaScript. Isso reforça que o custo não vem apenas do protocolo GraphQL em si, mas da combinação entre biblioteca, runtime, modelo de concorrência e volume de objetos processados por consulta. As consultas retornam coleções relativamente grandes da base em memória, e o GraphQL precisa percorrer o schema e resolver campos para cada item retornado. Em Python, esse trabalho envolve muitas chamadas pequenas e alocações; em JavaScript, a execução síncrona também existe, mas o V8 e o servidor HTTP do Node lidaram melhor com esse tipo de carga.
-
-SOAP Python foi o caso mais pesado: 50,59 req/s e p95 de 2.180 ms. SOAP JavaScript também foi limitado, com 65,66 req/s e 814 ms, mas sofreu menos. A proximidade de vazão entre Python e JavaScript em SOAP mostra que o formato XML e as validações dominam o custo total, reduzindo o espaço para ganhos de runtime. Ainda assim, a latência Python cresceu mais porque cada requisição faz parsing e validação XML em estruturas de objetos, enquanto a versão JavaScript usa um caminho mais baseado em strings.
+Essa diferença mostra por que é importante analisar vazão e latência juntas. Uma tecnologia pode concluir mais requisições por segundo e, ao mesmo tempo, ter p95 maior se houver mais espera na cauda. Como as respostas têm centenas de itens, o menor payload do gRPC tem impacto direto na comparação.
 
 ## Conclusão
 
-Os resultados indicam três grupos de comportamento. O primeiro é o das APIs com baixo overhead de protocolo, especialmente REST e gRPC. REST foi muito competitivo por usar HTTP e JSON de forma direta; gRPC foi superior no JavaScript por combinar payload binário, contrato forte e uma implementação eficiente da pilha gRPC para Node.js. O segundo grupo é o GraphQL: ele oferece flexibilidade ao cliente, mas cobra esse benefício com parsing da query, validação do schema, execução do plano e resolução de campos. Esse custo ficou aceitável no JavaScript e muito alto no Python. O terceiro grupo é o SOAP, no qual XML, envelope, validação e payload textual dominaram o tempo de processamento.
+Nos resultados medidos, o gRPC é muito competitivo e supera REST em recortes importantes. No Python, o principal ganho do gRPC aparece na latência p95: mesmo com vazão menor que REST, ele respondeu mais rápido na cauda em quase todos os cenários. No JavaScript, o principal ganho aparece na vazão: gRPC foi a tecnologia com maior número de requisições por segundo nas três cargas, superando REST em todos os endpoints testados.
 
-As versões foram aproximadas em nível de implementação: as APIs REST, GraphQL e SOAP usam servidores HTTP minimalistas nas duas linguagens, sem frameworks web completos, e compartilham a mesma massa de dados em memória. Essa escolha ajuda a comparar o custo das tecnologias de invocação, mas também evidencia uma diferença importante entre os runtimes. No JavaScript, o `node:http` é naturalmente orientado a eventos e assíncrono, conseguindo manter muitas conexões abertas com baixa sobrecarga por requisição. No Python, o `ThreadingHTTPServer` cria um modelo baseado em múltiplas threads, que funciona bem para casos simples, mas sofre mais quando a requisição exige muito trabalho de CPU, alocação de objetos ou parsing pesado.
+REST continua sendo uma opção muito forte. No Python, ele manteve a maior vazão entre REST e gRPC, embora com p95 pior quando a carga aumentou. No JavaScript, REST teve vazão menor que gRPC, mas apresentou latência p95 mais estável nas cargas média e alta. Isso reforça que REST é simples, direto e previsível, especialmente quando a implementação usa servidores HTTP minimalistas e JSON sem camadas extras.
 
-Essa diferença de concorrência aparece com força em GraphQL e SOAP. No GraphQL Python, cada chamada passa por parsing da consulta, validação do schema, execução síncrona e resolução dos campos retornados. Como essas etapas são principalmente CPU-bound, várias threads não significam paralelismo pleno por causa do GIL, e o aumento de usuários passa a gerar fila. Por isso a vazão do GraphQL Python fica praticamente parada entre 50, 250 e 500 usuários, enquanto a latência p95 sobe de 232 ms para 858 ms e depois 1.620 ms. No SOAP Python ocorre algo parecido: o parsing XML, a criação de árvores com `ElementTree`, a validação do envelope e as passagens de canonicalização tornam cada requisição mais pesada; a vazão fica perto de 50 req/s, enquanto o p95 cresce até 2.180 ms na carga alta.
+GraphQL teve comportamento mais sensível ao runtime. No JavaScript, manteve vazão intermediária e latência aceitável em baixa carga, mas perdeu estabilidade conforme os usuários aumentaram. No Python, ficou muito limitado, porque cada requisição exige parsing da consulta, validação do schema, execução e resolução de campos em muitos objetos. SOAP foi a tecnologia mais pesada no conjunto geral, principalmente pelo XML, envelope, namespaces, validações e maior volume textual trafegado.
 
-No JavaScript, essas mesmas APIs também pagam custos de protocolo, mas o runtime absorve melhor a concorrência do teste. O Node.js mantém o gerenciamento de conexões e eventos em uma pilha otimizada, e o V8 tende a executar bem manipulação de JSON, strings e objetos de curta duração. Isso ajuda a explicar por que o GraphQL JavaScript sustentou 366,59 req/s em 50 usuários, 357,28 req/s em 250 e 346,08 req/s em 500, mantendo p95 abaixo de 83 ms na carga alta. Ainda assim, o SOAP JavaScript continuou limitado, porque XML e validações pesadas são caros em qualquer runtime; a diferença é que a degradação de latência foi menor do que no Python.
-
-Também é importante notar que vazão e latência contam histórias complementares. Quando a vazão fica praticamente constante e a latência cresce muito, como ocorreu em GraphQL Python e SOAP Python, o sistema está saturado. Ele não consegue concluir muito mais requisições por segundo; em vez disso, acumula espera. Já JavaScript gRPC manteve vazão próxima de 1.020 req/s a 1.029 req/s nas três cargas, com aumento gradual de p95 de 13 ms para 58 ms e depois 110 ms, sinal de maior folga operacional.
-
-Esses resultados não significam que JavaScript será sempre mais rápido nem que Python seja inadequado para serviços remotos. Eles mostram que, nesta implementação minimalista, com Locust gerando muitas chamadas curtas, respostas em memória e bastante serialização, o modelo de execução do Node.js foi mais favorável. Em uma aplicação real, frameworks assíncronos em Python, uso de múltiplos processos, cache de queries GraphQL, limitação de complexidade de consultas, serialização otimizada e ajustes no servidor poderiam mudar parte desse cenário.
-
-Por fim, os números reforçam uma conclusão prática: se o objetivo principal for simplicidade e previsibilidade, REST apresentou bom equilíbrio nas duas linguagens. Se o objetivo for máxima vazão entre serviços, gRPC foi a melhor escolha, especialmente em JavaScript. GraphQL é útil quando o cliente precisa controlar a forma dos dados, mas precisa de cuidado com custo de execução, cache, complexidade de queries e otimização dos resolvers. SOAP manteve valor como modelo formal e compatível com integrações legadas, mas foi o mais caro para esse cenário de alto volume de chamadas.
+A conclusão prática é que não existe um vencedor único para todos os critérios. Se o foco for maior vazão entre serviços, gRPC foi a melhor escolha, principalmente no JavaScript. Se o foco for menor latência p95 no Python, gRPC também é mais vantajoso que REST nesta massa de dados. Se o foco for simplicidade e boa previsibilidade, REST continua muito competitivo. GraphQL é útil quando o cliente precisa controlar exatamente os campos retornados, mas cobra custo de execução. SOAP permanece adequado para contextos legados e formais, mas foi o mais caro para esse cenário de alto volume de chamadas.
