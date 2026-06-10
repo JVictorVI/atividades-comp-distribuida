@@ -69,6 +69,8 @@ SOAP:
 - O custo extra de processamento XML pode ser ajustado com `SOAP_COMPLEXITY_PASSES`.
 - Endpoints locais: `http://localhost:3002/soap` em Python e `http://localhost:3102/soap` em JavaScript.
 
+O contrato SOAP foi mantido equivalente nas duas linguagens: mesmo namespace, mesmas operações, mesmas regras de campos e mesmo formato de envelope/resposta. O SOAP foi implementado manualmente no código, sem bibliotecas específicas como zeep, spyne, node-soap ou strong-soap; por isso é esperado que o XML retornado por Python e JavaScript seja praticamente igual, enquanto as diferenças aparecem nas métricas de desempenho.
+
 gRPC:
 
 - Implementado com `grpcio` em Python e com `@grpc/grpc-js` na versão JavaScript.
