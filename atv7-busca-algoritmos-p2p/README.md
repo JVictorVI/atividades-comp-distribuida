@@ -124,13 +124,13 @@ Assim como no `flooding`, encontrar o recurso não interrompe toda a propagaçã
 
 ### Random Walk
 
-A busca por passeio aleatório escolhe apenas um vizinho por vez. Ela gera menos mensagens que o flooding, mas pode não encontrar o recurso mesmo quando ele existe na rede, porque o caminho depende das escolhas aleatórias e do TTL.
+A busca por passeio aleatório escolhe apenas um vizinho por vez. Quando chega a um nó sem vizinhos ainda não visitados, ela faz backtracking pelo caminho já percorrido para tentar outra ramificação. Cada avanço ou retorno conta como mensagem, mas apenas avanços para vizinhos ainda não visitados consomem TTL.
 
 No terminal, é possível informar `--seed` para repetir uma execução. Na interface, a seed é escolhida automaticamente por baixo dos panos. O botão `Novo exemplo random` sorteia outra execução para os algoritmos random.
 
 ### Informed Random Walk
 
-Funciona como o `random_walk`, mas os nós visitados também consultam o cache local antes de sortear o próximo vizinho. Se um cache indicar onde está o recurso, o nó intermediário responde diretamente ao solicitante e a simulação mostra a conexão direta até o nó final.
+Funciona como o `random_walk`, incluindo o backtracking, mas os nós visitados também consultam o cache local antes de sortear o próximo vizinho. Se um cache indicar onde está o recurso, o nó intermediário responde diretamente ao solicitante e a simulação mostra a conexão direta até o nó final.
 
 ## Como executar
 

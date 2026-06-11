@@ -971,6 +971,7 @@ function searchRandomWalk(network, cachesMap, cacheSnapshot, options) {
   const rng = makeRng(options.seed);
   let current = options.start;
   const path = [options.start];
+  const stack = [options.start];
   const involved = new Set([options.start]);
   const visited = new Set([options.start]);
   let messages = 0;
@@ -1031,46 +1032,54 @@ function searchRandomWalk(network, cachesMap, cacheSnapshot, options) {
       });
     }
 
-    if (remainingTtl === 0) {
-      return makeFailure({
-        searchId: options.searchId,
-        algorithm: options.algorithm,
-        start: options.start,
-        resourceId: options.resourceId,
-        ttl: options.ttl,
-        ignoreCache: options.ignoreCache,
-        messages,
-        involved,
-        path,
-        events,
-        cacheSnapshot,
-      });
-    }
-
     const neighbors = Array.from(network.adjacency.get(current) || [])
       .filter((neighbor) => !visited.has(neighbor))
       .sort(compareNodeIds);
-    if (neighbors.length === 0) {
-      return makeFailure({
-        searchId: options.searchId,
-        algorithm: options.algorithm,
-        start: options.start,
-        resourceId: options.resourceId,
-        ttl: options.ttl,
-        ignoreCache: options.ignoreCache,
-        messages,
-        involved,
-        path,
-        events,
-        cacheSnapshot,
-      });
+    const previous = current;
+    let nextEventTtl = remainingTtl;
+    if (neighbors.length > 0) {
+      if (remainingTtl === 0) {
+        return makeFailure({
+          searchId: options.searchId,
+          algorithm: options.algorithm,
+          start: options.start,
+          resourceId: options.resourceId,
+          ttl: options.ttl,
+          ignoreCache: options.ignoreCache,
+          messages,
+          involved,
+          path,
+          events,
+          cacheSnapshot,
+        });
+      }
+      current = neighbors[Math.floor(rng() * neighbors.length)];
+      stack.push(current);
+      visited.add(current);
+      nextEventTtl = remainingTtl - 1;
+      remainingTtl -= 1;
+    } else {
+      if (stack.length === 1) {
+        return makeFailure({
+          searchId: options.searchId,
+          algorithm: options.algorithm,
+          start: options.start,
+          resourceId: options.resourceId,
+          ttl: options.ttl,
+          ignoreCache: options.ignoreCache,
+          messages,
+          involved,
+          path,
+          events,
+          cacheSnapshot,
+        });
+      }
+      stack.pop();
+      current = stack[stack.length - 1];
     }
 
-    const previous = current;
-    current = neighbors[Math.floor(rng() * neighbors.length)];
     path.push(current);
     involved.add(current);
-    visited.add(current);
     messages += 1;
     addEvent(
       events,
@@ -1080,9 +1089,8 @@ function searchRandomWalk(network, cachesMap, cacheSnapshot, options) {
       previous,
       current,
       options.resourceId,
-      remainingTtl - 1,
+      nextEventTtl,
     );
-    remainingTtl -= 1;
   }
 }
 
@@ -1189,6 +1197,7 @@ function topologyLayout(nodes, edges, width = 1080, height = 700) {
     position.x = Math.round(position.x * 100) / 100;
     position.y = Math.round(position.y * 100) / 100;
   }
+
   return positions;
 }
 

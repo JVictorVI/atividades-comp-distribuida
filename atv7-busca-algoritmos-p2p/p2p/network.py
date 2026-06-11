@@ -426,6 +426,7 @@ class P2PNetwork:
         use_cache = algorithm == "informed_random_walk" and not ignore_cache
         current = start
         path = [start]
+        stack = [start]
         involved = {start}
         visited = {start}
         messages = 0
@@ -464,52 +465,58 @@ class P2PNetwork:
                     events,
                     cache_snapshot,
                 )
-            # Se não encontrado e o TTL acabou, termina com falha
-            if remaining_ttl == 0:
-                return self._failure(
-                    search_id,
-                    algorithm,
-                    start,
-                    resource_id,
-                    ttl,
-                    ignore_cache,
-                    messages,
-                    involved,
-                    path,
-                    events,
-                    cache_snapshot,
-                )
-
-            # Seleciona aleatoriamente um vizinho não visitado para o próximo passo
+            # Seleciona aleatoriamente um vizinho não visitado para o próximo passo.
+            # Se não houver, volta pelo caminho percorrido e tenta outra ramificação.
             neighbors = [neighbor for neighbor in sorted(self.adjacency[current]) if neighbor not in visited]
-            
-            # Se não houver vizinhos disponíveis, termina com falha
-            if not neighbors:
-                return self._failure(
-                    search_id,
-                    algorithm,
-                    start,
-                    resource_id,
-                    ttl,
-                    ignore_cache,
-                    messages,
-                    involved,
-                    path,
-                    events,
-                    cache_snapshot,
-                )
 
-            # Move para o próximo nó
             previous = current
-            # A escolha aleatória é feita entre os vizinhos não visitados para evitar ciclos desnecessários
-            current = rng.choice(neighbors)
-            # Atualiza o caminho, os envolvidos, os visitados e os eventos de mensagem
+            if neighbors:
+                # Avançar para outro nó depende do TTL; voltar por backtracking não depende.
+                if remaining_ttl == 0:
+                    return self._failure(
+                        search_id,
+                        algorithm,
+                        start,
+                        resource_id,
+                        ttl,
+                        ignore_cache,
+                        messages,
+                        involved,
+                        path,
+                        events,
+                        cache_snapshot,
+                    )
+                # A escolha aleatória é feita entre os vizinhos não visitados para evitar ciclos desnecessários
+                current = rng.choice(neighbors)
+                stack.append(current)
+                visited.add(current)
+                next_event_ttl = remaining_ttl - 1
+                remaining_ttl -= 1
+            else:
+                # Se chegou ao início sem vizinhos novos, todo o componente alcançável foi explorado
+                if len(stack) == 1:
+                    return self._failure(
+                        search_id,
+                        algorithm,
+                        start,
+                        resource_id,
+                        ttl,
+                        ignore_cache,
+                        messages,
+                        involved,
+                        path,
+                        events,
+                        cache_snapshot,
+                    )
+                stack.pop()
+                current = stack[-1]
+                next_event_ttl = remaining_ttl
+
+            # Atualiza o caminho, os envolvidos e os eventos de mensagem
             path.append(current)
             # O nó atual é considerado envolvido mesmo que já tenha sido visitado antes, pois ele participa da busca
             involved.add(current)
-            # O nó atual só é marcado como visitado na primeira vez que é alcançado, permitindo que ele seja escolhido novamente se for necessário voltar a ele por outro caminho
-            visited.add(current)
-            # Cada movimento para um vizinho conta como uma mensagem, mesmo que seja para um nó já visitado, pois representa uma tentativa de busca naquele nó
+            # Cada movimento conta como mensagem; apenas os avanços consomem TTL
             messages += 1
             # O número da rodada é baseado no comprimento do caminho, representando quantos saltos foram dados desde o início. Isso é útil para análise posterior dos eventos.
             round_number = len(path) - 1
@@ -522,9 +529,8 @@ class P2PNetwork:
                 previous,
                 current,
                 resource_id,
-                remaining_ttl - 1,
+                next_event_ttl,
             )
-            remaining_ttl -= 1
 
     # Verifica se o recurso está disponível no nó ou em seu cache (se permitido) e retorna o detentor real e a origem da informação
     def _lookup(self, node: str, resource_id: str, use_cache: bool) -> Tuple[Optional[str], Optional[str]]:
