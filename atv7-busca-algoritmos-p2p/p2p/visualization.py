@@ -58,79 +58,110 @@ def circular_layout(nodes: Sequence[str], width: int = 960, height: int = 620) -
         }
     return positions
 
-# Calcula um layout fixo usando apenas a topologia da rede, aplicando um algoritmo de força dirigida para posicionar os nós de forma visualmente agradável.
+
+def _node_sort_key(node: str) -> Tuple[int, int, str]:
+    text = str(node)
+    if text.lower().startswith("n") and text[1:].isdigit():
+        return (0, int(text[1:]), text)
+    return (1, 0, text)
+
+
+def sequential_layers(
+    nodes: Sequence[str],
+    edges: Iterable[Tuple[str, str]],
+    root: str = "n1",
+) -> Sequence[Sequence[str]]:
+    ordered_nodes = sorted(nodes, key=_node_sort_key)
+    if not ordered_nodes:
+        return []
+
+    node_set = set(ordered_nodes)
+    adjacency = {node: set() for node in ordered_nodes}
+    for source, target in edges:
+        if source not in node_set or target not in node_set:
+            continue
+        adjacency[source].add(target)
+        adjacency[target].add(source)
+
+    start = root if root in node_set else ordered_nodes[0]
+    visited = {start}
+    queue = [(start, 0)]
+    layers = [[start]]
+
+    while queue:
+        node, depth = queue.pop(0)
+        for neighbor in sorted(adjacency[node], key=_node_sort_key):
+            if neighbor in visited:
+                continue
+            visited.add(neighbor)
+            next_depth = depth + 1
+            while len(layers) <= next_depth:
+                layers.append([])
+            layers[next_depth].append(neighbor)
+            queue.append((neighbor, next_depth))
+
+    remaining = [node for node in ordered_nodes if node not in visited]
+    if remaining:
+        layers.append(remaining)
+
+    return [sorted(layer, key=_node_sort_key) for layer in layers if layer]
+
+
+def graph_layout_dimensions(
+    nodes: Sequence[str],
+    edges: Iterable[Tuple[str, str]],
+) -> Tuple[int, int]:
+    layers = sequential_layers(nodes, edges)
+    layer_count = max(1, len(layers))
+    widest_layer = max((len(layer) for layer in layers), default=1)
+    width = max(760, 180 + widest_layer * 84)
+    height = max(980, 180 + (layer_count - 1) * 170, round(width * 1.18))
+    return width, height
+
+# Calcula um layout fixo usando a topologia da rede em camadas verticais, a partir de n1.
 def topology_layout(
     nodes: Sequence[str],
     edges: Iterable[Tuple[str, str]],
-    width: int = 1080,
-    height: int = 700,
+    width: int | None = None,
+    height: int | None = None,
 ) -> Dict[str, Dict[str, float]]:
     """Calcula um layout fixo usando apenas a topologia da rede."""
 
-    ordered_nodes = list(nodes)
-    positions = circular_layout(ordered_nodes, width, height)
-    if len(ordered_nodes) <= 2:
-        return positions
-
-    padding = 90
-    usable_width = max(1, width - 2 * padding)
-    usable_height = max(1, height - 2 * padding)
-    area = usable_width * usable_height
-    ideal_distance = math.sqrt(area / len(ordered_nodes))
     edge_list = list(edges)
-    temperature = min(width, height) * 0.12
+    layers = sequential_layers(nodes, edge_list)
+    if not layers:
+        return {}
 
-    for iteration in range(180):
-        displacement = {node: [0.0, 0.0] for node in ordered_nodes}
+    if width is None or height is None:
+        width, height = graph_layout_dimensions(nodes, edge_list)
 
-        for index, node_a in enumerate(ordered_nodes):
-            for node_b in ordered_nodes[index + 1 :]:
-                dx = positions[node_a]["x"] - positions[node_b]["x"]
-                dy = positions[node_a]["y"] - positions[node_b]["y"]
-                distance = max(math.hypot(dx, dy), 0.01)
-                force = (ideal_distance * ideal_distance) / distance
-                displacement[node_a][0] += (dx / distance) * force
-                displacement[node_a][1] += (dy / distance) * force
-                displacement[node_b][0] -= (dx / distance) * force
-                displacement[node_b][1] -= (dy / distance) * force
+    padding_x = 90
+    padding_y = 90
+    usable_width = max(1, width - 2 * padding_x)
+    usable_height = max(1, height - 2 * padding_y)
+    last_layer_index = max(1, len(layers) - 1)
+    positions = {}
 
-        for node_a, node_b in edge_list:
-            dx = positions[node_a]["x"] - positions[node_b]["x"]
-            dy = positions[node_a]["y"] - positions[node_b]["y"]
-            distance = max(math.hypot(dx, dy), 0.01)
-            force = (distance * distance) / ideal_distance
-            displacement[node_a][0] -= (dx / distance) * force
-            displacement[node_a][1] -= (dy / distance) * force
-            displacement[node_b][0] += (dx / distance) * force
-            displacement[node_b][1] += (dy / distance) * force
+    for layer_index, layer in enumerate(layers):
+        y = (
+            height / 2
+            if len(layers) == 1
+            else padding_y + (usable_height * layer_index / last_layer_index)
+        )
+        gap = usable_width / (len(layer) + 1)
+        for node_index, node in enumerate(layer):
+            positions[node] = {
+                "x": round(padding_x + gap * (node_index + 1), 2),
+                "y": round(y, 2),
+            }
 
-        for node in ordered_nodes:
-            dx, dy = displacement[node]
-            distance = max(math.hypot(dx, dy), 0.01)
-            step = min(distance, temperature)
-            positions[node]["x"] = min(
-                width - padding,
-                max(padding, positions[node]["x"] + (dx / distance) * step),
-            )
-            positions[node]["y"] = min(
-                height - padding,
-                max(padding, positions[node]["y"] + (dy / distance) * step),
-            )
-
-        temperature *= 0.96
-        if iteration > 40 and temperature < 0.5:
-            break
-
-    return {
-        node: {"x": round(position["x"], 2), "y": round(position["y"], 2)}
-        for node, position in positions.items()
-    }
+    return positions
 
 # Gera o payload de dados necessário para a visualização, incluindo a topologia da rede, os eventos da busca e o estado dos caches dos nós.
 def build_visualization_payload(network: P2PNetwork, result: SearchResult) -> Dict[str, object]:
-    layout_width = 1080
-    layout_height = 700
-    positions = topology_layout(network.nodes, sorted(network.edges), layout_width, layout_height)
+    edge_list = sorted(network.edges)
+    layout_width, layout_height = graph_layout_dimensions(network.nodes, edge_list)
+    positions = topology_layout(network.nodes, edge_list, layout_width, layout_height)
     resource_holders = sorted(network.resource_locations.get(result.resource_id, []))
     resource_holder = resource_holders[0] if resource_holders else None
     algorithm_uses_cache = result.algorithm in {"informed_flooding", "informed_random_walk"}
@@ -196,7 +227,7 @@ def build_visualization_html(
     css_href: str = "visualization.css",
     js_src: str = "visualization.js",
 ) -> str:
-    title = html_escape(f"P2P Search - {result.algorithm}")
+    title = html_escape(f"Rede P2P")
     css_href = html_escape(css_href)
     js_src = html_escape(js_src)
     return f"""<!doctype html>
@@ -209,7 +240,7 @@ def build_visualization_html(
 </head>
 <body>
   <header>
-    <h1 id="appTitle">Rede P2P - {html_escape(result.algorithm)}</h1>
+    <h1 id="appTitle">Rede P2P</h1>
   </header>
 
   <section class="query-panel" aria-label="Parâmetros da busca">
@@ -241,7 +272,7 @@ def build_visualization_html(
         Ignorar cache
       </label>
       <div class="form-actions">
-        <button type="submit" class="primary">Aplicar alterações</button>
+        <button type="submit" class="primary">Aplicar e iniciar</button>
       </div>
     </form>
     <div class="error-panel hidden" id="errorPanel" role="alert"></div>
@@ -251,7 +282,7 @@ def build_visualization_html(
   <main>
     <section class="graph-panel" aria-label="Visualização do grafo da rede P2P">
       <div class="status pending" id="statusLabel" data-final-status="ENCONTRADO" data-final-class="found">EXPLORANDO</div>
-      <svg id="network" viewBox="0 0 1080 700" role="img" aria-label="Grafo da rede P2P e mensagens da busca"></svg>
+      <svg id="network" viewBox="0 0 760 980" role="img" aria-label="Grafo da rede P2P e mensagens da busca"></svg>
       <div class="controls">
         <button type="button" id="play">Reproduzir animação completa</button>
         <button type="button" id="step">Avançar rodada</button>
@@ -292,7 +323,7 @@ def build_visualization_html(
         </ol>
       </section>
       <section class="mesh-editor" aria-label="Editor da rede">
-        <h2>Arquivo da topologia da Rede</h2>
+        <h2>Topologia da Rede</h2>
         <div class="editor-grid">
           <div class="mesh-numbers">
             <label>Nós

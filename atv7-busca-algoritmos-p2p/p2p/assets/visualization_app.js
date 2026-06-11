@@ -1126,84 +1126,96 @@ function circularLayout(nodes, width, height) {
   return positions;
 }
 
-function topologyLayout(nodes, edges, width = 1080, height = 700) {
-  const orderedNodes = [...nodes];
-  const positions = circularLayout(orderedNodes, width, height);
-  if (orderedNodes.length <= 2) return positions;
+function sequentialGraphLayers(nodes, edges, root = "n1") {
+  const orderedNodes = [...nodes].sort(compareNodeIds);
+  if (orderedNodes.length === 0) return [];
 
-  const padding = 90;
-  const usableWidth = Math.max(1, width - 2 * padding);
-  const usableHeight = Math.max(1, height - 2 * padding);
-  const idealDistance = Math.sqrt(
-    (usableWidth * usableHeight) / orderedNodes.length,
+  const nodeSet = new Set(orderedNodes);
+  const adjacency = new Map(orderedNodes.map((node) => [node, new Set()]));
+  for (const edge of edges) {
+    if (!nodeSet.has(edge.source) || !nodeSet.has(edge.target)) continue;
+    adjacency.get(edge.source).add(edge.target);
+    adjacency.get(edge.target).add(edge.source);
+  }
+
+  const start = nodeSet.has(root) ? root : orderedNodes[0];
+  const visited = new Set([start]);
+  const queue = [{ node: start, depth: 0 }];
+  const layers = [[start]];
+
+  while (queue.length > 0) {
+    const { node, depth } = queue.shift();
+    const neighbors = [...(adjacency.get(node) || [])].sort(compareNodeIds);
+    for (const neighbor of neighbors) {
+      if (visited.has(neighbor)) continue;
+      visited.add(neighbor);
+      const nextDepth = depth + 1;
+      while (layers.length <= nextDepth) layers.push([]);
+      layers[nextDepth].push(neighbor);
+      queue.push({ node: neighbor, depth: nextDepth });
+    }
+  }
+
+  const remaining = orderedNodes.filter((node) => !visited.has(node));
+  if (remaining.length > 0) layers.push(remaining);
+
+  return layers
+    .filter((layer) => layer.length > 0)
+    .map((layer) => [...layer].sort(compareNodeIds));
+}
+
+function graphLayoutDimensions(nodes, edges) {
+  const layers = sequentialGraphLayers(nodes, edges);
+  const layerCount = Math.max(1, layers.length);
+  const widestLayer = Math.max(1, ...layers.map((layer) => layer.length));
+  const width = Math.max(760, 180 + widestLayer * 84);
+  const height = Math.max(
+    980,
+    180 + (layerCount - 1) * 170,
+    Math.round(width * 1.18),
   );
-  let temperature = Math.min(width, height) * 0.12;
+  return { width, height };
+}
 
-  for (let iteration = 0; iteration < 180; iteration += 1) {
-    const displacement = new Map(
-      orderedNodes.map((node) => [node, { x: 0, y: 0 }]),
-    );
+function topologyLayout(nodes, edges, width = null, height = null) {
+  const layers = sequentialGraphLayers(nodes, edges);
+  if (layers.length === 0) return new Map();
 
-    for (let i = 0; i < orderedNodes.length; i += 1) {
-      for (let j = i + 1; j < orderedNodes.length; j += 1) {
-        const nodeA = orderedNodes[i];
-        const nodeB = orderedNodes[j];
-        const posA = positions.get(nodeA);
-        const posB = positions.get(nodeB);
-        const dx = posA.x - posB.x;
-        const dy = posA.y - posB.y;
-        const distance = Math.max(Math.hypot(dx, dy), 0.01);
-        const force = (idealDistance * idealDistance) / distance;
-        displacement.get(nodeA).x += (dx / distance) * force;
-        displacement.get(nodeA).y += (dy / distance) * force;
-        displacement.get(nodeB).x -= (dx / distance) * force;
-        displacement.get(nodeB).y -= (dy / distance) * force;
-      }
-    }
+  const dimensions =
+    width === null || height === null
+      ? graphLayoutDimensions(nodes, edges)
+      : { width, height };
+  const layoutWidth = dimensions.width;
+  const layoutHeight = dimensions.height;
+  const paddingX = 90;
+  const paddingY = 90;
+  const usableWidth = Math.max(1, layoutWidth - 2 * paddingX);
+  const usableHeight = Math.max(1, layoutHeight - 2 * paddingY);
+  const lastLayerIndex = Math.max(1, layers.length - 1);
+  const positions = new Map();
 
-    for (const edge of edges) {
-      const posA = positions.get(edge.source);
-      const posB = positions.get(edge.target);
-      const dx = posA.x - posB.x;
-      const dy = posA.y - posB.y;
-      const distance = Math.max(Math.hypot(dx, dy), 0.01);
-      const force = (distance * distance) / idealDistance;
-      displacement.get(edge.source).x -= (dx / distance) * force;
-      displacement.get(edge.source).y -= (dy / distance) * force;
-      displacement.get(edge.target).x += (dx / distance) * force;
-      displacement.get(edge.target).y += (dy / distance) * force;
-    }
-
-    for (const node of orderedNodes) {
-      const pos = positions.get(node);
-      const delta = displacement.get(node);
-      const distance = Math.max(Math.hypot(delta.x, delta.y), 0.01);
-      const step = Math.min(distance, temperature);
-      pos.x = Math.min(
-        width - padding,
-        Math.max(padding, pos.x + (delta.x / distance) * step),
-      );
-      pos.y = Math.min(
-        height - padding,
-        Math.max(padding, pos.y + (delta.y / distance) * step),
-      );
-    }
-
-    temperature *= 0.96;
-    if (iteration > 40 && temperature < 0.5) break;
-  }
-
-  for (const position of positions.values()) {
-    position.x = Math.round(position.x * 100) / 100;
-    position.y = Math.round(position.y * 100) / 100;
-  }
+  layers.forEach((layer, layerIndex) => {
+    const y =
+      layers.length === 1
+        ? layoutHeight / 2
+        : paddingY + (usableHeight * layerIndex) / lastLayerIndex;
+    const gap = usableWidth / (layer.length + 1);
+    layer.forEach((node, nodeIndex) => {
+      positions.set(node, {
+        x: Math.round((paddingX + gap * (nodeIndex + 1)) * 100) / 100,
+        y: Math.round(y * 100) / 100,
+      });
+    });
+  });
 
   return positions;
 }
 
 function buildPayload(network, result) {
-  const layoutWidth = 1080;
-  const layoutHeight = 700;
+  const { width: layoutWidth, height: layoutHeight } = graphLayoutDimensions(
+    network.nodes,
+    network.edges,
+  );
   const positions = topologyLayout(
     network.nodes,
     network.edges,
@@ -1307,6 +1319,9 @@ function buildFrames(events) {
 }
 
 function buildTopologyGraph() {
+  const nodeIds = data.nodes.map((node) => node.id);
+  const { width, height } = graphLayoutDimensions(nodeIds, data.edges);
+  const positions = topologyLayout(nodeIds, data.edges, width, height);
   const eventEdges = (data.events || []).map((event) => ({
     source: event.source,
     target: event.target,
@@ -1315,11 +1330,14 @@ function buildTopologyGraph() {
   }));
 
   return {
-    nodes: data.nodes,
+    nodes: data.nodes.map((node) => ({
+      ...node,
+      ...(positions.get(node.id) || { x: node.x, y: node.y }),
+    })),
     baseEdges: data.edges,
     eventEdges,
-    width: data.layout.width,
-    height: data.layout.height,
+    width,
+    height,
   };
 }
 
@@ -1480,7 +1498,7 @@ function renderSearchStats() {
 
 function renderDynamicSections() {
   appTitle.textContent = `Rede P2P - ${data.result.algorithm}`;
-  document.title = `P2P Search - ${data.result.algorithm}`;
+  document.title = `Rede P2P`;
   resourceByNode = new Map(data.nodes.map((node) => [node.id, node.resources]));
   frames = buildFrames(data.events || []);
   statusLabel.dataset.finalStatus = data.result.found

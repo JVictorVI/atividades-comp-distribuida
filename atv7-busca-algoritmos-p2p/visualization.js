@@ -1,5 +1,5 @@
-window.P2P_INITIAL_DATA = {"layout": {"width": 1080, "height": 700}, "config": {"num_nodes": 14, "min_neighbors": 2, "max_neighbors": 5}, "uses_cache": false, "has_configured_cache": false, "nodes": [{"id": "n1", "resources": ["r1"], "cache": [{"resource": "r1", "holder": "n1", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 344.54, "y": 90}, {"id": "n2", "resources": ["r2"], "cache": [{"resource": "r2", "holder": "n2", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 575.8, "y": 112.04}, {"id": "n3", "resources": ["r3"], "cache": [{"resource": "r3", "holder": "n3", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 820.62, "y": 334.87}, {"id": "n4", "resources": ["r4"], "cache": [{"resource": "r4", "holder": "n4", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 704.81, "y": 609.29}, {"id": "n5", "resources": ["r5"], "cache": [{"resource": "r5", "holder": "n5", "local": true, "searched": true}], "cache_relevant": false, "cache_used": false, "x": 488.18, "y": 385.59}, {"id": "n6", "resources": ["r6"], "cache": [{"resource": "r13", "holder": "n13", "local": false, "searched": false}, {"resource": "r6", "holder": "n6", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 686.48, "y": 169.79}, {"id": "n7", "resources": ["r7"], "cache": [{"resource": "r7", "holder": "n7", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 660.67, "y": 392.81}, {"id": "n8", "resources": ["r8"], "cache": [{"resource": "r10", "holder": "n10", "local": false, "searched": false}, {"resource": "r13", "holder": "n13", "local": false, "searched": false}, {"resource": "r8", "holder": "n8", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 384.84, "y": 323.41}, {"id": "n9", "resources": ["r9"], "cache": [{"resource": "r9", "holder": "n9", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 442.4, "y": 610}, {"id": "n10", "resources": ["r10"], "cache": [{"resource": "r10", "holder": "n10", "local": true, "searched": false}, {"resource": "r4", "holder": "n4", "local": false, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 367.73, "y": 438.14}, {"id": "n11", "resources": ["r11"], "cache": [{"resource": "r11", "holder": "n11", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 250.82, "y": 294.48}, {"id": "n12", "resources": ["r12"], "cache": [{"resource": "r12", "holder": "n12", "local": true, "searched": false}, {"resource": "r7", "holder": "n7", "local": false, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 577.46, "y": 283.97}, {"id": "n13", "resources": ["r13"], "cache": [{"resource": "r13", "holder": "n13", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 580.35, "y": 514.25}, {"id": "n14", "resources": ["r14"], "cache": [{"resource": "r11", "holder": "n11", "local": false, "searched": false}, {"resource": "r14", "holder": "n14", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 431.55, "y": 193.69}], "edges": [{"source": "n1", "target": "n14"}, {"source": "n1", "target": "n2"}, {"source": "n1", "target": "n5"}, {"source": "n1", "target": "n8"}, {"source": "n10", "target": "n11"}, {"source": "n10", "target": "n2"}, {"source": "n10", "target": "n7"}, {"source": "n10", "target": "n9"}, {"source": "n11", "target": "n12"}, {"source": "n11", "target": "n14"}, {"source": "n11", "target": "n5"}, {"source": "n12", "target": "n13"}, {"source": "n12", "target": "n3"}, {"source": "n12", "target": "n6"}, {"source": "n12", "target": "n8"}, {"source": "n13", "target": "n14"}, {"source": "n13", "target": "n4"}, {"source": "n13", "target": "n7"}, {"source": "n13", "target": "n9"}, {"source": "n14", "target": "n6"}, {"source": "n14", "target": "n8"}, {"source": "n2", "target": "n3"}, {"source": "n2", "target": "n6"}, {"source": "n3", "target": "n4"}, {"source": "n3", "target": "n7"}, {"source": "n4", "target": "n5"}, {"source": "n4", "target": "n9"}, {"source": "n5", "target": "n6"}, {"source": "n5", "target": "n9"}, {"source": "n6", "target": "n7"}, {"source": "n7", "target": "n8"}, {"source": "n8", "target": "n9"}], "events": [{"step": 1, "search_id": "s1", "round": 1, "kind": "request", "source": "n1", "target": "n14", "resource_id": "r5", "ttl": 2}, {"step": 2, "search_id": "s1", "round": 1, "kind": "request", "source": "n1", "target": "n2", "resource_id": "r5", "ttl": 2}, {"step": 3, "search_id": "s1", "round": 1, "kind": "request", "source": "n1", "target": "n5", "resource_id": "r5", "ttl": 2}, {"step": 4, "search_id": "s1", "round": 1, "kind": "request", "source": "n1", "target": "n8", "resource_id": "r5", "ttl": 2}, {"step": 5, "search_id": "s1", "round": 1, "kind": "reply", "source": "n5", "target": "n1", "resource_id": "r5", "ttl": null}, {"step": 6, "search_id": "s1", "round": 2, "kind": "request", "source": "n14", "target": "n11", "resource_id": "r5", "ttl": 1}, {"step": 7, "search_id": "s1", "round": 2, "kind": "request", "source": "n14", "target": "n13", "resource_id": "r5", "ttl": 1}, {"step": 8, "search_id": "s1", "round": 2, "kind": "request", "source": "n14", "target": "n6", "resource_id": "r5", "ttl": 1}, {"step": 9, "search_id": "s1", "round": 2, "kind": "request", "source": "n14", "target": "n8", "resource_id": "r5", "ttl": 1}, {"step": 10, "search_id": "s1", "round": 2, "kind": "request", "source": "n2", "target": "n10", "resource_id": "r5", "ttl": 1}, {"step": 11, "search_id": "s1", "round": 2, "kind": "request", "source": "n2", "target": "n3", "resource_id": "r5", "ttl": 1}, {"step": 12, "search_id": "s1", "round": 2, "kind": "request", "source": "n2", "target": "n6", "resource_id": "r5", "ttl": 1}, {"step": 13, "search_id": "s1", "round": 2, "kind": "request", "source": "n5", "target": "n11", "resource_id": "r5", "ttl": 1}, {"step": 14, "search_id": "s1", "round": 2, "kind": "request", "source": "n5", "target": "n4", "resource_id": "r5", "ttl": 1}, {"step": 15, "search_id": "s1", "round": 2, "kind": "request", "source": "n5", "target": "n6", "resource_id": "r5", "ttl": 1}, {"step": 16, "search_id": "s1", "round": 2, "kind": "request", "source": "n5", "target": "n9", "resource_id": "r5", "ttl": 1}, {"step": 17, "search_id": "s1", "round": 2, "kind": "request", "source": "n8", "target": "n12", "resource_id": "r5", "ttl": 1}, {"step": 18, "search_id": "s1", "round": 2, "kind": "request", "source": "n8", "target": "n14", "resource_id": "r5", "ttl": 1}, {"step": 19, "search_id": "s1", "round": 2, "kind": "request", "source": "n8", "target": "n7", "resource_id": "r5", "ttl": 1}, {"step": 20, "search_id": "s1", "round": 2, "kind": "request", "source": "n8", "target": "n9", "resource_id": "r5", "ttl": 1}, {"step": 21, "search_id": "s1", "round": 3, "kind": "request", "source": "n11", "target": "n10", "resource_id": "r5", "ttl": 0}, {"step": 22, "search_id": "s1", "round": 3, "kind": "request", "source": "n11", "target": "n12", "resource_id": "r5", "ttl": 0}, {"step": 23, "search_id": "s1", "round": 3, "kind": "request", "source": "n11", "target": "n5", "resource_id": "r5", "ttl": 0}, {"step": 24, "search_id": "s1", "round": 3, "kind": "request", "source": "n13", "target": "n12", "resource_id": "r5", "ttl": 0}, {"step": 25, "search_id": "s1", "round": 3, "kind": "request", "source": "n13", "target": "n4", "resource_id": "r5", "ttl": 0}, {"step": 26, "search_id": "s1", "round": 3, "kind": "request", "source": "n13", "target": "n7", "resource_id": "r5", "ttl": 0}, {"step": 27, "search_id": "s1", "round": 3, "kind": "request", "source": "n13", "target": "n9", "resource_id": "r5", "ttl": 0}, {"step": 28, "search_id": "s1", "round": 3, "kind": "request", "source": "n6", "target": "n12", "resource_id": "r5", "ttl": 0}, {"step": 29, "search_id": "s1", "round": 3, "kind": "request", "source": "n6", "target": "n2", "resource_id": "r5", "ttl": 0}, {"step": 30, "search_id": "s1", "round": 3, "kind": "request", "source": "n6", "target": "n5", "resource_id": "r5", "ttl": 0}, {"step": 31, "search_id": "s1", "round": 3, "kind": "request", "source": "n6", "target": "n7", "resource_id": "r5", "ttl": 0}, {"step": 32, "search_id": "s1", "round": 3, "kind": "request", "source": "n10", "target": "n11", "resource_id": "r5", "ttl": 0}, {"step": 33, "search_id": "s1", "round": 3, "kind": "request", "source": "n10", "target": "n7", "resource_id": "r5", "ttl": 0}, {"step": 34, "search_id": "s1", "round": 3, "kind": "request", "source": "n10", "target": "n9", "resource_id": "r5", "ttl": 0}, {"step": 35, "search_id": "s1", "round": 3, "kind": "request", "source": "n3", "target": "n12", "resource_id": "r5", "ttl": 0}, {"step": 36, "search_id": "s1", "round": 3, "kind": "request", "source": "n3", "target": "n4", "resource_id": "r5", "ttl": 0}, {"step": 37, "search_id": "s1", "round": 3, "kind": "request", "source": "n3", "target": "n7", "resource_id": "r5", "ttl": 0}, {"step": 38, "search_id": "s1", "round": 3, "kind": "request", "source": "n4", "target": "n13", "resource_id": "r5", "ttl": 0}, {"step": 39, "search_id": "s1", "round": 3, "kind": "request", "source": "n4", "target": "n3", "resource_id": "r5", "ttl": 0}, {"step": 40, "search_id": "s1", "round": 3, "kind": "request", "source": "n4", "target": "n9", "resource_id": "r5", "ttl": 0}, {"step": 41, "search_id": "s1", "round": 3, "kind": "request", "source": "n9", "target": "n10", "resource_id": "r5", "ttl": 0}, {"step": 42, "search_id": "s1", "round": 3, "kind": "request", "source": "n9", "target": "n13", "resource_id": "r5", "ttl": 0}, {"step": 43, "search_id": "s1", "round": 3, "kind": "request", "source": "n9", "target": "n4", "resource_id": "r5", "ttl": 0}, {"step": 44, "search_id": "s1", "round": 3, "kind": "request", "source": "n9", "target": "n8", "resource_id": "r5", "ttl": 0}, {"step": 45, "search_id": "s1", "round": 3, "kind": "request", "source": "n12", "target": "n11", "resource_id": "r5", "ttl": 0}, {"step": 46, "search_id": "s1", "round": 3, "kind": "request", "source": "n12", "target": "n13", "resource_id": "r5", "ttl": 0}, {"step": 47, "search_id": "s1", "round": 3, "kind": "request", "source": "n12", "target": "n3", "resource_id": "r5", "ttl": 0}, {"step": 48, "search_id": "s1", "round": 3, "kind": "request", "source": "n12", "target": "n6", "resource_id": "r5", "ttl": 0}, {"step": 49, "search_id": "s1", "round": 3, "kind": "request", "source": "n7", "target": "n10", "resource_id": "r5", "ttl": 0}, {"step": 50, "search_id": "s1", "round": 3, "kind": "request", "source": "n7", "target": "n13", "resource_id": "r5", "ttl": 0}, {"step": 51, "search_id": "s1", "round": 3, "kind": "request", "source": "n7", "target": "n3", "resource_id": "r5", "ttl": 0}, {"step": 52, "search_id": "s1", "round": 3, "kind": "request", "source": "n7", "target": "n6", "resource_id": "r5", "ttl": 0}], "resource_holder": "n5", "result": {"search_id": "s1", "algorithm": "flooding", "start_node": "n1", "resource_id": "r5", "ttl": 3, "ignore_cache": false, "found": true, "holder": "n5", "informed_by": "n5", "found_via": "local", "messages": 52, "nodes_involved": 14, "path": "n1 -> n5", "cache_snapshot": {"n1": {"r1": "n1"}, "n2": {"r2": "n2"}, "n3": {"r3": "n3"}, "n4": {"r4": "n4"}, "n5": {"r5": "n5"}, "n6": {"r6": "n6", "r13": "n13"}, "n7": {"r7": "n7"}, "n8": {"r8": "n8", "r10": "n10", "r13": "n13"}, "n9": {"r9": "n9"}, "n10": {"r10": "n10", "r4": "n4"}, "n11": {"r11": "n11"}, "n12": {"r12": "n12", "r7": "n7"}, "n13": {"r13": "n13"}, "n14": {"r14": "n14", "r11": "n11"}}}};
-window.P2P_CONFIG_FILES = [{"name": "complex.yaml", "path": "examples/complex.yaml", "content": "num_nodes: 14\nmin_neighbors: 2\nmax_neighbors: 5\n\nresources:\n  n1: r1\n  n2: r2\n  n3: r3\n  n4: r4\n  n5: r5\n  n6: r6\n  n7: r7\n  n8: r8\n  n9: r9\n  n10: r10\n  n11: r11\n  n12: r12\n  n13: r13\n  n14: r14\n\ncaches:\n  n6: r13=n13\n  n8: r10=n10, r13=n13\n  n10: r4=n4\n  n12: r7=n7\n  n14: r11=n11\n\nedges:\n  - n1, n2\n  - n2, n3\n  - n3, n4\n  - n4, n5\n  - n5, n6\n  - n6, n7\n  - n7, n8\n  - n8, n9\n  - n9, n10\n  - n10, n11\n  - n11, n12\n  - n12, n13\n  - n13, n14\n  - n14, n1\n  - n1, n5\n  - n1, n8\n  - n2, n6\n  - n2, n10\n  - n3, n7\n  - n3, n12\n  - n4, n9\n  - n4, n13\n  - n5, n11\n  - n6, n14\n  - n7, n10\n  - n8, n12\n  - n9, n13\n  - n11, n14\n  - n5, n9\n  - n6, n12\n  - n7, n13\n  - n8, n14\n"}, {"name": "mesh.yaml", "path": "examples/mesh.yaml", "content": "num_nodes: 8\nmin_neighbors: 1\nmax_neighbors: 3\n\nresources:\n  n1: r1\n  n2: r2\n  n3: r3\n  n4: r4\n  n5: r5\n  n6: r6\n  n7: r7\n  n8: r8\n\ncaches:\n  n3: r5=n5\n  n5: r7=n7\n  n7: r4=n4\n\nedges:\n  - n1, n2\n  - n1, n3\n  - n3, n4\n  - n3, n5\n  - n5, n6\n  - n5, n7\n  - n7, n8\n"}, {"name": "ring.yaml", "path": "examples/ring.yaml", "content": "num_nodes: 6\nmin_neighbors: 2\nmax_neighbors: 2\n\nresources:\n  n1: r1\n  n2: r2\n  n3: r3\n  n4: r4\n  n5: r5\n  n6: r6\n\ncaches:\n  n2: r5=n5\n  n4: r1=n1\n\nedges:\n  - n1, n2\n  - n2, n3\n  - n3, n4\n  - n4, n5\n  - n5, n6\n  - n6, n1\n"}];
+window.P2P_INITIAL_DATA = {"layout": {"width": 760, "height": 980}, "config": {"num_nodes": 11, "min_neighbors": 1, "max_neighbors": 4}, "uses_cache": false, "has_configured_cache": false, "nodes": [{"id": "n1", "resources": ["r1"], "cache": [{"resource": "r1", "holder": "n1", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 380.0, "y": 90.0}, {"id": "n2", "resources": ["r2"], "cache": [{"resource": "r2", "holder": "n2", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 206.0, "y": 356.67}, {"id": "n3", "resources": ["r3"], "cache": [{"resource": "r3", "holder": "n3", "local": true, "searched": false}, {"resource": "r5", "holder": "n5", "local": false, "searched": true}], "cache_relevant": false, "cache_used": false, "x": 322.0, "y": 356.67}, {"id": "n4", "resources": ["r4"], "cache": [{"resource": "r2", "holder": "n2", "local": false, "searched": false}, {"resource": "r4", "holder": "n4", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 438.0, "y": 356.67}, {"id": "n5", "resources": ["r5"], "cache": [{"resource": "r3", "holder": "n3", "local": false, "searched": false}, {"resource": "r5", "holder": "n5", "local": true, "searched": true}], "cache_relevant": false, "cache_used": false, "x": 554.0, "y": 356.67}, {"id": "n6", "resources": ["r6"], "cache": [{"resource": "r6", "holder": "n6", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 206.0, "y": 623.33}, {"id": "n7", "resources": ["r7"], "cache": [{"resource": "r7", "holder": "n7", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 322.0, "y": 623.33}, {"id": "n8", "resources": ["r8"], "cache": [{"resource": "r8", "holder": "n8", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 438.0, "y": 623.33}, {"id": "n9", "resources": ["r9"], "cache": [{"resource": "r9", "holder": "n9", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 554.0, "y": 623.33}, {"id": "n10", "resources": ["r10"], "cache": [{"resource": "r10", "holder": "n10", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 283.33, "y": 890.0}, {"id": "n11", "resources": ["r11"], "cache": [{"resource": "r11", "holder": "n11", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 476.67, "y": 890.0}], "edges": [{"source": "n1", "target": "n2"}, {"source": "n1", "target": "n3"}, {"source": "n1", "target": "n4"}, {"source": "n1", "target": "n5"}, {"source": "n10", "target": "n6"}, {"source": "n10", "target": "n7"}, {"source": "n11", "target": "n9"}, {"source": "n2", "target": "n6"}, {"source": "n3", "target": "n7"}, {"source": "n3", "target": "n8"}, {"source": "n4", "target": "n8"}, {"source": "n4", "target": "n9"}], "events": [{"step": 1, "search_id": "s1", "round": 1, "kind": "request", "source": "n1", "target": "n2", "resource_id": "r5", "ttl": 5}, {"step": 2, "search_id": "s1", "round": 1, "kind": "request", "source": "n1", "target": "n3", "resource_id": "r5", "ttl": 5}, {"step": 3, "search_id": "s1", "round": 1, "kind": "request", "source": "n1", "target": "n4", "resource_id": "r5", "ttl": 5}, {"step": 4, "search_id": "s1", "round": 1, "kind": "request", "source": "n1", "target": "n5", "resource_id": "r5", "ttl": 5}, {"step": 5, "search_id": "s1", "round": 1, "kind": "reply", "source": "n5", "target": "n1", "resource_id": "r5", "ttl": null}, {"step": 6, "search_id": "s1", "round": 2, "kind": "request", "source": "n2", "target": "n6", "resource_id": "r5", "ttl": 4}, {"step": 7, "search_id": "s1", "round": 2, "kind": "request", "source": "n3", "target": "n7", "resource_id": "r5", "ttl": 4}, {"step": 8, "search_id": "s1", "round": 2, "kind": "request", "source": "n3", "target": "n8", "resource_id": "r5", "ttl": 4}, {"step": 9, "search_id": "s1", "round": 2, "kind": "request", "source": "n4", "target": "n8", "resource_id": "r5", "ttl": 4}, {"step": 10, "search_id": "s1", "round": 2, "kind": "request", "source": "n4", "target": "n9", "resource_id": "r5", "ttl": 4}, {"step": 11, "search_id": "s1", "round": 3, "kind": "request", "source": "n6", "target": "n10", "resource_id": "r5", "ttl": 3}, {"step": 12, "search_id": "s1", "round": 3, "kind": "request", "source": "n7", "target": "n10", "resource_id": "r5", "ttl": 3}, {"step": 13, "search_id": "s1", "round": 3, "kind": "request", "source": "n8", "target": "n4", "resource_id": "r5", "ttl": 3}, {"step": 14, "search_id": "s1", "round": 3, "kind": "request", "source": "n9", "target": "n11", "resource_id": "r5", "ttl": 3}, {"step": 15, "search_id": "s1", "round": 4, "kind": "request", "source": "n10", "target": "n7", "resource_id": "r5", "ttl": 2}], "resource_holder": "n5", "result": {"search_id": "s1", "algorithm": "flooding", "start_node": "n1", "resource_id": "r5", "ttl": 6, "ignore_cache": false, "found": true, "holder": "n5", "informed_by": "n5", "found_via": "local", "messages": 15, "nodes_involved": 11, "path": "n1 -> n5", "cache_snapshot": {"n1": {"r1": "n1"}, "n2": {"r2": "n2"}, "n3": {"r3": "n3", "r5": "n5"}, "n4": {"r4": "n4", "r2": "n2"}, "n5": {"r5": "n5", "r3": "n3"}, "n6": {"r6": "n6"}, "n7": {"r7": "n7"}, "n8": {"r8": "n8"}, "n9": {"r9": "n9"}, "n10": {"r10": "n10"}, "n11": {"r11": "n11"}}}};
+window.P2P_CONFIG_FILES = [{"name": "complex.yaml", "path": "examples/complex.yaml", "content": "num_nodes: 14\nmin_neighbors: 2\nmax_neighbors: 5\n\nresources:\n  n1: r1\n  n2: r2\n  n3: r3\n  n4: r4\n  n5: r5\n  n6: r6\n  n7: r7\n  n8: r8\n  n9: r9\n  n10: r10\n  n11: r11\n  n12: r12\n  n13: r13\n  n14: r14\n\ncaches:\n  n6: r13=n13\n  n8: r10=n10, r13=n13\n  n10: r4=n4\n  n12: r7=n7\n  n14: r11=n11\n\nedges:\n  - n1, n2\n  - n2, n3\n  - n3, n4\n  - n4, n5\n  - n5, n6\n  - n6, n7\n  - n7, n8\n  - n8, n9\n  - n9, n10\n  - n10, n11\n  - n11, n12\n  - n12, n13\n  - n13, n14\n  - n14, n1\n  - n1, n5\n  - n1, n8\n  - n2, n6\n  - n2, n10\n  - n3, n7\n  - n3, n12\n  - n4, n9\n  - n4, n13\n  - n5, n11\n  - n6, n14\n  - n7, n10\n  - n8, n12\n  - n9, n13\n  - n11, n14\n  - n5, n9\n  - n6, n12\n  - n7, n13\n  - n8, n14\n"}, {"name": "mesh.yaml", "path": "examples/mesh.yaml", "content": "num_nodes: 11\nmin_neighbors: 1\nmax_neighbors: 4\n\nresources:\n  n1: r1\n  n2: r2\n  n3: r3\n  n4: r4\n  n5: r5\n  n6: r6\n  n7: r7\n  n8: r8\n  n9: r9\n  n10: r10\n  n11: r11\n\ncaches:\n  n3: r5=n5\n  n4: r2=n2\n  n5: r3=n3\n\nedges:\n  - n1, n2\n  - n1, n3\n  - n1, n4\n  - n1, n5\n  - n2, n6\n  - n3, n7\n  - n3, n8\n  - n4, n9\n  - n4, n8\n  - n6, n10\n  - n7, n10\n  - n9, n11\n"}];
 const initialPayload = clone(window.P2P_INITIAL_DATA || {});
 const availableConfigFiles = clone(window.P2P_CONFIG_FILES || []);
 let data = clone(initialPayload);
@@ -1128,84 +1128,96 @@ function circularLayout(nodes, width, height) {
   return positions;
 }
 
-function topologyLayout(nodes, edges, width = 1080, height = 700) {
-  const orderedNodes = [...nodes];
-  const positions = circularLayout(orderedNodes, width, height);
-  if (orderedNodes.length <= 2) return positions;
+function sequentialGraphLayers(nodes, edges, root = "n1") {
+  const orderedNodes = [...nodes].sort(compareNodeIds);
+  if (orderedNodes.length === 0) return [];
 
-  const padding = 90;
-  const usableWidth = Math.max(1, width - 2 * padding);
-  const usableHeight = Math.max(1, height - 2 * padding);
-  const idealDistance = Math.sqrt(
-    (usableWidth * usableHeight) / orderedNodes.length,
+  const nodeSet = new Set(orderedNodes);
+  const adjacency = new Map(orderedNodes.map((node) => [node, new Set()]));
+  for (const edge of edges) {
+    if (!nodeSet.has(edge.source) || !nodeSet.has(edge.target)) continue;
+    adjacency.get(edge.source).add(edge.target);
+    adjacency.get(edge.target).add(edge.source);
+  }
+
+  const start = nodeSet.has(root) ? root : orderedNodes[0];
+  const visited = new Set([start]);
+  const queue = [{ node: start, depth: 0 }];
+  const layers = [[start]];
+
+  while (queue.length > 0) {
+    const { node, depth } = queue.shift();
+    const neighbors = [...(adjacency.get(node) || [])].sort(compareNodeIds);
+    for (const neighbor of neighbors) {
+      if (visited.has(neighbor)) continue;
+      visited.add(neighbor);
+      const nextDepth = depth + 1;
+      while (layers.length <= nextDepth) layers.push([]);
+      layers[nextDepth].push(neighbor);
+      queue.push({ node: neighbor, depth: nextDepth });
+    }
+  }
+
+  const remaining = orderedNodes.filter((node) => !visited.has(node));
+  if (remaining.length > 0) layers.push(remaining);
+
+  return layers
+    .filter((layer) => layer.length > 0)
+    .map((layer) => [...layer].sort(compareNodeIds));
+}
+
+function graphLayoutDimensions(nodes, edges) {
+  const layers = sequentialGraphLayers(nodes, edges);
+  const layerCount = Math.max(1, layers.length);
+  const widestLayer = Math.max(1, ...layers.map((layer) => layer.length));
+  const width = Math.max(760, 180 + widestLayer * 84);
+  const height = Math.max(
+    980,
+    180 + (layerCount - 1) * 170,
+    Math.round(width * 1.18),
   );
-  let temperature = Math.min(width, height) * 0.12;
+  return { width, height };
+}
 
-  for (let iteration = 0; iteration < 180; iteration += 1) {
-    const displacement = new Map(
-      orderedNodes.map((node) => [node, { x: 0, y: 0 }]),
-    );
+function topologyLayout(nodes, edges, width = null, height = null) {
+  const layers = sequentialGraphLayers(nodes, edges);
+  if (layers.length === 0) return new Map();
 
-    for (let i = 0; i < orderedNodes.length; i += 1) {
-      for (let j = i + 1; j < orderedNodes.length; j += 1) {
-        const nodeA = orderedNodes[i];
-        const nodeB = orderedNodes[j];
-        const posA = positions.get(nodeA);
-        const posB = positions.get(nodeB);
-        const dx = posA.x - posB.x;
-        const dy = posA.y - posB.y;
-        const distance = Math.max(Math.hypot(dx, dy), 0.01);
-        const force = (idealDistance * idealDistance) / distance;
-        displacement.get(nodeA).x += (dx / distance) * force;
-        displacement.get(nodeA).y += (dy / distance) * force;
-        displacement.get(nodeB).x -= (dx / distance) * force;
-        displacement.get(nodeB).y -= (dy / distance) * force;
-      }
-    }
+  const dimensions =
+    width === null || height === null
+      ? graphLayoutDimensions(nodes, edges)
+      : { width, height };
+  const layoutWidth = dimensions.width;
+  const layoutHeight = dimensions.height;
+  const paddingX = 90;
+  const paddingY = 90;
+  const usableWidth = Math.max(1, layoutWidth - 2 * paddingX);
+  const usableHeight = Math.max(1, layoutHeight - 2 * paddingY);
+  const lastLayerIndex = Math.max(1, layers.length - 1);
+  const positions = new Map();
 
-    for (const edge of edges) {
-      const posA = positions.get(edge.source);
-      const posB = positions.get(edge.target);
-      const dx = posA.x - posB.x;
-      const dy = posA.y - posB.y;
-      const distance = Math.max(Math.hypot(dx, dy), 0.01);
-      const force = (distance * distance) / idealDistance;
-      displacement.get(edge.source).x -= (dx / distance) * force;
-      displacement.get(edge.source).y -= (dy / distance) * force;
-      displacement.get(edge.target).x += (dx / distance) * force;
-      displacement.get(edge.target).y += (dy / distance) * force;
-    }
-
-    for (const node of orderedNodes) {
-      const pos = positions.get(node);
-      const delta = displacement.get(node);
-      const distance = Math.max(Math.hypot(delta.x, delta.y), 0.01);
-      const step = Math.min(distance, temperature);
-      pos.x = Math.min(
-        width - padding,
-        Math.max(padding, pos.x + (delta.x / distance) * step),
-      );
-      pos.y = Math.min(
-        height - padding,
-        Math.max(padding, pos.y + (delta.y / distance) * step),
-      );
-    }
-
-    temperature *= 0.96;
-    if (iteration > 40 && temperature < 0.5) break;
-  }
-
-  for (const position of positions.values()) {
-    position.x = Math.round(position.x * 100) / 100;
-    position.y = Math.round(position.y * 100) / 100;
-  }
+  layers.forEach((layer, layerIndex) => {
+    const y =
+      layers.length === 1
+        ? layoutHeight / 2
+        : paddingY + (usableHeight * layerIndex) / lastLayerIndex;
+    const gap = usableWidth / (layer.length + 1);
+    layer.forEach((node, nodeIndex) => {
+      positions.set(node, {
+        x: Math.round((paddingX + gap * (nodeIndex + 1)) * 100) / 100,
+        y: Math.round(y * 100) / 100,
+      });
+    });
+  });
 
   return positions;
 }
 
 function buildPayload(network, result) {
-  const layoutWidth = 1080;
-  const layoutHeight = 700;
+  const { width: layoutWidth, height: layoutHeight } = graphLayoutDimensions(
+    network.nodes,
+    network.edges,
+  );
   const positions = topologyLayout(
     network.nodes,
     network.edges,
@@ -1309,6 +1321,9 @@ function buildFrames(events) {
 }
 
 function buildTopologyGraph() {
+  const nodeIds = data.nodes.map((node) => node.id);
+  const { width, height } = graphLayoutDimensions(nodeIds, data.edges);
+  const positions = topologyLayout(nodeIds, data.edges, width, height);
   const eventEdges = (data.events || []).map((event) => ({
     source: event.source,
     target: event.target,
@@ -1317,11 +1332,14 @@ function buildTopologyGraph() {
   }));
 
   return {
-    nodes: data.nodes,
+    nodes: data.nodes.map((node) => ({
+      ...node,
+      ...(positions.get(node.id) || { x: node.x, y: node.y }),
+    })),
     baseEdges: data.edges,
     eventEdges,
-    width: data.layout.width,
-    height: data.layout.height,
+    width,
+    height,
   };
 }
 
@@ -1482,7 +1500,7 @@ function renderSearchStats() {
 
 function renderDynamicSections() {
   appTitle.textContent = `Rede P2P - ${data.result.algorithm}`;
-  document.title = `P2P Search - ${data.result.algorithm}`;
+  document.title = `Rede P2P`;
   resourceByNode = new Map(data.nodes.map((node) => [node.id, node.resources]));
   frames = buildFrames(data.events || []);
   statusLabel.dataset.finalStatus = data.result.found

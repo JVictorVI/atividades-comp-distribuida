@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>P2P Search - flooding</title>
+  <title>Rede P2P</title>
   <link rel="stylesheet" href="visualization.css">
 </head>
 <body>
   <header>
-    <h1 id="appTitle">Rede P2P - flooding</h1>
+    <h1 id="appTitle">Rede P2P</h1>
   </header>
 
   <section class="query-panel" aria-label="Parâmetros da busca">
@@ -40,7 +40,7 @@
         Ignorar cache
       </label>
       <div class="form-actions">
-        <button type="submit" class="primary">Aplicar alterações</button>
+        <button type="submit" class="primary">Aplicar e iniciar</button>
       </div>
     </form>
     <div class="error-panel hidden" id="errorPanel" role="alert"></div>
@@ -50,7 +50,7 @@
   <main>
     <section class="graph-panel" aria-label="Visualização do grafo da rede P2P">
       <div class="status pending" id="statusLabel" data-final-status="ENCONTRADO" data-final-class="found">EXPLORANDO</div>
-      <svg id="network" viewBox="0 0 1080 700" role="img" aria-label="Grafo da rede P2P e mensagens da busca"></svg>
+      <svg id="network" viewBox="0 0 760 980" role="img" aria-label="Grafo da rede P2P e mensagens da busca"></svg>
       <div class="controls">
         <button type="button" id="play">Reproduzir animação completa</button>
         <button type="button" id="step">Avançar rodada</button>
@@ -91,7 +91,7 @@
         </ol>
       </section>
       <section class="mesh-editor" aria-label="Editor da rede">
-        <h2>Arquivo da topologia da Rede</h2>
+        <h2>Topologia da Rede</h2>
         <div class="editor-grid">
           <div class="mesh-numbers">
             <label>Nós

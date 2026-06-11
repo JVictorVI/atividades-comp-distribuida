@@ -41,10 +41,10 @@ from p2p.cli import main as _run_cli
 # Altere este objeto para montar a mensagem de busca que será executada quando
 # você rodar apenas: python .\p2p_search.py
 BUSCA = {
-    "config": "examples/complex.yaml",
+    "config": "examples/mesh.yaml",
     "node_id": "n1",
     "resource_id": "r5",
-    "ttl": 3,
+    "ttl": 6,
     "algo": "flooding",
     "seed": None,
     "ignore_cache": False,
