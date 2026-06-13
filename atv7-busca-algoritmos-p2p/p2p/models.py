@@ -8,14 +8,21 @@ from typing import Any, Dict, List, Optional
 # Constantes e tipos compartilhados entre os módulos do simulador.
 ALGORITHM_ORDER = [
     "flooding",
-    "informed_flooding",
     "random_walk",
-    "informed_random_walk",
 ]
 
 ALGORITHMS = set(ALGORITHM_ORDER)
 
 ALGORITHM_CHOICES = sorted(ALGORITHMS)
+
+LEGACY_ALGORITHM_ALIASES = {
+    "informed_flooding": "flooding",
+    "informed_random_walk": "random_walk",
+}
+
+
+def normalize_algorithm(algorithm: str) -> str:
+    return LEGACY_ALGORITHM_ALIASES.get(algorithm, algorithm)
 
 class ConfigError(ValueError):
     """Erro encontrado no arquivo de configuração da rede."""

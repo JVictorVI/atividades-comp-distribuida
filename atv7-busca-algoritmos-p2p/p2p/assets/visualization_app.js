@@ -62,6 +62,13 @@ function cleanToken(value) {
   return String(value || "").trim();
 }
 
+function normalizeAlgorithm(algorithm) {
+  const value = cleanToken(algorithm);
+  if (value === "informed_flooding") return "flooding";
+  if (value === "informed_random_walk") return "random_walk";
+  return value;
+}
+
 function stripComment(line) {
   return line.split("#", 1)[0].trim();
 }
@@ -741,21 +748,14 @@ function runSearch(network, options) {
   const start = cleanToken(options.startNode);
   const resourceId = cleanToken(options.resourceId);
   const ttl = Number(options.ttl);
-  const algorithm = cleanToken(options.algorithm);
+  const algorithm = normalizeAlgorithm(options.algorithm);
 
   if (!network.nodes.includes(start))
     throw new Error(`Nó inicial desconhecido: ${start}`);
   if (!resourceId) throw new Error("Informe o recurso da busca");
   if (!Number.isInteger(ttl) || ttl < 0)
     throw new Error("TTL deve ser inteiro maior ou igual a zero");
-  if (
-    ![
-      "flooding",
-      "informed_flooding",
-      "random_walk",
-      "informed_random_walk",
-    ].includes(algorithm)
-  ) {
+  if (!["flooding", "random_walk"].includes(algorithm)) {
     throw new Error(`Algoritmo inválido: ${algorithm}`);
   }
 
@@ -764,7 +764,7 @@ function runSearch(network, options) {
   const cachesMap = buildInitialCaches(network);
   const cacheSnapshot = snapshotCaches(cachesMap);
 
-  if (algorithm === "flooding" || algorithm === "informed_flooding") {
+  if (algorithm === "flooding") {
     return searchFlooding(network, cachesMap, cacheSnapshot, {
       searchId,
       start,
@@ -787,8 +787,7 @@ function runSearch(network, options) {
 }
 
 function searchFlooding(network, cachesMap, cacheSnapshot, options) {
-  const useCache =
-    options.algorithm === "informed_flooding" && !options.ignoreCache;
+  const useCache = !options.ignoreCache;
   const initialLookup = lookup(
     network,
     cachesMap,
@@ -966,8 +965,7 @@ function searchFlooding(network, cachesMap, cacheSnapshot, options) {
 }
 
 function searchRandomWalk(network, cachesMap, cacheSnapshot, options) {
-  const useCache =
-    options.algorithm === "informed_random_walk" && !options.ignoreCache;
+  const useCache = !options.ignoreCache;
   const rng = makeRng(options.seed);
   let current = options.start;
   const path = [options.start];
@@ -1225,10 +1223,7 @@ function buildPayload(network, result) {
   const resourceHolders =
     network.resourceLocations.get(result.resource_id) || [];
   const resourceHolder = resourceHolders[0] || null;
-  const algorithmUsesCache = [
-    "informed_flooding",
-    "informed_random_walk",
-  ].includes(result.algorithm);
+  const algorithmUsesCache = !result.ignore_cache;
   const cacheSnapshot =
     result.cache_snapshot || mapToObject(buildInitialCaches(network));
 
@@ -1807,16 +1802,16 @@ function populateConfigSelect() {
 function hydrateControls() {
   populateConfigSelect();
   fillEditorFromNetwork(activeNetwork);
-  controls.algorithm.value = data.result.algorithm || "flooding";
+  controls.algorithm.value = normalizeAlgorithm(data.result.algorithm || "flooding");
   controls.resourceId.value = data.result.resource_id || "";
   controls.ttl.value = data.result.ttl ?? 3;
-  controls.ignoreCache.checked = Boolean(data.result.ignore_cache);
+  controls.ignoreCache.checked = !Boolean(data.result.ignore_cache);
   updateQueryOptions(activeNetwork);
   updateAlgorithmControls();
 }
 
 function isRandomAlgorithm(algorithm) {
-  return ["random_walk", "informed_random_walk"].includes(algorithm);
+  return normalizeAlgorithm(algorithm) === "random_walk";
 }
 
 function createAutoSeed() {
@@ -1836,7 +1831,7 @@ function collectSearchOptions() {
     resourceId: controls.resourceId.value,
     ttl: Number(controls.ttl.value),
     seed: isRandomAlgorithm(algorithm) ? createAutoSeed() : null,
-    ignoreCache: controls.ignoreCache.checked,
+    ignoreCache: !controls.ignoreCache.checked,
   };
 }
 

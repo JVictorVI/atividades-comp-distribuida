@@ -164,7 +164,7 @@ def build_visualization_payload(network: P2PNetwork, result: SearchResult) -> Di
     positions = topology_layout(network.nodes, edge_list, layout_width, layout_height)
     resource_holders = sorted(network.resource_locations.get(result.resource_id, []))
     resource_holder = resource_holders[0] if resource_holders else None
-    algorithm_uses_cache = result.algorithm in {"informed_flooding", "informed_random_walk"}
+    algorithm_uses_cache = not result.ignore_cache
     cache_snapshot = result.cache_snapshot or network.caches
 
     def cache_for(node: str) -> Dict[str, str]:
@@ -248,9 +248,7 @@ def build_visualization_html(
       <label>Algoritmo
         <select id="algorithm" name="algorithm">
           <option value="flooding">Flooding</option>
-          <option value="informed_flooding">Flooding informado</option>
           <option value="random_walk">Random walk</option>
-          <option value="informed_random_walk">Random walk informado</option>
         </select>
       </label>
       <label>Nó inicial
@@ -269,7 +267,7 @@ def build_visualization_html(
       </label>
       <label class="check-field">
         <input id="ignoreCache" name="ignoreCache" type="checkbox">
-        Ignorar cache
+        Usar cache
       </label>
       <div class="form-actions">
         <button type="submit" class="primary">Aplicar e iniciar</button>

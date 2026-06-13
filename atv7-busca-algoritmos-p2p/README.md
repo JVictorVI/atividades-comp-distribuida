@@ -2,12 +2,10 @@
 
 Projeto desenvolvido para a atividade de Computação Distribuída sobre algoritmos de busca em redes peer-to-peer (P2P) não estruturadas.
 
-O programa lê uma rede P2P em YAML, valida a topologia e executa buscas por recursos usando quatro estratégias:
+O programa lê uma rede P2P em YAML, valida a topologia e executa buscas por recursos usando duas estratégias, com cache opcional:
 
 - `flooding`
-- `informed_flooding`
 - `random_walk`
-- `informed_random_walk`
 
 Ao final de cada busca, o programa informa se o recurso foi encontrado, qual nó respondeu, o caminho percorrido, o total de mensagens trocadas e o total de nós envolvidos.
 
@@ -116,21 +114,17 @@ Quando um nó encontra o recurso, ele avisa diretamente o nó inicial. Mesmo ass
 
 O `search_id` evita ciclos, impedindo que um nó processe a mesma busca mais de uma vez.
 
-### Informed Flooding
-
-Funciona como o `flooding`, mas os nós intermediários também consultam seus caches locais. Se um nó intermediário souber onde está o recurso, ele avisa diretamente o nó inicial e a visualização mostra uma conexão direta até o nó que possui o recurso.
-
-Assim como no `flooding`, encontrar o recurso não interrompe toda a propagação paralela antes do TTL acabar.
-
 ### Random Walk
 
 A busca por passeio aleatório escolhe apenas um vizinho por vez. Quando chega a um nó sem vizinhos ainda não visitados, ela faz backtracking pelo caminho já percorrido para tentar outra ramificação. Cada avanço ou retorno conta como mensagem, mas apenas avanços para vizinhos ainda não visitados consomem TTL.
 
 No terminal, é possível informar `--seed` para repetir uma execução. Na interface, a seed é escolhida automaticamente por baixo dos panos. O botão `Novo exemplo random` sorteia outra execução para os algoritmos random.
 
-### Informed Random Walk
+### Uso de cache
 
-Funciona como o `random_walk`, incluindo o backtracking, mas os nós visitados também consultam o cache local antes de sortear o próximo vizinho. Se um cache indicar onde está o recurso, o nó intermediário responde diretamente ao solicitante e a simulação mostra a conexão direta até o nó final.
+Tanto `flooding` quanto `random_walk` podem consultar caches locais. Na interface, o botão `Usar cache` decide se a busca deve considerar essas informações. No terminal, o cache fica ativo por padrão e pode ser desativado com `--ignore-cache`.
+
+Quando o cache está ativo, os nós intermediários também consultam seus caches locais. Se um nó souber onde está o recurso, ele avisa diretamente o nó inicial e a visualização mostra uma conexão direta até o nó que possui o recurso.
 
 ## Como executar
 
@@ -171,6 +165,7 @@ Na interface você pode:
 - escolher um mesh pelo seletor com os YAMLs da pasta `examples`;
 - editar `num_nodes`, `min_neighbors`, `max_neighbors`, recursos, arestas e caches;
 - escolher o algoritmo;
+- ligar ou desligar o uso de cache;
 - escolher o nó inicial, o recurso e o TTL;
 - executar uma nova busca;
 - gerar outro exemplo para versões random;
@@ -186,7 +181,7 @@ A própria interface também contém um tutorial resumido de uso.
 python .\p2p_search.py .\examples\mesh.yaml n1 r5 --ttl 4 --algo flooding --trace --visualize
 ```
 
-### Comparar os quatro algoritmos
+### Comparar os dois algoritmos
 
 ```powershell
 python .\p2p_search.py compare .\examples\complex.yaml --node n1 --resource r13 --ttl 4
@@ -205,7 +200,7 @@ O arquivo JSON nesse caso contém consultas, não a estrutura da rede.
 ## Comandos disponíveis
 
 - `search`: executa uma busca.
-- `compare`: executa os quatro algoritmos para a mesma consulta.
+- `compare`: executa os dois algoritmos para a mesma consulta.
 - `batch`: executa várias buscas descritas em JSON.
 - `visualize`: gera a interface HTML de visualização.
 

@@ -9,7 +9,8 @@
     "node_id": "n2",
     "resource_id": "r13",
     "ttl": 3,
-    "algo": "informed_flooding"
+    "algo": "flooding",
+    "ignore_cache": true
   },
   {
     "node_id": "n2",
@@ -21,7 +22,8 @@
     "node_id": "n2",
     "resource_id": "r13",
     "ttl": 5,
-    "algo": "informed_random_walk"
+    "algo": "random_walk",
+    "ignore_cache": true
   },
   {
     "node_id": "n8",
@@ -33,7 +35,8 @@
     "node_id": "n8",
     "resource_id": "r11",
     "ttl": 3,
-    "algo": "informed_flooding"
+    "algo": "flooding",
+    "ignore_cache": true
   },
   {
     "node_id": "n14",
@@ -46,6 +49,6 @@
     "node_id": "n14",
     "resource_id": "r4",
     "ttl": 4,
-    "algo": "informed_random_walk"
+    "algo": "random_walk"
   }
 ]

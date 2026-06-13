@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Deque, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from .config import clean_token, load_config, parse_list
-from .models import ALGORITHMS, ConfigError, MessageEvent, SearchError, SearchResult
+from .models import ALGORITHMS, ConfigError, MessageEvent, SearchError, SearchResult, normalize_algorithm
 
 class P2PNetwork:
     def __init__(self, config: Dict[str, Any]) -> None:
@@ -238,13 +238,14 @@ class P2PNetwork:
             raise SearchError("resource_id não pode ser vazio")
         if ttl < 0:
             raise SearchError("ttl não pode ser negativo")
+        algorithm = normalize_algorithm(algorithm)
         if algorithm not in ALGORITHMS:
             raise SearchError(f"Algoritmo inválido: {algorithm}")
 
         self._search_sequence += 1
         search_id = f"s{self._search_sequence}"
         cache_snapshot = self._snapshot_caches()
-        if algorithm in {"flooding", "informed_flooding"}:
+        if algorithm == "flooding":
             return self._flooding(
                 node_id, resource_id, ttl, algorithm, search_id, ignore_cache, cache_snapshot
             )
@@ -264,7 +265,7 @@ class P2PNetwork:
         ignore_cache: bool,
         cache_snapshot: Dict[str, Dict[str, str]],
     ) -> SearchResult:
-        use_cache = algorithm == "informed_flooding" and not ignore_cache
+        use_cache = not ignore_cache
         holder, found_via = self._lookup(start, resource_id, False)
         involved = {start}
         messages = 0
@@ -423,7 +424,7 @@ class P2PNetwork:
         ignore_cache: bool,
         cache_snapshot: Dict[str, Dict[str, str]],
     ) -> SearchResult:
-        use_cache = algorithm == "informed_random_walk" and not ignore_cache
+        use_cache = not ignore_cache
         current = start
         path = [start]
         stack = [start]

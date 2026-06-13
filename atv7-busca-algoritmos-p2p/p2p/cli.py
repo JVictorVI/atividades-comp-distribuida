@@ -32,7 +32,7 @@ def build_parser() -> argparse.ArgumentParser:
     search_parser.add_argument("--ignore-cache", action="store_true", help="ignora caches locais nesta busca")
     search_parser.add_argument("--trace", action="store_true", help="imprime o rastro textual das mensagens")
 
-    compare_parser = subparsers.add_parser("compare", help="compara os quatro algoritmos para a mesma busca")
+    compare_parser = subparsers.add_parser("compare", help="compara os dois algoritmos para a mesma busca")
     compare_parser.add_argument("config", type=Path)
     compare_parser.add_argument("--node", "--node-id", dest="node_id", required=True)
     compare_parser.add_argument("--resource", "--resource-id", dest="resource_id", required=True)
