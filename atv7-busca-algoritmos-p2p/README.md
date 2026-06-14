@@ -33,9 +33,12 @@ p2p/
 examples/
   complex.yaml
   mesh.yaml
+  stress.yaml
   ring.yaml
   complex_queries.json
   queries.json
+  stress_queries.json
+  stress_results.json
 README.md
 Trabalho 7 – Implementação de Algoritmos de Busca em Sistemas P2P.pdf
 ```
@@ -144,7 +147,7 @@ BUSCA = {
     "seed": None,
     "ignore_cache": False,
     "trace": True,
-    "visualize": "visualization.html",
+    "visualize": None,
 }
 ```
 
@@ -154,11 +157,13 @@ Depois execute:
 python .\p2p_search.py
 ```
 
-Isso executa a busca e gera `visualization.html`, `visualization.css` e `visualization.js`.
+Isso executa apenas a busca no terminal. Os arquivos `visualization.html`, `visualization.css` e `visualization.js` ficam fixos e não são regenerados a cada execução.
+
+Para regenerar a interface somente quando necessário, defina `"visualize": "visualization.html"` no objeto `BUSCA` ou use o comando `visualize`.
 
 ### Abrir a interface
 
-Depois de executar o comando principal, abra o arquivo `visualization.html` no navegador.
+Abra o arquivo `visualization.html` no navegador.
 
 Na interface você pode:
 
@@ -174,6 +179,13 @@ Na interface você pode:
 
 A própria interface também contém um tutorial resumido de uso.
 
+Para que o seletor de redes detecte automaticamente novos arquivos `.yaml` criados em `examples/`, abra a interface por um servidor local:
+
+```powershell
+python -m http.server 8000
+```
+
+Depois acesse `http://localhost:8000/visualization.html`. Ao abrir a página ou clicar no seletor de redes, a interface tenta reler a pasta `examples/` e carregar todos os YAMLs disponíveis. Se o HTML for aberto diretamente como arquivo (`file://`), o navegador bloqueia a leitura da pasta por segurança e a interface usa a lista de redes embutida no `visualization.js`.
 
 ### Busca direta
 
@@ -196,6 +208,92 @@ python .\p2p_search.py batch .\examples\complex.yaml .\examples\complex_queries.
 ```
 
 O arquivo JSON nesse caso contém consultas, não a estrutura da rede.
+
+## Testes e métricas coletadas
+
+Para coletar métricas em uma rede maior, foi criada a topologia `examples/stress.yaml`, com 20 nós, grau mínimo 2, grau máximo 5, caminhos alternativos e caches em nós intermediários.
+
+As consultas de teste estão em `examples/stress_queries.json`. Elas variam:
+
+- algoritmo: `flooding` e `random_walk`;
+- uso de cache: ligado e desligado com `ignore_cache`;
+- TTL: valores baixos e altos;
+- nó inicial;
+- recurso procurado.
+
+As métricas coletadas foram:
+
+- sucesso da busca;
+- quantidade de mensagens;
+- quantidade de nós envolvidos;
+- tamanho do caminho;
+- origem do resultado (`local` ou `cache`);
+- quantidade de acertos via cache;
+- taxa de sucesso por grupo.
+
+Os resultados completos foram salvos em `examples/stress_results.json`. Para evitar contaminação entre execuções, cada teste do JSON foi coletado reinicializando a rede antes da busca; assim, caches aprendidos em uma execução não alteram as próximas.
+
+Para executar a mesma lista de consultas no terminal:
+
+```powershell
+python .\p2p_search.py batch .\examples\stress.yaml .\examples\stress_queries.json --seed 42
+```
+
+Resumo dos resultados com `seed_base = 42`, 4 cenários e 10 execuções por cenário:
+
+| Algoritmo | Cache | Execuções | Encontrados | Sucesso | Média mensagens | Média nós | Média caminho | Hits cache |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| flooding | não | 10 | 4 | 40.00% | 24.20 | 13.40 | 0.90 | 0 |
+| flooding | sim | 10 | 10 | 100.00% | 25.50 | 14.00 | 2.30 | 7 |
+| random_walk | não | 10 | 1 | 10.00% | 5.00 | 5.90 | 4.90 | 0 |
+| random_walk | sim | 10 | 4 | 40.00% | 5.10 | 5.70 | 4.70 | 2 |
+
+Resultados detalhados:
+
+| # | Algoritmo | Cache | TTL | Nó inicial | Recurso | Encontrou | Mensagens | Nós envolvidos | Caminho | Encontrado via |
+|---:|---|---:|---:|---|---|---|---:|---:|---|---|
+| 1 | flooding | sim | 2 | n11 | r4 | sim | 19 | 14 | n11 -> n16 -> n4 | cache |
+| 2 | flooding | sim | 2 | n2 | r19 | sim | 18 | 13 | n2 -> n12 -> n13 -> n19 | cache |
+| 3 | flooding | sim | 2 | n14 | r8 | sim | 18 | 13 | n14 -> n13 -> n18 -> n8 | cache |
+| 4 | flooding | sim | 1 | n15 | r10 | sim | 6 | 6 | n15 -> n20 -> n10 | cache |
+| 5 | flooding | sim | 2 | n6 | r12 | sim | 19 | 14 | n6 -> n5 -> n12 | cache |
+| 6 | flooding | sim | 1 | n4 | r2 | sim | 6 | 6 | n4 -> n9 -> n2 | cache |
+| 7 | flooding | sim | 3 | n1 | r14 | sim | 43 | 20 | n1 -> n20 -> n15 -> n14 | local |
+| 8 | flooding | sim | 6 | n18 | r3 | sim | 64 | 20 | n18 -> n13 -> n3 | local |
+| 9 | flooding | sim | 3 | n12 | r4 | sim | 40 | 20 | n12 -> n11 -> n16 -> n4 | cache |
+| 10 | flooding | sim | 2 | n20 | r10 | sim | 22 | 14 | n20 -> n10 | local |
+| 11 | flooding | não | 2 | n11 | r4 | não | 17 | 13 | n11 | - |
+| 12 | flooding | não | 2 | n2 | r19 | não | 16 | 12 | n2 | - |
+| 13 | flooding | não | 2 | n14 | r8 | não | 16 | 12 | n14 | - |
+| 14 | flooding | não | 1 | n15 | r10 | não | 4 | 5 | n15 | - |
+| 15 | flooding | não | 2 | n6 | r12 | não | 17 | 13 | n6 | - |
+| 16 | flooding | não | 1 | n4 | r2 | não | 4 | 5 | n4 | - |
+| 17 | flooding | não | 3 | n1 | r14 | sim | 43 | 20 | n1 -> n20 -> n15 -> n14 | local |
+| 18 | flooding | não | 6 | n18 | r3 | sim | 64 | 20 | n18 -> n13 -> n3 | local |
+| 19 | flooding | não | 3 | n12 | r4 | sim | 39 | 20 | n12 -> n13 -> n14 -> n4 | local |
+| 20 | flooding | não | 2 | n20 | r10 | sim | 22 | 14 | n20 -> n10 | local |
+| 21 | random_walk | sim | 5 | n11 | r4 | sim | 6 | 6 | n11 -> n10 -> n20 -> n15 -> n16 -> n4 | cache |
+| 22 | random_walk | sim | 5 | n2 | r19 | não | 5 | 6 | n2 -> n7 -> n6 -> n16 -> n17 -> n18 | - |
+| 23 | random_walk | sim | 5 | n14 | r8 | sim | 4 | 4 | n14 -> n4 -> n3 -> n8 | local |
+| 24 | random_walk | sim | 5 | n15 | r10 | não | 5 | 6 | n15 -> n5 -> n4 -> n3 -> n8 -> n18 | - |
+| 25 | random_walk | sim | 5 | n6 | r12 | não | 5 | 6 | n6 -> n1 -> n2 -> n3 -> n13 -> n14 | - |
+| 26 | random_walk | sim | 5 | n4 | r2 | sim | 7 | 7 | n4 -> n14 -> n13 -> n18 -> n19 -> n9 -> n2 | cache |
+| 27 | random_walk | sim | 3 | n1 | r14 | não | 3 | 4 | n1 -> n6 -> n7 -> n8 | - |
+| 28 | random_walk | sim | 6 | n18 | r3 | não | 6 | 7 | n18 -> n13 -> n12 -> n11 -> n1 -> n6 -> n5 | - |
+| 29 | random_walk | sim | 6 | n12 | r4 | sim | 5 | 5 | n12 -> n11 -> n10 -> n9 -> n4 | local |
+| 30 | random_walk | sim | 5 | n20 | r10 | não | 5 | 6 | n20 -> n15 -> n5 -> n6 -> n1 -> n2 | - |
+| 31 | random_walk | não | 5 | n11 | r4 | não | 5 | 6 | n11 -> n1 -> n6 -> n7 -> n17 -> n16 | - |
+| 32 | random_walk | não | 5 | n2 | r19 | sim | 5 | 5 | n2 -> n3 -> n13 -> n18 -> n19 | local |
+| 33 | random_walk | não | 5 | n14 | r8 | não | 5 | 6 | n14 -> n13 -> n18 -> n17 -> n16 -> n15 | - |
+| 34 | random_walk | não | 5 | n15 | r10 | não | 5 | 6 | n15 -> n5 -> n6 -> n16 -> n17 -> n12 | - |
+| 35 | random_walk | não | 5 | n6 | r12 | não | 5 | 6 | n6 -> n5 -> n15 -> n16 -> n11 -> n10 | - |
+| 36 | random_walk | não | 5 | n4 | r2 | não | 5 | 6 | n4 -> n5 -> n15 -> n14 -> n13 -> n12 | - |
+| 37 | random_walk | não | 3 | n1 | r14 | não | 3 | 4 | n1 -> n2 -> n12 -> n13 | - |
+| 38 | random_walk | não | 6 | n18 | r3 | não | 6 | 7 | n18 -> n17 -> n16 -> n20 -> n10 -> n11 -> n1 | - |
+| 39 | random_walk | não | 6 | n12 | r4 | não | 6 | 7 | n12 -> n17 -> n18 -> n8 -> n9 -> n19 -> n20 | - |
+| 40 | random_walk | não | 5 | n20 | r10 | não | 5 | 6 | n20 -> n19 -> n18 -> n17 -> n7 -> n8 | - |
+
+Nos testes, cada cenário teve exatamente 10 execuções. O cache aumentou a taxa de sucesso dos dois algoritmos: no `flooding`, de 40.00% para 100.00%; no `random_walk`, de 10.00% para 40.00%. O `flooding` alcançou mais recursos, mas com custo médio de mensagens bem maior que o `random_walk`.
 
 ## Comandos disponíveis
 

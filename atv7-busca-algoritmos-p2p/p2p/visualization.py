@@ -244,6 +244,10 @@ def build_visualization_html(
   </header>
 
   <section class="query-panel" aria-label="Parâmetros da busca">
+    <p>
+        Caso altere o algoritmo ou um dos parâmetros abaixo, clique em "Aplicar e
+        iniciar" para confirmar as alterações
+    </p>
     <form class="query-form" id="searchForm">
       <label>Algoritmo
         <select id="algorithm" name="algorithm">
@@ -252,11 +256,11 @@ def build_visualization_html(
         </select>
       </label>
       <label>Nó inicial
-        <input id="startNode" name="startNode" list="nodeOptions" autocomplete="off">
+        <input id="startNode" name="startNode" list="nodeOptions" autocomplete="off" class="plain-list-input">
         <datalist id="nodeOptions"></datalist>
       </label>
       <label>Recurso
-        <input id="resourceId" name="resourceId" list="resourceOptions" autocomplete="off">
+        <input id="resourceId" name="resourceId" list="resourceOptions" autocomplete="off" class="plain-list-input">
         <datalist id="resourceOptions"></datalist>
       </label>
       <label>TTL
@@ -281,6 +285,7 @@ def build_visualization_html(
     <section class="graph-panel" aria-label="Visualização do grafo da rede P2P">
       <div class="status pending" id="statusLabel" data-final-status="ENCONTRADO" data-final-class="found">EXPLORANDO</div>
       <svg id="network" viewBox="0 0 760 980" role="img" aria-label="Grafo da rede P2P e mensagens da busca"></svg>
+      <div class="graph-error hidden" id="graphError" role="alert">Não foi possível renderizar o grafo. Corrija a validação da topologia para continuar.</div>
       <div class="controls">
         <button type="button" id="play">Reproduzir animação completa</button>
         <button type="button" id="step">Avançar rodada</button>

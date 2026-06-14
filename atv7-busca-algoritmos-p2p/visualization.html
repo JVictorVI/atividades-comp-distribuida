@@ -1,123 +1,200 @@
 <!doctype html>
 <html lang="pt-BR">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Rede P2P</title>
-  <link rel="stylesheet" href="visualization.css">
-</head>
-<body>
-  <header>
-    <h1 id="appTitle">Rede P2P</h1>
-  </header>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rede P2P</title>
+    <link rel="stylesheet" href="visualization.css" />
+  </head>
+  <body>
+    <header>
+      <h1 id="appTitle">Rede P2P</h1>
+    </header>
 
-  <section class="query-panel" aria-label="Parâmetros da busca">
-    <form class="query-form" id="searchForm">
-      <label>Algoritmo
-        <select id="algorithm" name="algorithm">
-          <option value="flooding">Flooding</option>
-          <option value="random_walk">Random walk</option>
-        </select>
-      </label>
-      <label>Nó inicial
-        <input id="startNode" name="startNode" list="nodeOptions" autocomplete="off">
-        <datalist id="nodeOptions"></datalist>
-      </label>
-      <label>Recurso
-        <input id="resourceId" name="resourceId" list="resourceOptions" autocomplete="off">
-        <datalist id="resourceOptions"></datalist>
-      </label>
-      <label>TTL
-        <input id="ttl" name="ttl" type="number" min="0" step="1">
-      </label>
-      <label>Rede
-        <select id="configSelect" name="configSelect"></select>
-      </label>
-      <label class="check-field">
-        <input id="ignoreCache" name="ignoreCache" type="checkbox">
-        Usar cache
-      </label>
-      <div class="form-actions">
-        <button type="submit" class="primary">Aplicar e iniciar</button>
-      </div>
-    </form>
-    <div class="error-panel hidden" id="errorPanel" role="alert"></div>
-    <div class="editor-status" id="editorStatus" aria-live="polite"></div>
-  </section>
-
-  <main>
-    <section class="graph-panel" aria-label="Visualização do grafo da rede P2P">
-      <div class="status pending" id="statusLabel" data-final-status="ENCONTRADO" data-final-class="found">EXPLORANDO</div>
-      <svg id="network" viewBox="0 0 760 980" role="img" aria-label="Grafo da rede P2P e mensagens da busca"></svg>
-      <div class="controls">
-        <button type="button" id="play">Reproduzir animação completa</button>
-        <button type="button" id="step">Avançar rodada</button>
-        <button type="button" id="reset">Reiniciar animação</button>
-        <button type="button" id="randomExample">Novo exemplo random</button>
-        <span class="step-label" id="stepLabel">Quadro 0 / 0</span>
-      </div>
+    <section class="query-panel" aria-label="Parâmetros da busca">
+      <p>
+        Caso altere o algoritmo ou um dos parâmetros abaixo, clique em aplicar e
+        iniciar para confirmar as alterações.
+      </p>
+      <form class="query-form" id="searchForm">
+        <label
+          >Algoritmo
+          <select id="algorithm" name="algorithm">
+            <option value="flooding">Flooding</option>
+            <option value="random_walk">Random walk</option>
+          </select>
+        </label>
+        <label
+          >Nó inicial
+          <input
+            id="startNode"
+            name="startNode"
+            list="nodeOptions"
+            autocomplete="off"
+            class="plain-list-input"
+          />
+          <datalist id="nodeOptions"></datalist>
+        </label>
+        <label
+          >Recurso
+          <input
+            id="resourceId"
+            name="resourceId"
+            list="resourceOptions"
+            autocomplete="off"
+            class="plain-list-input"
+          />
+          <datalist id="resourceOptions"></datalist>
+        </label>
+        <label
+          >TTL
+          <input id="ttl" name="ttl" type="number" min="0" step="1" />
+        </label>
+        <label
+          >Rede
+          <select id="configSelect" name="configSelect"></select>
+        </label>
+        <label class="check-field">
+          <input id="ignoreCache" name="ignoreCache" type="checkbox" />
+          Usar cache
+        </label>
+        <div class="form-actions">
+          <button type="submit" class="primary">Aplicar e iniciar</button>
+        </div>
+      </form>
+      <div class="error-panel hidden" id="errorPanel" role="alert"></div>
+      <div class="editor-status" id="editorStatus" aria-live="polite"></div>
     </section>
-    <aside>
-      <section class="message-panel" id="messagePanel" aria-label="Mensagens em tempo real">
-        <h2>Mensagens</h2>
-        <ul class="log" id="log"></ul>
-      </section>
-      <section class="cache-panel hidden" id="cachePanel" aria-label="Caches dos nós">
-        <h2>Caches dos nós</h2>
-        <ul class="caches" id="caches"></ul>
-      </section>
-      <h2>Busca</h2>
-      <dl id="searchStats"></dl>
-      <h2>Legenda</h2>
-      <ul class="legend">
-        <li><span class="swatch" style="background: var(--start)"></span>nó inicial</li>
-        <li><span class="swatch" style="background: var(--found)"></span>nó com recurso</li>
-        <li id="cacheLegendItem" class="hidden"><span class="swatch" style="background: var(--cache)"></span>nó com cache do recurso</li>
-        <li><span class="swatch" style="background: var(--request)"></span>requisição</li>
-        <li><span class="swatch" style="background: var(--reply)"></span>resposta</li>
-      </ul>
-      <h2 class="section-gap">Recursos</h2>
-      <ul class="resources" id="resources"></ul>
-      <section class="tutorial-panel" aria-label="Tutorial de uso">
-        <h2>Tutorial</h2>
-        <ol>
-          <li>Escolha um um arquivo de topologia no seletor superior ou edite os campos da topologia manualmente.</li>
-          <li>Escolha o algoritmo, o nó inicial, o recurso procurado e o TTL.</li>
-          <li>Clique em Executar para recalcular a busca.</li>
-          <li>Use os botões da barra inferior para controlar a animação.</li>
-          <li>Em random walk, use Novo exemplo random para sortear outra execução.</li>
-        </ol>
-      </section>
-      <section class="mesh-editor" aria-label="Editor da rede">
-        <h2>Topologia da Rede</h2>
-        <div class="editor-grid">
-          <div class="mesh-numbers">
-            <label>Nós
-              <input id="meshNumNodes" type="number" min="1" step="1">
-            </label>
-            <label>Mín. vizinhos
-              <input id="meshMinNeighbors" type="number" min="0" step="1">
-            </label>
-            <label>Máx. vizinhos
-              <input id="meshMaxNeighbors" type="number" min="0" step="1">
-            </label>
-          </div>
-          <label>Recursos
-            <textarea id="meshResources" spellcheck="false"></textarea>
-          </label>
-          <label>Arestas
-            <textarea id="meshEdges" spellcheck="false"></textarea>
-          </label>
-          <label>Caches
-            <textarea id="meshCaches" spellcheck="false"></textarea>
-          </label>
-          <div class="editor-actions">
-            <button type="button" id="applyMesh">Aplicar alterações</button>
-          </div>
+
+    <main>
+      <section
+        class="graph-panel"
+        aria-label="Visualização do grafo da rede P2P"
+      >
+        <div
+          class="status pending"
+          id="statusLabel"
+          data-final-status="ENCONTRADO"
+          data-final-class="found"
+        >
+          EXPLORANDO
+        </div>
+        <svg
+          id="network"
+          viewBox="0 0 760 980"
+          role="img"
+          aria-label="Grafo da rede P2P e mensagens da busca"
+        ></svg>
+        <div class="graph-error hidden" id="graphError" role="alert">
+          Não foi possível renderizar o grafo. Corrija a validação da topologia
+          para continuar.
+        </div>
+        <div class="controls">
+          <button type="button" id="play">Reproduzir animação completa</button>
+          <button type="button" id="step">Avançar rodada</button>
+          <button type="button" id="reset">Reiniciar animação</button>
+          <button type="button" id="randomExample">Novo exemplo random</button>
+          <span class="step-label" id="stepLabel">Quadro 0 / 0</span>
         </div>
       </section>
-    </aside>
-  </main>
-  <script src="visualization.js"></script>
-</body>
+      <aside>
+        <section
+          class="message-panel"
+          id="messagePanel"
+          aria-label="Mensagens em tempo real"
+        >
+          <h2>Mensagens</h2>
+          <ul class="log" id="log"></ul>
+        </section>
+        <section
+          class="cache-panel hidden"
+          id="cachePanel"
+          aria-label="Caches dos nós"
+        >
+          <h2>Caches dos nós</h2>
+          <ul class="caches" id="caches"></ul>
+        </section>
+        <h2>Busca</h2>
+        <dl id="searchStats"></dl>
+        <h2>Legenda</h2>
+        <ul class="legend">
+          <li>
+            <span class="swatch" style="background: var(--start)"></span>nó
+            inicial
+          </li>
+          <li>
+            <span class="swatch" style="background: var(--found)"></span>nó com
+            recurso
+          </li>
+          <li id="cacheLegendItem" class="hidden">
+            <span class="swatch" style="background: var(--cache)"></span>nó com
+            cache do recurso
+          </li>
+          <li>
+            <span class="swatch" style="background: var(--request)"></span
+            >requisição
+          </li>
+          <li>
+            <span class="swatch" style="background: var(--reply)"></span
+            >resposta
+          </li>
+        </ul>
+        <h2 class="section-gap">Recursos</h2>
+        <ul class="resources" id="resources"></ul>
+        <section class="tutorial-panel" aria-label="Tutorial de uso">
+          <h2>Tutorial</h2>
+          <ol>
+            <li>
+              Escolha um um arquivo de topologia no seletor superior ou edite os
+              campos da topologia manualmente.
+            </li>
+            <li>
+              Escolha o algoritmo, o nó inicial, o recurso procurado e o TTL.
+            </li>
+            <li>Clique em Executar para recalcular a busca.</li>
+            <li>Use os botões da barra inferior para controlar a animação.</li>
+            <li>
+              Em random walk, use Novo exemplo random para sortear outra
+              execução.
+            </li>
+          </ol>
+        </section>
+        <section class="mesh-editor" aria-label="Editor da rede">
+          <h2>Topologia da Rede</h2>
+          <div class="editor-grid">
+            <div class="mesh-numbers">
+              <label
+                >Nós
+                <input id="meshNumNodes" type="number" min="1" step="1" />
+              </label>
+              <label
+                >Mín. vizinhos
+                <input id="meshMinNeighbors" type="number" min="0" step="1" />
+              </label>
+              <label
+                >Máx. vizinhos
+                <input id="meshMaxNeighbors" type="number" min="0" step="1" />
+              </label>
+            </div>
+            <label
+              >Recursos
+              <textarea id="meshResources" spellcheck="false"></textarea>
+            </label>
+            <label
+              >Arestas
+              <textarea id="meshEdges" spellcheck="false"></textarea>
+            </label>
+            <label
+              >Caches
+              <textarea id="meshCaches" spellcheck="false"></textarea>
+            </label>
+            <div class="editor-actions">
+              <button type="button" id="applyMesh">Aplicar alterações</button>
+            </div>
+          </div>
+        </section>
+      </aside>
+    </main>
+    <script src="visualization.js"></script>
+  </body>
 </html>

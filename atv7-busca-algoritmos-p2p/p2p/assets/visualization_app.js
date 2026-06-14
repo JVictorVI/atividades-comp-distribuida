@@ -1,5 +1,5 @@
 const initialPayload = clone(window.P2P_INITIAL_DATA || {});
-const availableConfigFiles = clone(window.P2P_CONFIG_FILES || []);
+let availableConfigFiles = clone(window.P2P_CONFIG_FILES || []);
 let data = clone(initialPayload);
 let activeNetwork = networkFromPayload(data);
 let searchSequence = readSearchSequence(data.result && data.result.search_id);
@@ -11,6 +11,8 @@ const stepLabel = document.getElementById("stepLabel");
 const playButton = document.getElementById("play");
 const statusLabel = document.getElementById("statusLabel");
 const messagePanel = document.getElementById("messagePanel");
+const graphPanel = document.querySelector(".graph-panel");
+const graphError = document.getElementById("graphError");
 const caches = document.getElementById("caches");
 const cachePanel = document.getElementById("cachePanel");
 const searchStats = document.getElementById("searchStats");
@@ -1712,6 +1714,18 @@ function stop() {
   playButton.textContent = "Reproduzir animação completa";
 }
 
+function showGraphError(message) {
+  graphError.textContent = message;
+  graphError.classList.remove("hidden");
+  graphPanel.classList.add("has-error");
+}
+
+function clearGraphError() {
+  graphError.textContent = "";
+  graphError.classList.add("hidden");
+  graphPanel.classList.remove("has-error");
+}
+
 function setEditorStatus(message, type = "") {
   editorStatus.textContent = type === "error" ? "" : message;
   editorStatus.classList.remove("error", "ok");
@@ -1719,9 +1733,13 @@ function setEditorStatus(message, type = "") {
   if (type === "error") {
     errorPanel.textContent = message;
     errorPanel.classList.remove("hidden");
+    showGraphError(
+      `Não foi possível renderizar o grafo. Corrija a validação da topologia para continuar. Detalhes: ${message}`,
+    );
   } else if (!message || type === "ok") {
     errorPanel.textContent = "";
     errorPanel.classList.add("hidden");
+    if (type === "ok") clearGraphError();
   }
 }
 
@@ -1779,7 +1797,54 @@ function normalizeCurrentQueryForNetwork(network) {
   }
 }
 
-function populateConfigSelect() {
+function sameConfigFiles(left, right) {
+  const comparable = (items) =>
+    items.map((item) => ({ path: item.path, content: item.content }));
+  return JSON.stringify(comparable(left)) === JSON.stringify(comparable(right));
+}
+
+async function discoverConfigFiles() {
+  const response = await fetch("examples/", { cache: "no-store" });
+  if (!response.ok) throw new Error("Pasta examples indisponível");
+  const html = await response.text();
+  const documentFragment = new DOMParser().parseFromString(html, "text/html");
+  const paths = Array.from(documentFragment.querySelectorAll("a"))
+    .map((link) => link.getAttribute("href") || "")
+    .map((href) => decodeURIComponent(href.split(/[?#]/, 1)[0]))
+    .filter((href) => /\.ya?ml$/i.test(href))
+    .filter((href) => !href.includes("/") && !href.includes("\\"))
+    .map((href) => `examples/${href}`);
+
+  const uniquePaths = sortedUnique(paths);
+  const configs = [];
+  for (const path of uniquePaths) {
+    const fileResponse = await fetch(path, { cache: "no-store" });
+    if (!fileResponse.ok) continue;
+    const content = await fileResponse.text();
+    configs.push({
+      name: path.split("/").pop(),
+      path,
+      content,
+    });
+  }
+  return configs;
+}
+
+async function refreshConfigFiles() {
+  try {
+    const discovered = await discoverConfigFiles();
+    if (!discovered.length || sameConfigFiles(discovered, availableConfigFiles)) {
+      return;
+    }
+    const selectedPath = controls.configSelect.value;
+    availableConfigFiles = discovered;
+    populateConfigSelect(selectedPath);
+  } catch {
+    // Browsers block directory listing from file://; keep the embedded fallback list.
+  }
+}
+
+function populateConfigSelect(preferredPath = "") {
   controls.configSelect.innerHTML = "";
 
   const placeholder = document.createElement("option");
@@ -1796,7 +1861,14 @@ function populateConfigSelect() {
   const defaultConfig = availableConfigFiles.find(
     (config) => config.name === "mesh.yaml",
   );
-  if (defaultConfig) controls.configSelect.value = defaultConfig.path;
+  const preferredConfig = availableConfigFiles.find(
+    (config) => config.path === preferredPath,
+  );
+  if (preferredConfig) {
+    controls.configSelect.value = preferredConfig.path;
+  } else if (defaultConfig) {
+    controls.configSelect.value = defaultConfig.path;
+  }
 }
 
 function hydrateControls() {
@@ -1889,6 +1961,8 @@ controls.randomExample.addEventListener("click", () =>
 );
 controls.algorithm.addEventListener("change", updateAlgorithmControls);
 controls.configSelect.addEventListener("change", loadSelectedConfig);
+controls.configSelect.addEventListener("focus", refreshConfigFiles);
+controls.configSelect.addEventListener("pointerdown", refreshConfigFiles);
 
 for (const input of [
   controls.meshNumNodes,
@@ -1910,5 +1984,6 @@ window.addEventListener("unhandledrejection", (event) => {
 });
 
 hydrateControls();
+refreshConfigFiles();
 renderDynamicSections();
 reset();

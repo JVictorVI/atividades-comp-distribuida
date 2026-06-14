@@ -49,7 +49,8 @@ BUSCA = {
     "seed": None,
     "ignore_cache": False,
     "trace": True,
-    "visualize": "visualization.html",
+    # Use "visualization.html" aqui somente quando quiser regenerar a interface.
+    "visualize": None,
 }
 
 

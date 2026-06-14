@@ -1,7 +1,7 @@
 window.P2P_INITIAL_DATA = {"layout": {"width": 760, "height": 980}, "config": {"num_nodes": 11, "min_neighbors": 1, "max_neighbors": 4}, "uses_cache": true, "has_configured_cache": true, "nodes": [{"id": "n1", "resources": ["r1"], "cache": [{"resource": "r1", "holder": "n1", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 380.0, "y": 90.0}, {"id": "n2", "resources": ["r2"], "cache": [{"resource": "r2", "holder": "n2", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 206.0, "y": 356.67}, {"id": "n3", "resources": ["r3"], "cache": [{"resource": "r3", "holder": "n3", "local": true, "searched": false}, {"resource": "r5", "holder": "n5", "local": false, "searched": true}], "cache_relevant": true, "cache_used": true, "x": 322.0, "y": 356.67}, {"id": "n4", "resources": ["r4"], "cache": [{"resource": "r2", "holder": "n2", "local": false, "searched": false}, {"resource": "r4", "holder": "n4", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 438.0, "y": 356.67}, {"id": "n5", "resources": ["r5"], "cache": [{"resource": "r3", "holder": "n3", "local": false, "searched": false}, {"resource": "r5", "holder": "n5", "local": true, "searched": true}], "cache_relevant": false, "cache_used": false, "x": 554.0, "y": 356.67}, {"id": "n6", "resources": ["r6"], "cache": [{"resource": "r6", "holder": "n6", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 206.0, "y": 623.33}, {"id": "n7", "resources": ["r7"], "cache": [{"resource": "r7", "holder": "n7", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 322.0, "y": 623.33}, {"id": "n8", "resources": ["r8"], "cache": [{"resource": "r8", "holder": "n8", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 438.0, "y": 623.33}, {"id": "n9", "resources": ["r9"], "cache": [{"resource": "r9", "holder": "n9", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 554.0, "y": 623.33}, {"id": "n10", "resources": ["r10"], "cache": [{"resource": "r10", "holder": "n10", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 283.33, "y": 890.0}, {"id": "n11", "resources": ["r11"], "cache": [{"resource": "r11", "holder": "n11", "local": true, "searched": false}], "cache_relevant": false, "cache_used": false, "x": 476.67, "y": 890.0}], "edges": [{"source": "n1", "target": "n2"}, {"source": "n1", "target": "n3"}, {"source": "n1", "target": "n4"}, {"source": "n1", "target": "n5"}, {"source": "n10", "target": "n6"}, {"source": "n11", "target": "n9"}, {"source": "n2", "target": "n6"}, {"source": "n3", "target": "n7"}, {"source": "n3", "target": "n8"}, {"source": "n4", "target": "n9"}], "events": [{"step": 1, "search_id": "s1", "round": 1, "kind": "request", "source": "n1", "target": "n2", "resource_id": "r5", "ttl": 5}, {"step": 2, "search_id": "s1", "round": 1, "kind": "request", "source": "n1", "target": "n3", "resource_id": "r5", "ttl": 5}, {"step": 3, "search_id": "s1", "round": 1, "kind": "request", "source": "n1", "target": "n4", "resource_id": "r5", "ttl": 5}, {"step": 4, "search_id": "s1", "round": 1, "kind": "request", "source": "n1", "target": "n5", "resource_id": "r5", "ttl": 5}, {"step": 5, "search_id": "s1", "round": 1, "kind": "reply", "source": "n3", "target": "n1", "resource_id": "r5", "ttl": null}, {"step": 6, "search_id": "s1", "round": 1, "kind": "direct", "source": "n1", "target": "n5", "resource_id": "r5", "ttl": null}, {"step": 7, "search_id": "s1", "round": 2, "kind": "request", "source": "n2", "target": "n6", "resource_id": "r5", "ttl": 4}, {"step": 8, "search_id": "s1", "round": 2, "kind": "request", "source": "n3", "target": "n7", "resource_id": "r5", "ttl": 4}, {"step": 9, "search_id": "s1", "round": 2, "kind": "request", "source": "n3", "target": "n8", "resource_id": "r5", "ttl": 4}, {"step": 10, "search_id": "s1", "round": 2, "kind": "request", "source": "n4", "target": "n9", "resource_id": "r5", "ttl": 4}, {"step": 11, "search_id": "s1", "round": 3, "kind": "request", "source": "n6", "target": "n10", "resource_id": "r5", "ttl": 3}, {"step": 12, "search_id": "s1", "round": 3, "kind": "request", "source": "n9", "target": "n11", "resource_id": "r5", "ttl": 3}], "resource_holder": "n5", "result": {"search_id": "s1", "algorithm": "flooding", "start_node": "n1", "resource_id": "r5", "ttl": 6, "ignore_cache": false, "found": true, "holder": "n5", "informed_by": "n3", "found_via": "cache", "messages": 12, "nodes_involved": 11, "path": "n1 -> n3 -> n5", "cache_snapshot": {"n1": {"r1": "n1"}, "n2": {"r2": "n2"}, "n3": {"r3": "n3", "r5": "n5"}, "n4": {"r4": "n4", "r2": "n2"}, "n5": {"r5": "n5", "r3": "n3"}, "n6": {"r6": "n6"}, "n7": {"r7": "n7"}, "n8": {"r8": "n8"}, "n9": {"r9": "n9"}, "n10": {"r10": "n10"}, "n11": {"r11": "n11"}}}};
-window.P2P_CONFIG_FILES = [{"name": "complex.yaml", "path": "examples/complex.yaml", "content": "num_nodes: 14\nmin_neighbors: 1\nmax_neighbors: 4\n\nresources:\n  n1: r1\n  n2: r2\n  n3: r3\n  n4: r4\n  n5: r5\n  n6: r6\n  n7: r7\n  n8: r8\n  n9: r9\n  n10: r10\n  n11: r11\n  n12: r12\n  n13: r13\n  n14: r14\n\ncaches:\n  n6: r10=n10\n  n8: r14=n14\n  n11: r5=n5\n  n13: r9=n9\n\nedges:\n  - n1, n2\n  - n1, n3\n  - n1, n4\n  - n2, n5\n  - n2, n6\n  - n5, n9\n  - n5, n10\n  - n3, n7\n  - n3, n8\n  - n7, n11\n  - n7, n12\n  - n4, n13\n  - n13, n14\n  - n6, n10\n  - n8, n12\n"}, {"name": "mesh.yaml", "path": "examples/mesh.yaml", "content": "num_nodes: 11\nmin_neighbors: 1\nmax_neighbors: 4\n\nresources:\n  n1: r1\n  n2: r2\n  n3: r3\n  n4: r4\n  n5: r5\n  n6: r6\n  n7: r7\n  n8: r8\n  n9: r9\n  n10: r10\n  n11: r11\n\ncaches:\n  n3: r5=n5\n  n4: r2=n2\n  n5: r3=n3\n\nedges:\n  - n1, n2\n  - n1, n3\n  - n1, n4\n  - n1, n5\n  - n2, n6\n  - n3, n7\n  - n3, n8\n  - n4, n9\n  - n6, n10\n  - n9, n11\n"}];
+window.P2P_CONFIG_FILES = [{"name": "complex.yaml", "path": "examples/complex.yaml", "content": "num_nodes: 14\nmin_neighbors: 1\nmax_neighbors: 4\n\nresources:\n  n1: r1\n  n2: r2\n  n3: r3\n  n4: r4\n  n5: r5\n  n6: r6\n  n7: r7\n  n8: r8\n  n9: r9\n  n10: r10\n  n11: r11\n  n12: r12\n  n13: r13\n  n14: r14\n\ncaches:\n  n6: r10=n10\n  n8: r14=n14\n  n11: r5=n5\n  n13: r9=n9\n\nedges:\n  - n1, n2\n  - n1, n3\n  - n1, n4\n  - n2, n5\n  - n2, n6\n  - n5, n9\n  - n5, n10\n  - n3, n7\n  - n3, n8\n  - n7, n11\n  - n7, n12\n  - n4, n13\n  - n13, n14\n  - n6, n10\n  - n8, n12\n"}, {"name": "mesh.yaml", "path": "examples/mesh.yaml", "content": "num_nodes: 11\nmin_neighbors: 1\nmax_neighbors: 4\n\nresources:\n  n1: r1\n  n2: r2\n  n3: r3\n  n4: r4\n  n5: r5\n  n6: r6\n  n7: r7\n  n8: r8\n  n9: r9\n  n10: r10\n  n11: r11\n\ncaches:\n  n3: r5=n5\n  n4: r2=n2\n  n5: r3=n3\n\nedges:\n  - n1, n2\n  - n1, n3\n  - n1, n4\n  - n1, n5\n  - n2, n6\n  - n3, n7\n  - n3, n8\n  - n4, n9\n  - n6, n10\n  - n9, n11\n"}, {"name": "stress.yaml", "path": "examples/stress.yaml", "content": "num_nodes: 20\nmin_neighbors: 2\nmax_neighbors: 5\n\nresources:\n  n1: r1\n  n2: r2\n  n3: r3\n  n4: r4\n  n5: r5\n  n6: r6\n  n7: r7\n  n8: r8\n  n9: r9\n  n10: r10\n  n11: r11\n  n12: r12\n  n13: r13\n  n14: r14\n  n15: r15\n  n16: r16\n  n17: r17\n  n18: r18\n  n19: r19\n  n20: r20\n\ncaches:\n  n1: r14=n14, r18=n18\n  n3: r20=n20\n  n5: r12=n12\n  n7: r15=n15\n  n9: r2=n2\n  n11: r6=n6\n  n13: r19=n19\n  n16: r4=n4\n  n18: r8=n8\n  n20: r10=n10\n\nedges:\n  - n1, n2\n  - n2, n3\n  - n3, n4\n  - n4, n5\n  - n5, n6\n  - n6, n7\n  - n7, n8\n  - n8, n9\n  - n9, n10\n  - n10, n11\n  - n11, n12\n  - n12, n13\n  - n13, n14\n  - n14, n15\n  - n15, n16\n  - n16, n17\n  - n17, n18\n  - n18, n19\n  - n19, n20\n  - n20, n1\n  - n1, n6\n  - n1, n11\n  - n2, n7\n  - n2, n12\n  - n3, n8\n  - n3, n13\n  - n4, n9\n  - n4, n14\n  - n5, n10\n  - n5, n15\n  - n6, n16\n  - n7, n17\n  - n8, n18\n  - n9, n19\n  - n10, n20\n  - n11, n16\n  - n12, n17\n  - n13, n18\n  - n14, n19\n  - n15, n20\n  - n16, n20\n"}];
 const initialPayload = clone(window.P2P_INITIAL_DATA || {});
-const availableConfigFiles = clone(window.P2P_CONFIG_FILES || []);
+let availableConfigFiles = clone(window.P2P_CONFIG_FILES || []);
 let data = clone(initialPayload);
 let activeNetwork = networkFromPayload(data);
 let searchSequence = readSearchSequence(data.result && data.result.search_id);
@@ -13,6 +13,8 @@ const stepLabel = document.getElementById("stepLabel");
 const playButton = document.getElementById("play");
 const statusLabel = document.getElementById("statusLabel");
 const messagePanel = document.getElementById("messagePanel");
+const graphPanel = document.querySelector(".graph-panel");
+const graphError = document.getElementById("graphError");
 const caches = document.getElementById("caches");
 const cachePanel = document.getElementById("cachePanel");
 const searchStats = document.getElementById("searchStats");
@@ -1714,6 +1716,18 @@ function stop() {
   playButton.textContent = "Reproduzir animação completa";
 }
 
+function showGraphError(message) {
+  graphError.textContent = message;
+  graphError.classList.remove("hidden");
+  graphPanel.classList.add("has-error");
+}
+
+function clearGraphError() {
+  graphError.textContent = "";
+  graphError.classList.add("hidden");
+  graphPanel.classList.remove("has-error");
+}
+
 function setEditorStatus(message, type = "") {
   editorStatus.textContent = type === "error" ? "" : message;
   editorStatus.classList.remove("error", "ok");
@@ -1721,9 +1735,13 @@ function setEditorStatus(message, type = "") {
   if (type === "error") {
     errorPanel.textContent = message;
     errorPanel.classList.remove("hidden");
+    showGraphError(
+      `Não foi possível renderizar o grafo. Corrija a validação da topologia para continuar. Detalhes: ${message}`,
+    );
   } else if (!message || type === "ok") {
     errorPanel.textContent = "";
     errorPanel.classList.add("hidden");
+    if (type === "ok") clearGraphError();
   }
 }
 
@@ -1781,7 +1799,54 @@ function normalizeCurrentQueryForNetwork(network) {
   }
 }
 
-function populateConfigSelect() {
+function sameConfigFiles(left, right) {
+  const comparable = (items) =>
+    items.map((item) => ({ path: item.path, content: item.content }));
+  return JSON.stringify(comparable(left)) === JSON.stringify(comparable(right));
+}
+
+async function discoverConfigFiles() {
+  const response = await fetch("examples/", { cache: "no-store" });
+  if (!response.ok) throw new Error("Pasta examples indisponível");
+  const html = await response.text();
+  const documentFragment = new DOMParser().parseFromString(html, "text/html");
+  const paths = Array.from(documentFragment.querySelectorAll("a"))
+    .map((link) => link.getAttribute("href") || "")
+    .map((href) => decodeURIComponent(href.split(/[?#]/, 1)[0]))
+    .filter((href) => /\.ya?ml$/i.test(href))
+    .filter((href) => !href.includes("/") && !href.includes("\\"))
+    .map((href) => `examples/${href}`);
+
+  const uniquePaths = sortedUnique(paths);
+  const configs = [];
+  for (const path of uniquePaths) {
+    const fileResponse = await fetch(path, { cache: "no-store" });
+    if (!fileResponse.ok) continue;
+    const content = await fileResponse.text();
+    configs.push({
+      name: path.split("/").pop(),
+      path,
+      content,
+    });
+  }
+  return configs;
+}
+
+async function refreshConfigFiles() {
+  try {
+    const discovered = await discoverConfigFiles();
+    if (!discovered.length || sameConfigFiles(discovered, availableConfigFiles)) {
+      return;
+    }
+    const selectedPath = controls.configSelect.value;
+    availableConfigFiles = discovered;
+    populateConfigSelect(selectedPath);
+  } catch {
+    // Browsers block directory listing from file://; keep the embedded fallback list.
+  }
+}
+
+function populateConfigSelect(preferredPath = "") {
   controls.configSelect.innerHTML = "";
 
   const placeholder = document.createElement("option");
@@ -1798,7 +1863,14 @@ function populateConfigSelect() {
   const defaultConfig = availableConfigFiles.find(
     (config) => config.name === "mesh.yaml",
   );
-  if (defaultConfig) controls.configSelect.value = defaultConfig.path;
+  const preferredConfig = availableConfigFiles.find(
+    (config) => config.path === preferredPath,
+  );
+  if (preferredConfig) {
+    controls.configSelect.value = preferredConfig.path;
+  } else if (defaultConfig) {
+    controls.configSelect.value = defaultConfig.path;
+  }
 }
 
 function hydrateControls() {
@@ -1891,6 +1963,8 @@ controls.randomExample.addEventListener("click", () =>
 );
 controls.algorithm.addEventListener("change", updateAlgorithmControls);
 controls.configSelect.addEventListener("change", loadSelectedConfig);
+controls.configSelect.addEventListener("focus", refreshConfigFiles);
+controls.configSelect.addEventListener("pointerdown", refreshConfigFiles);
 
 for (const input of [
   controls.meshNumNodes,
@@ -1912,5 +1986,6 @@ window.addEventListener("unhandledrejection", (event) => {
 });
 
 hydrateControls();
+refreshConfigFiles();
 renderDynamicSections();
 reset();

@@ -92,6 +92,18 @@ input {
   padding: 7px 9px;
 }
 
+.plain-list-input::-webkit-calendar-picker-indicator {
+  display: none !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.plain-list-input {
+  -webkit-appearance: none;
+  appearance: textfield;
+  background-image: none;
+}
+
 textarea {
   min-height: 96px;
   resize: vertical;
@@ -275,6 +287,26 @@ svg {
   height: min(72vh, 720px);
   min-height: 500px;
   background: #0b1728;
+}
+
+.graph-error {
+  display: grid;
+  min-height: 500px;
+  height: min(72vh, 720px);
+  place-items: center;
+  padding: 32px;
+  background: #0b1728;
+  color: #fecdd3;
+  text-align: center;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.graph-panel.has-error .status,
+.graph-panel.has-error svg,
+.graph-panel.has-error .controls {
+  display: none;
 }
 
 .graph-edge {
