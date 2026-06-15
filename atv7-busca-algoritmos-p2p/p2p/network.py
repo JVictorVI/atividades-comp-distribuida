@@ -339,13 +339,14 @@ class P2PNetwork:
 
                     # A busca é feita no vizinho, verificando se o recurso está disponível localmente ou via cache (se permitido). Se encontrado, preparamos a resposta direta e otimizamos as conexões se necessário. O uso do cache é controlado pelo algoritmo escolhido e pela flag ignore_cache, permitindo comparar o desempenho com e sem cache.
                     holder, found_via = self._lookup(neighbor, resource_id, use_cache)
-                    if holder is not None:
+                    found_resource = holder is not None
+                    if found_resource:
                         if first_success is None:
                             first_success = (holder, neighbor, found_via, next_path)
                             reply_node = neighbor
 
                     # Se o recurso não for encontrado, mas o TTL permitir, adicionamos o vizinho ao próximo frontier para ser processado na próxima rodada. O uso de um dicionário para o próximo frontier permite evitar duplicatas e garantir que cada nó seja processado apenas uma vez por rodada, mesmo que seja alcançado por múltiplos caminhos. Isso é importante para manter a eficiência do flooding e evitar explosões combinatórias de mensagens.
-                    if next_ttl > 0:
+                    if not found_resource and next_ttl > 0:
                         next_frontier[neighbor] = (neighbor, next_ttl, next_path)
 
             # Após processar todos os nós do frontier atual, verificamos se encontramos o recurso e preparamos a resposta direta se necessário. Se encontrarmos o recurso, preparamos a resposta direta e otimizamos as conexões se necessário. O uso do cache é controlado pelo algoritmo escolhido e pela flag ignore_cache, permitindo comparar o desempenho com e sem cache. O loop continua até que o recurso seja encontrado ou que não haja mais nós para processar.
@@ -427,7 +428,7 @@ class P2PNetwork:
         use_cache = not ignore_cache
         current = start
         path = [start]
-        stack = [start]
+        stack = [(start, ttl)]
         involved = {start}
         visited = {start}
         messages = 0
@@ -471,30 +472,16 @@ class P2PNetwork:
             neighbors = [neighbor for neighbor in sorted(self.adjacency[current]) if neighbor not in visited]
 
             previous = current
-            if neighbors:
-                # Avançar para outro nó depende do TTL; voltar por backtracking não depende.
-                if remaining_ttl == 0:
-                    return self._failure(
-                        search_id,
-                        algorithm,
-                        start,
-                        resource_id,
-                        ttl,
-                        ignore_cache,
-                        messages,
-                        involved,
-                        path,
-                        events,
-                        cache_snapshot,
-                    )
+            next_event_ttl = remaining_ttl
+            if neighbors and remaining_ttl > 0:
                 # A escolha aleatória é feita entre os vizinhos não visitados para evitar ciclos desnecessários
                 current = rng.choice(neighbors)
-                stack.append(current)
                 visited.add(current)
                 next_event_ttl = remaining_ttl - 1
                 remaining_ttl -= 1
+                stack.append((current, remaining_ttl))
             else:
-                # Se chegou ao início sem vizinhos novos, todo o componente alcançável foi explorado
+                # Se chegou ao início sem poder avançar, todo o espaço permitido pelo TTL foi explorado
                 if len(stack) == 1:
                     return self._failure(
                         search_id,
@@ -510,7 +497,7 @@ class P2PNetwork:
                         cache_snapshot,
                     )
                 stack.pop()
-                current = stack[-1]
+                current, remaining_ttl = stack[-1]
                 next_event_ttl = remaining_ttl
 
             # Atualiza o caminho, os envolvidos e os eventos de mensagem

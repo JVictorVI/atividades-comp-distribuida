@@ -18,6 +18,7 @@
   --start: #4ea1ff;
   --found: #2dd4a0;
   --request: #f59e0b;
+  --visited-edge: #d97706;
   --reply: #a78bfa;
   --cache: #eab308;
   --danger: #fb7185;
@@ -317,6 +318,13 @@ svg {
 .graph-edge.base {
   stroke: #37536f;
   stroke-width: 2;
+  transition: stroke 180ms ease, stroke-width 180ms ease, opacity 180ms ease;
+}
+
+.graph-edge.base.visited-edge {
+  stroke: var(--visited-edge);
+  stroke-width: 3;
+  opacity: 0.82;
 }
 
 .graph-edge.event-edge {

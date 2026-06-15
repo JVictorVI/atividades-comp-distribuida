@@ -113,13 +113,13 @@ Essas validações são feitas tanto no backend Python quanto na interface, quan
 
 A busca por inundação envia a requisição para todos os vizinhos em paralelo, respeitando o TTL. A simulação ocorre em rodadas: na primeira rodada o nó inicial envia para seus vizinhos; nas próximas rodadas, os nós alcançados continuam propagando a requisição enquanto ainda houver TTL.
 
-Quando um nó encontra o recurso, ele avisa diretamente o nó inicial. Mesmo assim, a propagação paralela não é interrompida imediatamente: as mensagens continuam avançando pelos ramos válidos até o TTL chegar a zero ou não haver novos nós para visitar.
+Quando um nó encontra o recurso, ele avisa diretamente o nó inicial e não encaminha mais a requisição para seus vizinhos. Os outros ramos da inundação continuam avançando pelos caminhos válidos até o TTL chegar a zero ou não haver novos nós para visitar.
 
 O `search_id` evita ciclos, impedindo que um nó processe a mesma busca mais de uma vez.
 
 ### Random Walk
 
-A busca por passeio aleatório escolhe apenas um vizinho por vez. Quando chega a um nó sem vizinhos ainda não visitados, ela faz backtracking pelo caminho já percorrido para tentar outra ramificação. Cada avanço ou retorno conta como mensagem, mas apenas avanços para vizinhos ainda não visitados consomem TTL.
+A busca por passeio aleatório escolhe apenas um vizinho por vez. Quando chega a um nó sem vizinhos ainda não visitados, ela faz backtracking pelo caminho já percorrido para tentar outra ramificação. Se o TTL zerar em um ramo e ainda houver vizinhos restantes em níveis anteriores, a busca volta pelo caminho e restaura o TTL restante daquele nível, sem ultrapassar a profundidade permitida pelo TTL original. Cada avanço ou retorno conta como mensagem, mas apenas avanços para vizinhos ainda não visitados consomem TTL.
 
 No terminal, é possível informar `--seed` para repetir uma execução. Na interface, a seed é escolhida automaticamente por baixo dos panos. O botão `Novo exemplo random` sorteia outra execução para os algoritmos random.
 

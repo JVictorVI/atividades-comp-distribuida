@@ -42,10 +42,12 @@ const controls = {
 };
 
 const ns = "http://www.w3.org/2000/svg";
+const RANDOM_EXAMPLE_MAX_ATTEMPTS = 5000;
 let resourceByNode = new Map();
 const visualNodes = new Map();
 const nodeElements = new Map();
 const edgeElements = new Map();
+const baseEdgeElements = new Map();
 const eventEndpoints = new Map();
 let frames = buildFrames(data.events || []);
 let currentFrame = -1;
@@ -62,6 +64,10 @@ function readSearchSequence(searchId) {
 
 function cleanToken(value) {
   return String(value || "").trim();
+}
+
+function edgeKey(source, target) {
+  return [source, target].sort(compareNodeIds).join("::");
 }
 
 function normalizeAlgorithm(algorithm) {
@@ -869,7 +875,8 @@ function searchFlooding(network, cachesMap, cacheSnapshot, options) {
           options.resourceId,
           useCache,
         );
-        if (found.holder !== null) {
+        const foundResource = found.holder !== null;
+        if (foundResource) {
           if (firstSuccess === null) {
             firstSuccess = {
               holder: found.holder,
@@ -881,7 +888,7 @@ function searchFlooding(network, cachesMap, cacheSnapshot, options) {
           }
         }
 
-        if (nextTtl > 0) {
+        if (!foundResource && nextTtl > 0) {
           nextFrontier.set(neighbor, {
             current: neighbor,
             remainingTtl: nextTtl,
@@ -968,7 +975,7 @@ function searchRandomWalk(network, cachesMap, cacheSnapshot, options) {
   const rng = makeRng(options.seed);
   let current = options.start;
   const path = [options.start];
-  const stack = [options.start];
+  const stack = [{ node: options.start, remainingTtl: options.ttl }];
   const involved = new Set([options.start]);
   const visited = new Set([options.start]);
   let messages = 0;
@@ -1034,27 +1041,12 @@ function searchRandomWalk(network, cachesMap, cacheSnapshot, options) {
       .sort(compareNodeIds);
     const previous = current;
     let nextEventTtl = remainingTtl;
-    if (neighbors.length > 0) {
-      if (remainingTtl === 0) {
-        return makeFailure({
-          searchId: options.searchId,
-          algorithm: options.algorithm,
-          start: options.start,
-          resourceId: options.resourceId,
-          ttl: options.ttl,
-          ignoreCache: options.ignoreCache,
-          messages,
-          involved,
-          path,
-          events,
-          cacheSnapshot,
-        });
-      }
+    if (neighbors.length > 0 && remainingTtl > 0) {
       current = neighbors[Math.floor(rng() * neighbors.length)];
-      stack.push(current);
       visited.add(current);
       nextEventTtl = remainingTtl - 1;
       remainingTtl -= 1;
+      stack.push({ node: current, remainingTtl });
     } else {
       if (stack.length === 1) {
         return makeFailure({
@@ -1072,7 +1064,10 @@ function searchRandomWalk(network, cachesMap, cacheSnapshot, options) {
         });
       }
       stack.pop();
-      current = stack[stack.length - 1];
+      const previousFrame = stack[stack.length - 1];
+      current = previousFrame.node;
+      remainingTtl = previousFrame.remainingTtl;
+      nextEventTtl = remainingTtl;
     }
 
     path.push(current);
@@ -1340,6 +1335,7 @@ function clearSvg() {
   visualNodes.clear();
   nodeElements.clear();
   edgeElements.clear();
+  baseEdgeElements.clear();
   eventEndpoints.clear();
 }
 
@@ -1366,6 +1362,7 @@ function renderGraph() {
       y2: target.y,
     });
     baseEdgeLayer.append(line);
+    baseEdgeElements.set(edgeKey(edge.source, edge.target), line);
   }
 
   for (const edge of graph.eventEdges) {
@@ -1629,6 +1626,10 @@ function animateSingleEvent(event) {
         ? "active-direct"
         : "active-request";
   if (edge) edge.classList.add(activeClass);
+  if (event.kind === "request") {
+    const baseEdge = baseEdgeElements.get(edgeKey(endpoint.source, endpoint.target));
+    if (baseEdge) baseEdge.classList.add("visited-edge");
+  }
   if (sourceNode) sourceNode.classList.add("active", "involved");
   if (targetNode) targetNode.classList.add("active", "involved");
   const touchedNodes = [sourceNode, targetNode];
@@ -1904,17 +1905,69 @@ function collectSearchOptions() {
   };
 }
 
+function searchSignature(result, events = []) {
+  const eventSignature = (events || []).map((event) => [
+    event.kind,
+    event.source,
+    event.target,
+    event.resource_id,
+    event.ttl,
+  ]);
+  return JSON.stringify({
+    found: Boolean(result && result.found),
+    holder: result && result.holder,
+    informedBy: result && result.informed_by,
+    foundVia: result && result.found_via,
+    path: result && result.path,
+    events: eventSignature,
+  });
+}
+
+function applySearchResult(network, result, successMessage) {
+  activeNetwork = network;
+  data = buildPayload(activeNetwork, result);
+  renderDynamicSections();
+  reset();
+  setEditorStatus(successMessage, "ok");
+}
+
 function executeFromInterface(successMessage = "Busca executada.") {
   try {
     const network = parseEditorNetwork();
     updateQueryOptions(network);
     const options = collectSearchOptions();
     const result = runSearch(network, options);
-    activeNetwork = network;
-    data = buildPayload(activeNetwork, result);
-    renderDynamicSections();
-    reset();
-    setEditorStatus(successMessage, "ok");
+    applySearchResult(network, result, successMessage);
+  } catch (error) {
+    stop();
+    setEditorStatus(error.message, "error");
+  }
+}
+
+function executeRandomExample() {
+  try {
+    const network = parseEditorNetwork();
+    updateQueryOptions(network);
+    const options = collectSearchOptions();
+    const previousSignature = searchSignature(data.result || {}, data.events || []);
+    const baseSequence = searchSequence;
+    const firstSeed = createAutoSeed();
+
+    for (let attempt = 0; attempt < RANDOM_EXAMPLE_MAX_ATTEMPTS; attempt += 1) {
+      const seed = ((firstSeed + attempt - 1) % 1000000000) + 1;
+      searchSequence = baseSequence;
+      const result = runSearch(network, { ...options, seed });
+      if (searchSignature(result, result.events || []) !== previousSignature) {
+        applySearchResult(network, result, "Novo exemplo random gerado.");
+        return;
+      }
+    }
+
+    searchSequence = baseSequence;
+    setEditorStatus(
+      "A configuração atual não gerou um percurso diferente.",
+      "error",
+    );
   } catch (error) {
     stop();
     setEditorStatus(error.message, "error");
@@ -1953,9 +2006,7 @@ controls.form.addEventListener("submit", (event) => {
   executeFromInterface();
 });
 controls.applyMesh.addEventListener("click", () => executeFromInterface());
-controls.randomExample.addEventListener("click", () =>
-  executeFromInterface("Novo exemplo random gerado."),
-);
+controls.randomExample.addEventListener("click", executeRandomExample);
 controls.algorithm.addEventListener("change", updateAlgorithmControls);
 controls.configSelect.addEventListener("change", loadSelectedConfig);
 controls.configSelect.addEventListener("focus", refreshConfigFiles);
