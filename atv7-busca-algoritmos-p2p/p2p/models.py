@@ -15,14 +15,8 @@ ALGORITHMS = set(ALGORITHM_ORDER)
 
 ALGORITHM_CHOICES = sorted(ALGORITHMS)
 
-LEGACY_ALGORITHM_ALIASES = {
-    "informed_flooding": "flooding",
-    "informed_random_walk": "random_walk",
-}
-
-
 def normalize_algorithm(algorithm: str) -> str:
-    return LEGACY_ALGORITHM_ALIASES.get(algorithm, algorithm)
+    return algorithm
 
 class ConfigError(ValueError):
     """Erro encontrado no arquivo de configuração da rede."""

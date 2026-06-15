@@ -65,10 +65,7 @@ function cleanToken(value) {
 }
 
 function normalizeAlgorithm(algorithm) {
-  const value = cleanToken(algorithm);
-  if (value === "informed_flooding") return "flooding";
-  if (value === "informed_random_walk") return "random_walk";
-  return value;
+  return cleanToken(algorithm);
 }
 
 function stripComment(line) {
