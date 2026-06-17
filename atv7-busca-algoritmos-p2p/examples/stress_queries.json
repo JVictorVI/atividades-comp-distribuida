@@ -60,6 +60,36 @@
     "algo": "flooding"
   },
   {
+    "node_id": "n6",
+    "resource_id": "r18",
+    "ttl": 1,
+    "algo": "flooding"
+  },
+  {
+    "node_id": "n8",
+    "resource_id": "r20",
+    "ttl": 1,
+    "algo": "flooding"
+  },
+  {
+    "node_id": "n2",
+    "resource_id": "r15",
+    "ttl": 1,
+    "algo": "flooding"
+  },
+  {
+    "node_id": "n12",
+    "resource_id": "r6",
+    "ttl": 1,
+    "algo": "flooding"
+  },
+  {
+    "node_id": "n12",
+    "resource_id": "r19",
+    "ttl": 1,
+    "algo": "flooding"
+  },
+  {
     "node_id": "n11",
     "resource_id": "r4",
     "ttl": 2,
@@ -130,6 +160,41 @@
     "ignore_cache": true
   },
   {
+    "node_id": "n6",
+    "resource_id": "r18",
+    "ttl": 1,
+    "algo": "flooding",
+    "ignore_cache": true
+  },
+  {
+    "node_id": "n8",
+    "resource_id": "r20",
+    "ttl": 1,
+    "algo": "flooding",
+    "ignore_cache": true
+  },
+  {
+    "node_id": "n2",
+    "resource_id": "r15",
+    "ttl": 1,
+    "algo": "flooding",
+    "ignore_cache": true
+  },
+  {
+    "node_id": "n12",
+    "resource_id": "r6",
+    "ttl": 1,
+    "algo": "flooding",
+    "ignore_cache": true
+  },
+  {
+    "node_id": "n12",
+    "resource_id": "r19",
+    "ttl": 1,
+    "algo": "flooding",
+    "ignore_cache": true
+  },
+  {
     "node_id": "n11",
     "resource_id": "r4",
     "ttl": 5,
@@ -190,6 +255,36 @@
     "algo": "random_walk"
   },
   {
+    "node_id": "n6",
+    "resource_id": "r18",
+    "ttl": 5,
+    "algo": "random_walk"
+  },
+  {
+    "node_id": "n8",
+    "resource_id": "r20",
+    "ttl": 5,
+    "algo": "random_walk"
+  },
+  {
+    "node_id": "n2",
+    "resource_id": "r15",
+    "ttl": 5,
+    "algo": "random_walk"
+  },
+  {
+    "node_id": "n12",
+    "resource_id": "r6",
+    "ttl": 5,
+    "algo": "random_walk"
+  },
+  {
+    "node_id": "n12",
+    "resource_id": "r19",
+    "ttl": 5,
+    "algo": "random_walk"
+  },
+  {
     "node_id": "n11",
     "resource_id": "r4",
     "ttl": 5,
@@ -255,6 +350,41 @@
   {
     "node_id": "n20",
     "resource_id": "r10",
+    "ttl": 5,
+    "algo": "random_walk",
+    "ignore_cache": true
+  },
+  {
+    "node_id": "n6",
+    "resource_id": "r18",
+    "ttl": 5,
+    "algo": "random_walk",
+    "ignore_cache": true
+  },
+  {
+    "node_id": "n8",
+    "resource_id": "r20",
+    "ttl": 5,
+    "algo": "random_walk",
+    "ignore_cache": true
+  },
+  {
+    "node_id": "n2",
+    "resource_id": "r15",
+    "ttl": 5,
+    "algo": "random_walk",
+    "ignore_cache": true
+  },
+  {
+    "node_id": "n12",
+    "resource_id": "r6",
+    "ttl": 5,
+    "algo": "random_walk",
+    "ignore_cache": true
+  },
+  {
+    "node_id": "n12",
+    "resource_id": "r19",
     "ttl": 5,
     "algo": "random_walk",
     "ignore_cache": true
